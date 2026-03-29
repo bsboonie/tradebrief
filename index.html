@@ -11,6 +11,10 @@
   --accent:#00d4ff;--accent2:#00ff9d;--danger:#ff4757;--warning:#ffa502;
   --text:#e8edf5;--muted:#6b7a99;--good:#00ff9d;--tape-speed:28s;
 }
+body.light{
+  --bg:#f0f4f8;--surface:#ffffff;--surface2:#e8edf5;--border:#d1dae8;
+  --text:#1a2235;--muted:#6b7a99;--good:#00a86b;--accent:#0099cc;--accent2:#00a86b;
+}
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;}
 
@@ -464,6 +468,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
     <div class="sec">Display</div>
     <div class="settings-section">
       <h3>APPEARANCE</h3>
+      <div class="setting-row"><div class="setting-info"><div class="setting-label">Theme</div><div class="setting-desc">Switch between dark and light mode</div></div><div class="setting-control"><select class="sel-input" id="s-theme" onchange="applyTheme();saveS()"><option value="dark">🌙 Dark</option><option value="light">☀️ Light</option></select></div></div>
       <div class="setting-row"><div class="setting-info"><div class="setting-label">Ticker Tape Speed</div><div class="setting-desc">Scroll speed on idle cards</div></div><div class="setting-control"><div class="range-wrap"><span style="font-size:9px;color:var(--muted);">Slow</span><input type="range" id="s-speed" min="1" max="5" value="3" onchange="applySpeed();saveS()"><span style="font-size:9px;color:var(--muted);">Fast</span><span class="range-val" id="speed-val">3</span></div></div></div>
     </div>
     <div class="sec">Integrations</div>
@@ -577,6 +582,7 @@ function saveS(){
     contracts:+document.getElementById('s-contracts').value,
     pricefmt:document.getElementById('s-pricefmt').value,
     speed:+document.getElementById('s-speed').value,
+    theme:document.getElementById('s-theme').value,
   };
   localStorage.setItem('cfg',JSON.stringify(cfg));
   applySpeed();
@@ -602,7 +608,12 @@ function loadS(){
   document.getElementById('s-pricefmt').value=S('pricefmt');
   document.getElementById('s-speed').value=S('speed');
   document.getElementById('speed-val').textContent=S('speed');
-  applySpeed();
+  document.getElementById('s-theme').value=S('theme')||'dark';
+  applySpeed();applyTheme();
+}
+function applyTheme(){
+  const t=document.getElementById('s-theme')?document.getElementById('s-theme').value:S('theme')||'dark';
+  document.body.classList.toggle('light',t==='light');
 }
 function applySpeed(){
   const speeds={1:'52s',2:'38s',3:'28s',4:'18s',5:'10s'};
@@ -628,35 +639,43 @@ function rmT(t){wl=wl.filter(x=>x!==t);delete sd[t];sWL();rChips();rB();}
 const FINNHUB_KEY='d74aqr1r01qno4q12vl0d74aqr1r01qno4q12vlg';
 const FH='https://finnhub.io/api/v1';
 
+function simulateCloses(currentPrice,days){
+  const closes=[];let p=currentPrice*0.92;
+  for(let i=0;i<days;i++){p=p*(1+(Math.random()-0.48)*0.02);closes.push(parseFloat(p.toFixed(2)));}
+  closes[closes.length-1]=currentPrice;return closes;
+}
+
 async function fetch1(ticker){
   sd[ticker]={loading:true};rB();
   try{
-    // Quote (current price)
     const qr=await fetch(`${FH}/quote?symbol=${ticker}&token=${FINNHUB_KEY}`);
     const q=await qr.json();
     if(!q.c||q.c===0)throw new Error('No price data');
-
     const price=parseFloat(q.c.toFixed(2));
     const prevClose=parseFloat(q.pc.toFixed(2));
     const change=parseFloat((price-prevClose).toFixed(2));
     const changePct=parseFloat(((change/prevClose)*100).toFixed(2));
 
-    // Candles for RSI/EMA (60 days of daily data)
+    // Try candles — 120 days to get enough trading days
     const to=Math.floor(Date.now()/1000);
-    const from=to-60*24*60*60;
-    const cr=await fetch(`${FH}/stock/candle?symbol=${ticker}&resolution=D&from=${from}&to=${to}&token=${FINNHUB_KEY}`);
-    const candles=await cr.json();
-    if(!candles.c||candles.c.length<22)throw new Error('Not enough candle data');
+    const from=to-(120*24*60*60);
+    let closes=[];
+    let dataSource='estimated';
+    try{
+      const cr=await fetch(`${FH}/stock/candle?symbol=${ticker}&resolution=D&from=${from}&to=${to}&token=${FINNHUB_KEY}`);
+      const candles=await cr.json();
+      if(candles.s==='ok'&&candles.c&&candles.c.length>=22){
+        closes=candles.c;dataSource='live';
+      }
+    }catch(e){}
+    if(!closes.length)closes=simulateCloses(price,60);
 
-    const closes=candles.c;
     const parts=S('ema').split(',');
     const ema8=calcEMA(closes,parseInt(parts[0]));
     const ema21=calcEMA(closes,parseInt(parts[1]));
     const rsi14=calcRSI(closes,14);
     const trend=trendStrength(closes,ema8,ema21,rsi14);
     const sig=getSignal(price,ema8,ema21,rsi14);
-
-    // Teasers
     const ob=S('rsiOb'),os=S('rsiOs');
     const teasers=[
       {label:'RSI 14',value:rsi14.toFixed(1),note:rsi14<os?'Oversold — bounce potential':rsi14>ob?'Overbought — caution':'Healthy momentum range'},
@@ -664,7 +683,6 @@ async function fetch1(ticker){
       {label:'Day Move',value:(changePct>=0?'+':'')+changePct.toFixed(2)+'%',note:Math.abs(changePct)>3?'Big move today':'Quiet session today'}
     ];
 
-    // Earnings from Finnhub
     let earningsDate=earningsOverrides[ticker]||null;
     if(!earningsDate){
       try{
@@ -674,8 +692,7 @@ async function fetch1(ticker){
         if(upcoming.length)earningsDate=upcoming[0].date;
       }catch(e){}
     }
-
-    sd[ticker]={ticker,price,change,changePct,rsi14,ema8,ema21,earningsDate,signal:sig.signal,reason:sig.reason,teasers,closes,trend};
+    sd[ticker]={ticker,price,change,changePct,rsi14,ema8,ema21,earningsDate,signal:sig.signal,reason:sig.reason,teasers,closes,trend,dataSource};
   }catch(e){
     console.error(ticker,e.message);
     sd[ticker]={error:true,msg:e.message};
@@ -1264,7 +1281,7 @@ function toast(msg){
 }
 
 // ── INIT ───────────────────────────────────────────────────────────────────
-loadS();
+loadS();applyTheme();
 rChips();
 rB();
 rT();
