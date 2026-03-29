@@ -2,7 +2,13 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#111827">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="TradeBrief">
+<link rel="manifest" href="/tradebrief/manifest.json">
+<link rel="apple-touch-icon" href="/tradebrief/icon-192.png">
 <title>TradeBrief</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -275,7 +281,45 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
 .action-btn.danger{border-color:rgba(255,71,87,0.4);color:var(--danger);}
 .action-btn.success{border-color:rgba(0,255,157,0.4);color:var(--good);}
 
-/* ── HOW-TO PAGE ────────────────────────────────────────────── */
+/* ── FEATURES PAGE ──────────────────────────────────────────── */
+.feat-hero{text-align:center;padding:24px 0 20px;border-bottom:1px solid var(--border);margin-bottom:20px;}
+.feat-hero-tag{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:3px;color:var(--accent2);text-transform:uppercase;margin-bottom:8px;}
+.feat-hero-title{font-family:'Space Mono',monospace;font-size:18px;font-weight:700;color:var(--text);margin-bottom:10px;line-height:1.3;}
+.feat-hero-sub{font-size:13px;color:var(--muted);max-width:520px;margin:0 auto;line-height:1.6;}
+.feat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:28px;}
+.feat-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;position:relative;overflow:hidden;}
+.feat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;}
+.feat-accent-green::before{background:var(--good);}
+.feat-accent-blue::before{background:var(--accent);}
+.feat-accent-purple::before{background:#a78bfa;}
+.feat-icon{font-size:22px;margin-bottom:8px;}
+.feat-title{font-family:'Space Mono',monospace;font-size:11px;font-weight:700;color:var(--text);margin-bottom:6px;}
+.feat-desc{font-size:12px;color:var(--muted);line-height:1.6;}
+.feat-compare-title{font-family:'Space Mono',monospace;font-size:11px;letter-spacing:2px;color:var(--accent);text-transform:uppercase;margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid var(--border);}
+.feat-compare-wrap{overflow-x:auto;margin-bottom:16px;}
+.feat-table{width:100%;border-collapse:collapse;font-size:12px;}
+.feat-table th{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:1px;color:var(--muted);padding:8px 10px;text-align:center;border-bottom:1px solid var(--border);white-space:nowrap;}
+.feat-table th:first-child{text-align:left;}
+.feat-table td{padding:8px 10px;text-align:center;border-bottom:1px solid var(--border);color:var(--muted);}
+.feat-table td:first-child{text-align:left;color:var(--text);font-size:12px;}
+.feat-table tr:hover{background:var(--surface2);}
+.tb-col{background:rgba(0,212,255,0.05);}
+.feat-table th.tb-col{color:var(--accent);background:rgba(0,212,255,0.08);}
+.yes{color:var(--good);}
+.no{color:var(--danger);}
+.partial{color:var(--warning);}
+
+/* ── INVESTOR SIGNAL ────────────────────────────────────────── */
+.inv-badge{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;font-family:'Space Mono',monospace;font-size:10px;font-weight:700;white-space:nowrap;margin-top:4px;}
+.inv-badge.hold{background:rgba(0,255,157,0.15);color:var(--good);border:1px solid rgba(0,255,157,0.3);}
+.inv-badge.watch{background:rgba(0,212,255,0.15);color:var(--accent);border:1px solid rgba(0,212,255,0.3);}
+.inv-badge.tradeonly{background:rgba(255,165,2,0.15);color:var(--warning);border:1px solid rgba(255,165,2,0.3);}
+.inv-badge.speculative{background:rgba(255,71,87,0.15);color:var(--danger);border:1px solid rgba(255,71,87,0.3);}
+.inv-thesis{font-size:11px;color:var(--muted);margin-top:4px;font-style:italic;}
+.inv-elaborate{background:none;border:1px solid var(--border);border-radius:6px;padding:3px 9px;font-size:10px;font-family:'Space Mono',monospace;color:var(--muted);cursor:pointer;margin-top:4px;transition:all 0.2s;}
+.inv-elaborate:hover{border-color:var(--accent);color:var(--accent);}
+
+@media(max-width:580px){.feat-grid{grid-template-columns:1fr;}.feat-table{font-size:10px;}}
 .howto-tabs{display:flex;gap:4px;margin-bottom:16px;background:var(--surface2);padding:3px;border-radius:8px;border:1px solid var(--border);}
 .howto-tab{flex:1;padding:7px;text-align:center;border-radius:6px;font-size:11px;cursor:pointer;color:var(--muted);background:none;border:none;font-family:'Space Mono',monospace;transition:all 0.2s;}
 .howto-tab.active{background:var(--surface);color:var(--accent);border:1px solid var(--border);}
@@ -404,6 +448,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
       <button class="howto-tab active" onclick="hwTab('overview')">📋 Overview</button>
       <button class="howto-tab" onclick="hwTab('usage')">🚀 How To Use</button>
       <button class="howto-tab" onclick="hwTab('glossary')">📚 Glossary</button>
+      <button class="howto-tab" onclick="hwTab('features')">⚡ Features</button>
     </div>
 
     <!-- OVERVIEW -->
@@ -570,9 +615,96 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
         <div class="gterm"><div class="gterm-word">Unrealized P&L</div><div class="gterm-def">The current paper profit or loss on open positions. What you WOULD make if you closed right now.</div><div class="gterm-why">💡 Why it matters: Watch this closely. A trade showing +120% unrealized can reverse fast. When the signal weakens, lock it in.</div></div>
       </div>
     </div>
-  </div>
 
-  <!-- ── BRIEFING ───────────────────────────────────────────── -->
+    <!-- FEATURES -->
+    <div class="howto-content" id="hw-features">
+      <div class="feat-hero">
+        <div class="feat-hero-tag">BUILT FOR SERIOUS RETAIL TRADERS</div>
+        <h1 class="feat-hero-title">TradeBrief Does What No Other Tool Does</h1>
+        <p class="feat-hero-sub">Most trading dashboards show you data. TradeBrief tells you what to DO with it — filtered through your rules, your budget, and your risk tolerance.</p>
+      </div>
+
+      <div class="feat-grid">
+        <div class="feat-card feat-accent-green">
+          <div class="feat-icon">📊</div>
+          <div class="feat-title">Live Morning Briefing</div>
+          <div class="feat-desc">Every stock on your watchlist — price, RSI, EMA trend, signal, and investor thesis — loaded automatically when you open the app. Your pre-market routine in seconds.</div>
+        </div>
+        <div class="feat-card feat-accent-blue">
+          <div class="feat-icon">🎯</div>
+          <div class="feat-title">Trend-Based Take Profit</div>
+          <div class="feat-desc">The only tool that says HOLD when you've hit your target but the trend is still strong. No more leaving money on the table because a % threshold fired too early.</div>
+        </div>
+        <div class="feat-card feat-accent-purple">
+          <div class="feat-icon">💎</div>
+          <div class="feat-title">Investor Signal</div>
+          <div class="feat-desc">Beyond the trade — each stock gets a long-term investor rating based on fundamentals. Know when you're looking at a trade candidate vs a portfolio candidate.</div>
+        </div>
+        <div class="feat-card feat-accent-green">
+          <div class="feat-icon">⚠️</div>
+          <div class="feat-title">Earnings Guardrail</div>
+          <div class="feat-desc">Automatically flags any spread where earnings falls before expiration as RISKY. IV crush kills options positions. TradeBrief protects you before you enter.</div>
+        </div>
+        <div class="feat-card feat-accent-blue">
+          <div class="feat-icon">📈</div>
+          <div class="feat-title">Live TradingView Charts</div>
+          <div class="feat-desc">Embedded real-time candlestick charts with RSI for every stock, right inside the app. Expand any card and see the same chart you'd pull up on TradingView — without leaving TradeBrief.</div>
+        </div>
+        <div class="feat-card feat-accent-purple">
+          <div class="feat-icon">🤖</div>
+          <div class="feat-title">Built-In AI Assistant</div>
+          <div class="feat-desc">Ask anything — strategy, options concepts, stock analysis, trade review. The AI knows your watchlist, your open trades, and your settings. It's like having a trading mentor on call.</div>
+        </div>
+        <div class="feat-card feat-accent-green">
+          <div class="feat-icon">💼</div>
+          <div class="feat-title">Full Trade Lifecycle</div>
+          <div class="feat-desc">Log entries, track open positions, close trades with actual P&L, view full closed trade history. Complete win/loss record with realized and unrealized P&L always visible.</div>
+        </div>
+        <div class="feat-card feat-accent-blue">
+          <div class="feat-icon">🔔</div>
+          <div class="feat-title">Browser Notifications</div>
+          <div class="feat-desc">Get notified even when TradeBrief is in the background. TAKE PROFIT, CLOSE NOW, and EXPIRING alerts fire as browser notifications so you never miss a critical moment.</div>
+        </div>
+        <div class="feat-card feat-accent-purple">
+          <div class="feat-icon">📱</div>
+          <div class="feat-title">Install as a Phone App</div>
+          <div class="feat-desc">Add TradeBrief to your home screen. Opens full-screen with no browser chrome — looks and feels like a native app on both iPhone and Android. No app store needed.</div>
+        </div>
+      </div>
+
+      <div class="feat-compare-title">How TradeBrief Stacks Up</div>
+      <div class="feat-compare-wrap">
+        <table class="feat-table">
+          <thead>
+            <tr>
+              <th>Feature</th>
+              <th class="tb-col">TradeBrief</th>
+              <th>Bloomberg</th>
+              <th>Robinhood</th>
+              <th>tastytrade</th>
+              <th>Spreadsheet</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>Real-time signals (RSI + EMA)</td><td class="tb-col yes">✅</td><td class="yes">✅</td><td class="no">❌</td><td class="partial">~</td><td class="no">❌</td></tr>
+            <tr><td>Custom thresholds (R/R, budget, delta)</td><td class="tb-col yes">✅</td><td class="no">❌</td><td class="no">❌</td><td class="no">❌</td><td class="yes">✅</td></tr>
+            <tr><td>Defined risk only enforcement</td><td class="tb-col yes">✅</td><td class="no">❌</td><td class="no">❌</td><td class="no">❌</td><td class="partial">~</td></tr>
+            <tr><td>Earnings IV crush guardrail</td><td class="tb-col yes">✅</td><td class="partial">~</td><td class="no">❌</td><td class="partial">~</td><td class="no">❌</td></tr>
+            <tr><td>Trend-based take profit logic</td><td class="tb-col yes">✅</td><td class="no">❌</td><td class="no">❌</td><td class="no">❌</td><td class="no">❌</td></tr>
+            <tr><td>Live P&L dashboard</td><td class="tb-col yes">✅</td><td class="yes">✅</td><td class="yes">✅</td><td class="yes">✅</td><td class="partial">~</td></tr>
+            <tr><td>Investor Signal (fundamentals)</td><td class="tb-col yes">✅</td><td class="yes">✅</td><td class="no">❌</td><td class="no">❌</td><td class="no">❌</td></tr>
+            <tr><td>Built-in AI assistant</td><td class="tb-col yes">✅</td><td class="no">❌</td><td class="no">❌</td><td class="no">❌</td><td class="no">❌</td></tr>
+            <tr><td>Embeds TradingView charts</td><td class="tb-col yes">✅</td><td class="yes">✅</td><td class="no">❌</td><td class="partial">~</td><td class="no">❌</td></tr>
+            <tr><td>Works as phone app (PWA)</td><td class="tb-col yes">✅</td><td class="partial">~</td><td class="yes">✅</td><td class="yes">✅</td><td class="no">❌</td></tr>
+            <tr><td>Browser push notifications</td><td class="tb-col yes">✅</td><td class="no">❌</td><td class="yes">✅</td><td class="partial">~</td><td class="no">❌</td></tr>
+            <tr><td>Fully configurable to YOUR rules</td><td class="tb-col yes">✅</td><td class="no">❌</td><td class="no">❌</td><td class="no">❌</td><td class="yes">✅</td></tr>
+            <tr><td>Cost</td><td class="tb-col" style="color:var(--good);font-weight:700;">FREE</td><td style="color:var(--danger);">$24K/yr</td><td class="yes">Free</td><td class="yes">Free</td><td class="yes">Free</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div style="text-align:center;padding:28px 0 8px;font-family:'Space Mono',monospace;font-size:13px;color:var(--accent);">Built for one trader. Configured for you. Free forever.</div>
+    </div>
+  </div>
   <div class="tab-content" id="tab-briefing">
     <div class="sec">Watchlist</div>
     <div class="wl-box">
@@ -686,6 +818,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
       <h3>RISK CONTROLS</h3>
       <div class="setting-row"><div class="setting-info"><div class="setting-label">IV Rank Warning</div><div class="setting-desc">Flag high IV in the briefing</div></div><div class="setting-control"><label class="toggle"><input type="checkbox" id="s-iv" checked onchange="saveS()"><div class="toggle-slider"></div></label></div></div>
       <div class="setting-row"><div class="setting-info"><div class="setting-label">Earnings Guardrail</div><div class="setting-desc">Flag RISKY when earnings before expiration</div></div><div class="setting-control"><label class="toggle"><input type="checkbox" id="s-earn" checked onchange="saveS()"><div class="toggle-slider"></div></label></div></div>
+      <div class="setting-row"><div class="setting-info"><div class="setting-label">Browser Notifications</div><div class="setting-desc">Alert on TAKE PROFIT / CLOSE NOW even when tab is in background</div></div><div class="setting-control"><label class="toggle"><input type="checkbox" id="s-notif" onchange="toggleNotifications()"><div class="toggle-slider"></div></label></div></div>
       <div class="setting-row"><div class="setting-info"><div class="setting-label">DTE Warning (days)</div><div class="setting-desc">Alert when expiring within this many days</div></div><div class="setting-control"><input class="num-input" id="s-dte" type="number" min="1" max="21" value="5" onchange="saveS()"></div></div>
       <div class="setting-row"><div class="setting-info"><div class="setting-label">Profit Alert Threshold (%)</div><div class="setting-desc">Trigger TAKE PROFIT badge at this % gain</div></div><div class="setting-control"><input class="num-input" id="s-profit-alert" type="number" min="10" max="500" value="75" onchange="saveS()"></div></div>
     </div>
@@ -840,6 +973,7 @@ function saveS(){
     contracts:+document.getElementById('s-contracts').value,
     pricefmt:document.getElementById('s-pricefmt').value,
     speed:+document.getElementById('s-speed').value,
+    notif:document.getElementById('s-notif').checked,
     theme:document.getElementById('s-theme').value,
   };
   localStorage.setItem('cfg',JSON.stringify(cfg));
@@ -864,6 +998,7 @@ function loadS(){
   document.getElementById('s-target').value=S('target');
   document.getElementById('s-contracts').value=S('contracts');
   document.getElementById('s-pricefmt').value=S('pricefmt');
+  document.getElementById('s-notif').checked=S('notif')||false;
   document.getElementById('s-speed').value=S('speed');
   document.getElementById('speed-val').textContent=S('speed');
   document.getElementById('s-theme').value=S('theme')||'dark';
@@ -951,6 +1086,8 @@ async function fetch1(ticker){
       }catch(e){}
     }
     sd[ticker]={ticker,price,change,changePct,rsi14,ema8,ema21,earningsDate,signal:sig.signal,reason:sig.reason,teasers,closes,trend,dataSource};
+    // Fetch investor signal in background
+    fetchInvestorSignal(ticker).then(inv=>{if(inv){sd[ticker].investorSignal=inv;rB();}});
   }catch(e){
     console.error(ticker,e.message);
     sd[ticker]={error:true,msg:e.message};
@@ -1123,6 +1260,7 @@ function updatePnL(){
     document.getElementById('pnl-best').className='pnl-val pos';
     document.getElementById('pnl-best-sub').textContent=bestTrade.ticker+' '+bestTrade.type;
   }
+  checkNotifications();
 }
 
 // ── BRIEFING RENDER ────────────────────────────────────────────────────────
@@ -1231,6 +1369,11 @@ function rB(){
         <button class="sel-btn" onclick="select('${ticker}')">⬇ Select</button>
         <button class="ref-sm" onclick="fetch1('${ticker}')">↺ Refresh</button>
         ${d.earningsDate?`<span class="earn-lbl">Earnings: ${d.earningsDate}</span>`:''}
+        ${d.investorSignal?`<div style="margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:3px;">
+          <div class="inv-badge ${d.investorSignal.bclass}">${d.investorSignal.badge}</div>
+          <div class="inv-thesis">${d.investorSignal.thesis}</div>
+          <button class="inv-elaborate" onclick="elaborateStock('${ticker}')">Ask AI to elaborate →</button>
+        </div>`:''}
       </div>
     </div>`;
   }).join('');
@@ -1657,7 +1800,114 @@ function toast(msg){
   t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),2500);
 }
 
-// ── INIT ───────────────────────────────────────────────────────────────────
+// ── BROWSER NOTIFICATIONS ──────────────────────────────────────────────────
+async function toggleNotifications(){
+  const on=document.getElementById('s-notif').checked;
+  if(on){
+    if(!('Notification' in window)){toast('Browser notifications not supported');document.getElementById('s-notif').checked=false;return;}
+    const perm=await Notification.requestPermission();
+    if(perm!=='granted'){
+      toast('Notification permission denied');
+      document.getElementById('s-notif').checked=false;
+      return;
+    }
+    toast('Notifications enabled ✓');
+    new Notification('TradeBrief',{body:'Notifications are now active. You\'ll be alerted on critical trade events.',icon:'/tradebrief/icon-192.png'});
+  }else{
+    toast('Notifications disabled');
+  }
+  saveS();
+}
+
+function sendNotification(title,body){
+  if(!S('notif'))return;
+  if(Notification.permission==='granted'){
+    new Notification(title,{body,icon:'/tradebrief/icon-192.png',badge:'/tradebrief/icon-192.png'});
+  }
+}
+
+// Call this after position status updates
+function checkNotifications(){
+  if(!S('notif')||Notification.permission!=='granted')return;
+  trades.forEach(t=>{
+    const d=sd[t.ticker];
+    if(!d||d.loading||d.error)return;
+    const val=estOptionVal(t,d.price);
+    const plPct=((val-t.cost)/t.cost)*100;
+    const status=positionStatus(t,d.price,plPct);
+    const key=t.ticker+'_'+t.entryDate+'_notif';
+    const lastNotif=sessionStorage.getItem(key);
+    if(status.key==='closenow'&&lastNotif!=='closenow'){
+      sendNotification('🔥 CLOSE NOW — '+t.ticker,t.type+' position is profitable and expiring soon. Act now.');
+      sessionStorage.setItem(key,'closenow');
+    }else if(status.key==='takeprofit'&&lastNotif!=='takeprofit'){
+      sendNotification('🎯 TAKE PROFIT — '+t.ticker,'Your '+t.target+'% target is hit and trend is weakening. Consider closing.');
+      sessionStorage.setItem(key,'takeprofit');
+    }else if(status.key==='expiring'&&lastNotif!=='expiring'){
+      sendNotification('⚠️ EXPIRING SOON — '+t.ticker,t.type+' expires in '+Math.ceil((new Date(t.exp)-new Date())/86400000)+' days.');
+      sessionStorage.setItem(key,'expiring');
+    }
+  });
+}
+
+// ── INVESTOR SIGNAL ────────────────────────────────────────────────────────
+async function fetchInvestorSignal(ticker){
+  try{
+    const r=await fetch(`${FH}/stock/metric?symbol=${ticker}&metric=all&token=${FINNHUB_KEY}`);
+    const data=await r.json();
+    const m=data.metric||{};
+
+    // Score fundamentals
+    let score=0;
+    const pe=m['peBasicExclExtraTTM'];
+    const roe=m['roeTTM'];
+    const revenueGrowth=m['revenueGrowth3Y'];
+    const netMargin=m['netProfitMarginTTM'];
+    const analystR=m['analystRatingBuy']||0;
+    const analystS=m['analystRatingSell']||0;
+    const week52pct=m['52WeekPriceReturnDaily'];
+
+    if(pe&&pe>0&&pe<30)score+=2;
+    else if(pe&&pe>0&&pe<50)score+=1;
+    if(roe&&roe>15)score+=2;
+    else if(roe&&roe>8)score+=1;
+    if(revenueGrowth&&revenueGrowth>10)score+=2;
+    else if(revenueGrowth&&revenueGrowth>0)score+=1;
+    if(netMargin&&netMargin>15)score+=2;
+    else if(netMargin&&netMargin>5)score+=1;
+    const total=analystR+analystS;
+    if(total>0&&analystR/total>0.7)score+=2;
+    else if(total>0&&analystR/total>0.5)score+=1;
+    if(week52pct&&week52pct<-20)score+=1; // potential value
+
+    let badge,bclass,thesis;
+    if(score>=8){badge='💎 LONG TERM HOLD';bclass='hold';thesis='Strong fundamentals across revenue, margins, and analyst consensus — a core holding candidate.';}
+    else if(score>=5){badge='👀 WORTH WATCHING';bclass='watch';thesis='Solid but not exceptional fundamentals — worth monitoring for a better entry point.';}
+    else if(score>=3){badge='⚠️ TRADE ONLY';bclass='tradeonly';thesis='Weak or mixed fundamentals — best suited for short-term options plays, not long-term holds.';}
+    else{badge='🚫 SPECULATIVE';bclass='speculative';thesis='High-risk profile with poor fundamentals — trade carefully with defined risk only.';}
+
+    return{badge,bclass,thesis,score,pe,roe,revenueGrowth,netMargin};
+  }catch(e){return null;}
+}
+
+function elaborateStock(ticker){
+  const d=sd[ticker];
+  if(!d)return;
+  const inv=d.investorSignal;
+  const msg=`Tell me more about ${ticker} as a long-term investment. Here's what I know: Signal is ${d.signal}, RSI is ${d.rsi14}, price is $${d.price}. Investor rating is ${inv?inv.badge:'unknown'}. Thesis: ${inv?inv.thesis:''}. Give me a detailed but concise investment thesis — bull case, bear case, and what I should watch.`;
+  go('ai');
+  document.getElementById('chat-in').value=msg;
+  sendChat();
+}
+
+// ── PWA SERVICE WORKER REGISTRATION ───────────────────────────────────────
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('/tradebrief/sw.js').then(()=>{
+      console.log('TradeBrief SW registered');
+    }).catch(e=>console.log('SW registration failed:',e));
+  });
+}
 loadS();applyTheme();
 rChips();
 rB();
