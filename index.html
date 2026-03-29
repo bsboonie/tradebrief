@@ -135,9 +135,13 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .ref-sm:hover{border-color:var(--accent);color:var(--accent);}
 .earn-lbl{font-size:10px;color:var(--muted);font-family:'Space Mono',monospace;margin-left:5px;}
 
-/* ── TRADINGVIEW CHART ──────────────────────────────────────── */
-.tv-chart{border-top:1px solid var(--border);padding:0;height:200px;overflow:hidden;}
-.tv-chart iframe{width:100%;height:100%;border:none;}
+/* ── CHART TOGGLE ───────────────────────────────────────────── */
+.tv-chart{border-top:1px solid var(--border);overflow:hidden;transition:height 0.3s ease;}
+.tv-chart.open{height:220px;}
+.tv-chart.closed{height:0;border-top:none;}
+.tv-chart iframe{width:100%;height:220px;border:none;}
+.chart-toggle{background:none;border:none;color:var(--muted);font-size:14px;cursor:pointer;padding:2px 6px;border-radius:4px;transition:all 0.2s;font-family:'Space Mono',monospace;line-height:1;}
+.chart-toggle:hover{color:var(--accent);background:var(--surface2);}
 
 /* ── OPEN POSITION CARDS ────────────────────────────────────── */
 .pos-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;margin-bottom:9px;overflow:hidden;position:relative;}
@@ -357,11 +361,23 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
   <div class="tab-content active" id="tab-briefing">
     <div class="sec">Watchlist</div>
     <div class="wl-box">
-      <div class="chips" id="chips"></div>
-      <div class="wl-row">
-        <input class="add-input" id="new-t" placeholder="TICKER" maxlength="6" onkeydown="if(event.key==='Enter')addT()">
-        <button class="add-btn" onclick="addT()">+ ADD</button>
-        <button class="all-btn" onclick="getAll()">↓ Get All Data</button>
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <div style="flex:1;">
+          <div class="chips" id="chips"></div>
+          <div class="wl-row">
+            <input class="add-input" id="new-t" placeholder="TICKER" maxlength="6" onkeydown="if(event.key==='Enter')addT()">
+            <button class="add-btn" onclick="addT()">+ ADD</button>
+            <button class="all-btn" id="all-btn" onclick="handleAllBtn()">↓ Get All Data</button>
+          </div>
+        </div>
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-family:'Space Mono',monospace;font-size:10px;min-width:160px;">
+          <div style="color:var(--muted);letter-spacing:1px;margin-bottom:8px;font-size:9px;">CARD COLOR KEY</div>
+          <div style="display:flex;flex-direction:column;gap:5px;">
+            <div style="display:flex;align-items:center;gap:8px;"><div style="width:4px;height:16px;border-radius:2px;background:var(--good);"></div><span style="color:var(--text);">CALLS — Bullish setup</span></div>
+            <div style="display:flex;align-items:center;gap:8px;"><div style="width:4px;height:16px;border-radius:2px;background:var(--danger);"></div><span style="color:var(--text);">PUTS — Bearish setup</span></div>
+            <div style="display:flex;align-items:center;gap:8px;"><div style="width:4px;height:16px;border-radius:2px;background:var(--warning);"></div><span style="color:var(--text);">WAIT — Mixed signals</span></div>
+          </div>
+        </div>
       </div>
     </div>
     <div id="alerts"></div>
@@ -481,7 +497,27 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
   </div>
 </div>
 
-<!-- ── CLOSE TRADE MODAL ─────────────────────────────────────── -->
+<!-- ── EDIT CLOSED TRADE MODAL ───────────────────────────────── -->
+<div class="modal-overlay" id="edit-modal" style="display:none;">
+  <div class="modal">
+    <h3 id="edit-modal-title">EDIT CLOSED TRADE</h3>
+    <div class="modal-field">
+      <div class="modal-label">Sale Price (per share)</div>
+      <input class="modal-input" id="edit-sale" type="number" step="0.01" oninput="calcEditPL()">
+    </div>
+    <div class="modal-calc" id="edit-calc">—</div>
+    <div class="modal-label" style="margin-bottom:6px;">Outcome</div>
+    <div class="outcome-row">
+      <button class="outcome-btn" id="eob-win" onclick="selectEditOutcome('Win')">✅ Win</button>
+      <button class="outcome-btn" id="eob-loss" onclick="selectEditOutcome('Loss')">❌ Loss</button>
+      <button class="outcome-btn" id="eob-be" onclick="selectEditOutcome('Breakeven')">➖ B/E</button>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-confirm" onclick="confirmEdit()">Save Changes</button>
+      <button class="modal-cancel" onclick="cancelEdit()">Cancel</button>
+    </div>
+  </div>
+</div>
 <div class="modal-overlay" id="close-modal" style="display:none;">
   <div class="modal">
     <h3 id="modal-title">CLOSE TRADE</h3>
@@ -697,9 +733,59 @@ async function fetch1(ticker){
     console.error(ticker,e.message);
     sd[ticker]={error:true,msg:e.message};
   }
-  rB();rE();updatePnL();
+  rB();rE();updatePnL();updateAllBtn();
+} // ticker -> true=open, false=closed
+let allDataLoaded=false;
+let allExpanded=false;
+
+function handleAllBtn(){
+  const anyLoaded=Object.keys(sd).some(k=>!sd[k].loading&&!sd[k].error);
+  if(!anyLoaded){
+    // No data yet — fetch everything
+    getAll();
+  } else if(allExpanded){
+    // All expanded — collapse all
+    wl.forEach(t=>{chartStates[t]=false;});
+    allExpanded=false;
+    updateAllBtn();
+    rB();
+  } else {
+    // All collapsed — expand all
+    wl.forEach(t=>{chartStates[t]=true;});
+    allExpanded=true;
+    updateAllBtn();
+    rB();
+  }
 }
-async function getAll(){sd={};rB();for(const t of wl)await fetch1(t);}
+
+function toggleChart(ticker){
+  chartStates[ticker]=!chartStates[ticker];
+  // Update just the chart div and chevron without full re-render
+  const chartEl=document.getElementById('chart-'+ticker);
+  const chevEl=document.getElementById('chev-'+ticker);
+  if(chartEl){chartEl.className='tv-chart '+(chartStates[ticker]?'open':'closed');}
+  if(chevEl){chevEl.textContent=chartStates[ticker]?'∧':'∨';}
+  // Update allExpanded state
+  allExpanded=wl.filter(t=>sd[t]&&!sd[t].loading&&!sd[t].error).every(t=>chartStates[t]);
+  updateAllBtn();
+}
+
+function updateAllBtn(){
+  const btn=document.getElementById('all-btn');
+  if(!btn)return;
+  const anyLoaded=wl.some(t=>sd[t]&&!sd[t].loading&&!sd[t].error);
+  if(!anyLoaded){btn.textContent='↓ Get All Data';return;}
+  if(allExpanded){btn.textContent='∧ Collapse All';}
+  else{btn.textContent='∨ Expand All';}
+}
+
+async function getAll(){
+  sd={};chartStates={};allExpanded=false;
+  wl.forEach(t=>{chartStates[t]=false;}); // start collapsed
+  updateAllBtn();rB();
+  for(const t of wl)await fetch1(t);
+  updateAllBtn();
+}
 
 // ── PRICE HELPERS ──────────────────────────────────────────────────────────
 function calcEMA(prices,period){
@@ -885,6 +971,8 @@ function rB(){
     const a8=d.price>d.ema8?'low':'high',a21=d.price>d.ema21?'low':'high';
     const parts=S('ema').split(',');
     const teas=(d.teasers||[]).map(t=>`<div class="tstat"><div class="tlabel">${t.label}</div><div class="tval">${t.value}</div><div class="tnote">${t.note}</div></div>`).join('');
+    const chartOpen=chartStates[ticker]||false;
+    const srcNote=d.dataSource==='estimated'?'<span style="font-size:9px;color:var(--warning);margin-left:8px;">~ estimated</span>':'';
 
     return`<div class="data-card">
       <div class="acc ${tr2}"></div>
@@ -899,14 +987,16 @@ function rB(){
           <div class="ip"><span class="il">EMA ${parts[0]}</span><span class="iv ${a8}">$${d.ema8.toFixed(2)}</span></div>
           <div class="ip"><span class="il">EMA ${parts[1]}</span><span class="iv ${a21}">$${d.ema21.toFixed(2)}</span></div>
         </div>
-        <div style="margin-left:auto;"><div class="sbadge ${sig}">${sig}</div></div>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:6px;">
+          <div class="sbadge ${sig}">${sig}</div>
+          <button class="chart-toggle" id="chev-${ticker}" onclick="toggleChart('${ticker}')" title="${chartOpen?'Collapse':'Expand'} chart">${chartOpen?'∧':'∨'}</button>
+        </div>
       </div>
       <div class="card-mid">
-        <div class="reason">"${d.reason}"</div>
+        <div class="reason">"${d.reason}"${srcNote}</div>
         <div class="tgrid">${teas}</div>
       </div>
-      <!-- TradingView Mini Chart -->
-      <div class="tv-chart">
+      <div class="tv-chart ${chartOpen?'open':'closed'}" id="chart-${ticker}">
         <iframe src="https://s.tradingview.com/widgetembed/?symbol=${ticker}&interval=D&theme=dark&style=1&locale=en&hide_top_toolbar=1&hide_legend=1&save_image=0&calendar=0&hide_volume=0&studies=RSI%407%40%40RSI%3Blength%3D14"
           loading="lazy" allow="clipboard-write"></iframe>
       </div>
@@ -1115,7 +1205,7 @@ function rT(){
 function rClosed(){
   const el=document.getElementById('closed-list');
   if(!closedTrades.length){el.innerHTML='<div class="empty">No closed trades yet.</div>';return;}
-  el.innerHTML=closedTrades.map(t=>{
+  el.innerHTML=closedTrades.map((t,i)=>{
     const cls=t.outcome==='Win'?'win':t.outcome==='Loss'?'loss':'be';
     const plStr=(t.actualPL>=0?'+':'')+'$'+Math.abs(t.actualPL).toFixed(0);
     const plPct=((t.actualPL/t.cost)*100).toFixed(0);
@@ -1125,15 +1215,75 @@ function rClosed(){
         <div style="font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);">${t.type}</div>
         <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);">Closed: ${t.closedDate}</div>
       </div>
-      <div style="text-align:right;">
-        <div class="closed-pl ${t.actualPL>=0?'pos':'neg'}">${plStr}</div>
-        <div class="closed-meta">${plPct}% · ${t.outcome}</div>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="text-align:right;">
+          <div class="closed-pl ${t.actualPL>=0?'pos':'neg'}">${plStr}</div>
+          <div class="closed-meta">${plPct}% · ${t.outcome}</div>
+        </div>
+        <button onclick="openEditModal(${i})" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 9px;font-size:10px;color:var(--muted);cursor:pointer;font-family:'Space Mono',monospace;transition:all 0.2s;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">✏️ Edit</button>
       </div>
     </div>`;
   }).join('');
 }
 
-// ── EARNINGS ───────────────────────────────────────────────────────────────
+// ── EDIT CLOSED TRADE ──────────────────────────────────────────────────────
+let editingClosedIdx=-1;
+let editOutcome='';
+
+function openEditModal(idx){
+  editingClosedIdx=idx;
+  const t=closedTrades[idx];
+  document.getElementById('edit-modal-title').textContent='EDIT — '+t.ticker+' '+t.type;
+  document.getElementById('edit-sale').value=t.salePrice||'';
+  editOutcome=t.outcome||'';
+  // Pre-fill P&L display
+  calcEditPL();
+  // Pre-select current outcome
+  ['win','loss','be'].forEach(k=>document.getElementById('eob-'+k).className='outcome-btn');
+  const map={Win:'win',Loss:'loss',Breakeven:'be'};
+  if(map[editOutcome]) document.getElementById('eob-'+map[editOutcome]).className='outcome-btn selected '+map[editOutcome];
+  document.getElementById('edit-modal').style.display='flex';
+}
+
+function calcEditPL(){
+  if(editingClosedIdx<0)return;
+  const t=closedTrades[editingClosedIdx];
+  const sale=parseFloat(document.getElementById('edit-sale').value);
+  if(isNaN(sale)){document.getElementById('edit-calc').textContent='Enter sale price';return;}
+  const pl=sale*100-t.cost;
+  const plPct=(pl/t.cost)*100;
+  const el=document.getElementById('edit-calc');
+  el.textContent=(pl>=0?'+':'')+'$'+pl.toFixed(0)+' ('+plPct.toFixed(0)+'%)';
+  el.style.color=pl>=0?'var(--good)':'var(--danger)';
+  // Suggest outcome based on P&L but don't force — just highlight
+  const suggested=pl>1?'Win':pl<-1?'Loss':'Breakeven';
+  if(!editOutcome) selectEditOutcome(suggested);
+}
+
+function selectEditOutcome(o){
+  editOutcome=o;
+  ['win','loss','be'].forEach(k=>document.getElementById('eob-'+k).className='outcome-btn');
+  const map={Win:'win',Loss:'loss',Breakeven:'be'};
+  if(map[o]) document.getElementById('eob-'+map[o]).className='outcome-btn selected '+map[o];
+}
+
+function confirmEdit(){
+  if(editingClosedIdx<0)return;
+  if(!editOutcome){alert('Please select an outcome');return;}
+  const t=closedTrades[editingClosedIdx];
+  const sale=parseFloat(document.getElementById('edit-sale').value)||t.salePrice||0;
+  const pl=sale*100-t.cost;
+  closedTrades[editingClosedIdx]={...t,salePrice:sale,actualPL:pl,outcome:editOutcome};
+  sCT();rClosed();updatePnL();
+  document.getElementById('edit-modal').style.display='none';
+  editingClosedIdx=-1;editOutcome='';
+  toast('Trade updated ✓');
+}
+
+function cancelEdit(){
+  document.getElementById('edit-modal').style.display='none';
+  editingClosedIdx=-1;editOutcome='';
+}
 function saveEarningsOverride(ticker){
   const val=document.getElementById('earn-in-'+ticker).value;
   if(val){
