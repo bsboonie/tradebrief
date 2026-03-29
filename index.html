@@ -136,9 +136,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .earn-lbl{font-size:10px;color:var(--muted);font-family:'Space Mono',monospace;margin-left:5px;}
 
 /* ── CHART TOGGLE ───────────────────────────────────────────── */
-.tv-chart{border-top:1px solid var(--border);overflow:hidden;transition:height 0.3s ease;}
-.tv-chart.open{height:220px;}
-.tv-chart.closed{height:0;border-top:none;}
+.card-expand{overflow:hidden;transition:max-height 0.35s ease;}
+.card-expand.open{max-height:600px;}
+.card-expand.closed{max-height:0;}
+.tv-chart{border-top:1px solid var(--border);height:220px;overflow:hidden;}
 .tv-chart iframe{width:100%;height:220px;border:none;}
 .chart-toggle{background:none;border:none;color:var(--muted);font-size:14px;cursor:pointer;padding:2px 6px;border-radius:4px;transition:all 0.2s;font-family:'Space Mono',monospace;line-height:1;}
 .chart-toggle:hover{color:var(--accent);background:var(--surface2);}
@@ -274,7 +275,46 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
 .action-btn.danger{border-color:rgba(255,71,87,0.4);color:var(--danger);}
 .action-btn.success{border-color:rgba(0,255,157,0.4);color:var(--good);}
 
-/* ── AI CHAT ────────────────────────────────────────────────── */
+/* ── HOW-TO PAGE ────────────────────────────────────────────── */
+.howto-tabs{display:flex;gap:4px;margin-bottom:16px;background:var(--surface2);padding:3px;border-radius:8px;border:1px solid var(--border);}
+.howto-tab{flex:1;padding:7px;text-align:center;border-radius:6px;font-size:11px;cursor:pointer;color:var(--muted);background:none;border:none;font-family:'Space Mono',monospace;transition:all 0.2s;}
+.howto-tab.active{background:var(--surface);color:var(--accent);border:1px solid var(--border);}
+.howto-content{display:none;}
+.howto-content.active{display:block;}
+.hw-hero{text-align:center;padding:24px 0 20px;border-bottom:1px solid var(--border);margin-bottom:20px;}
+.hw-hero-icon{font-size:36px;margin-bottom:8px;}
+.hw-title{font-family:'Space Mono',monospace;font-size:20px;font-weight:700;color:var(--accent);margin-bottom:8px;}
+.hw-subtitle{font-size:14px;color:var(--muted);max-width:500px;margin:0 auto;line-height:1.6;}
+.hw-section{margin-bottom:24px;}
+.hw-h2{font-family:'Space Mono',monospace;font-size:12px;letter-spacing:2px;color:var(--accent);text-transform:uppercase;margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid var(--border);}
+.hw-p{font-size:13px;line-height:1.7;color:var(--text);margin-bottom:10px;}
+.hw-cards-3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px;}
+.hw-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;}
+.hw-card-icon{font-size:24px;margin-bottom:8px;}
+.hw-card-title{font-family:'Space Mono',monospace;font-size:11px;font-weight:700;color:var(--text);margin-bottom:6px;}
+.hw-card-body{font-size:12px;color:var(--muted);line-height:1.6;}
+.hw-warn{background:rgba(255,165,2,0.1);border:1px solid rgba(255,165,2,0.3);border-radius:8px;padding:12px 14px;font-size:13px;color:var(--warning);margin-bottom:12px;line-height:1.6;}
+.hw-tab-guide{display:flex;flex-direction:column;gap:6px;}
+.hw-tab-row{display:flex;align-items:baseline;gap:12px;padding:8px 12px;background:var(--surface);border:1px solid var(--border);border-radius:8px;}
+.hw-tab-label{font-family:'Space Mono',monospace;font-size:11px;font-weight:700;color:var(--accent);min-width:100px;white-space:nowrap;}
+.hw-tab-desc{font-size:12px;color:var(--muted);}
+.hw-steps{display:flex;flex-direction:column;gap:14px;margin-bottom:24px;}
+.hw-step{display:flex;gap:14px;align-items:flex-start;}
+.hw-step-num{min-width:32px;height:32px;background:var(--accent);color:#000;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Space Mono',monospace;font-weight:700;font-size:13px;flex-shrink:0;}
+.hw-step-body{flex:1;}
+.hw-step-title{font-family:'Space Mono',monospace;font-size:12px;font-weight:700;color:var(--text);margin-bottom:6px;}
+.hw-diagram{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;margin-top:10px;display:flex;flex-direction:column;gap:8px;}
+.hw-diag-row{display:flex;align-items:center;gap:10px;}
+.hw-diag-bar{width:4px;height:20px;border-radius:2px;flex-shrink:0;}
+.hw-diag-text{font-size:12px;color:var(--text);}
+.hw-tips{display:flex;flex-direction:column;gap:8px;}
+.hw-tip{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:13px;color:var(--text);}
+.glossary-list{display:flex;flex-direction:column;gap:8px;}
+.gterm{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;}
+.gterm-word{font-family:'Space Mono',monospace;font-size:13px;font-weight:700;color:var(--accent);margin-bottom:4px;}
+.gterm-def{font-size:13px;color:var(--text);line-height:1.6;margin-bottom:6px;}
+.gterm-why{font-size:12px;color:var(--muted);background:var(--surface2);padding:8px 10px;border-radius:6px;line-height:1.5;}
+@media(max-width:580px){.hw-cards-3{grid-template-columns:1fr;}.hw-tab-label{min-width:70px;}}
 .chat-wrap{display:flex;flex-direction:column;height:calc(100vh - 260px);min-height:360px;}
 .chat-messages{flex:1;overflow-y:auto;padding:4px 0;display:flex;flex-direction:column;gap:10px;}
 .msg{display:flex;gap:8px;align-items:flex-start;}
@@ -350,15 +390,190 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
 
 <div class="main">
   <div class="tabs">
-    <div class="tab active" onclick="go('briefing')">📊 Brief</div>
+    <div class="tab active" onclick="go('howto')">📖 How-To</div>
+    <div class="tab" onclick="go('briefing')">📊 Brief</div>
     <div class="tab" onclick="go('trades')">💼 Trades</div>
     <div class="tab" onclick="go('earnings')">📅 Earn</div>
     <div class="tab" onclick="go('ai')">🤖 AI</div>
     <div class="tab" onclick="go('settings')">⚙️ Set</div>
   </div>
 
+  <!-- ── HOW-TO ─────────────────────────────────────────────── -->
+  <div class="tab-content active" id="tab-howto">
+    <div class="howto-tabs">
+      <button class="howto-tab active" onclick="hwTab('overview')">📋 Overview</button>
+      <button class="howto-tab" onclick="hwTab('usage')">🚀 How To Use</button>
+      <button class="howto-tab" onclick="hwTab('glossary')">📚 Glossary</button>
+    </div>
+
+    <!-- OVERVIEW -->
+    <div class="howto-content active" id="hw-overview">
+      <div class="hw-hero">
+        <div class="hw-hero-icon">📊</div>
+        <h1 class="hw-title">Welcome to TradeBrief</h1>
+        <p class="hw-subtitle">Your personal options trading morning briefing — built around your rules, your budget, and your watchlist.</p>
+      </div>
+      <div class="hw-section">
+        <h2 class="hw-h2">What is TradeBrief?</h2>
+        <p class="hw-p">TradeBrief is a personal trading intelligence tool designed for retail options traders who buy <b>debit spreads</b>, <b>long calls</b>, and <b>long puts</b>. Every morning before the market opens, TradeBrief gives you a clear picture of your watchlist stocks — their trend direction, momentum, and whether conditions are right for a trade.</p>
+        <p class="hw-p">Think of it as your pre-market routine, automated. Instead of opening multiple browser tabs and manually checking charts, TradeBrief pulls it all into one clean dashboard.</p>
+      </div>
+      <div class="hw-cards-3">
+        <div class="hw-card">
+          <div class="hw-card-icon">🎯</div>
+          <div class="hw-card-title">Defined Risk Only</div>
+          <div class="hw-card-body">Every trade you log has a known max loss before you enter. You can never lose more than you paid. No surprises.</div>
+        </div>
+        <div class="hw-card">
+          <div class="hw-card-icon">📈</div>
+          <div class="hw-card-title">Trend-Based Signals</div>
+          <div class="hw-card-body">CALLS, PUTS, or WAIT — signals are generated from RSI and EMA analysis, the same indicators you use on TradingView.</div>
+        </div>
+        <div class="hw-card">
+          <div class="hw-card-icon">💡</div>
+          <div class="hw-card-title">Smart Take Profit</div>
+          <div class="hw-card-body">TradeBrief doesn't just watch your profit % — it monitors the trend too, so it tells you to hold when the stock is still climbing.</div>
+        </div>
+      </div>
+      <div class="hw-section">
+        <h2 class="hw-h2">What TradeBrief Does NOT Do</h2>
+        <div class="hw-warn">⚠️ TradeBrief is a decision-support tool — not financial advice. It helps you organize information and apply your own rules consistently. Always do your own research and verify data on Fidelity before placing any trade.</div>
+        <p class="hw-p">TradeBrief does not support naked calls, cash-secured puts, or any undefined-risk strategy. It is built exclusively for traders who want to know their maximum loss before entering.</p>
+      </div>
+      <div class="hw-section">
+        <h2 class="hw-h2">Your Tabs at a Glance</h2>
+        <div class="hw-tab-guide">
+          <div class="hw-tab-row"><span class="hw-tab-label">📖 How-To</span><span class="hw-tab-desc">You are here. Learn the tool, look up terms.</span></div>
+          <div class="hw-tab-row"><span class="hw-tab-label">📊 Brief</span><span class="hw-tab-desc">Your morning briefing. Stock signals, live prices, open positions, alerts.</span></div>
+          <div class="hw-tab-row"><span class="hw-tab-label">💼 Trades</span><span class="hw-tab-desc">Log new trades, close them, view history.</span></div>
+          <div class="hw-tab-row"><span class="hw-tab-label">📅 Earn</span><span class="hw-tab-desc">Earnings calendar for your watchlist — avoid IV crush.</span></div>
+          <div class="hw-tab-row"><span class="hw-tab-label">🤖 AI</span><span class="hw-tab-desc">Ask anything about your trades, options strategy, or market conditions.</span></div>
+          <div class="hw-tab-row"><span class="hw-tab-label">⚙️ Set</span><span class="hw-tab-desc">Configure your thresholds, budget, alerts, and display.</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- HOW TO USE -->
+    <div class="howto-content" id="hw-usage">
+      <div class="hw-section">
+        <h2 class="hw-h2">Your Daily Workflow</h2>
+        <p class="hw-p">TradeBrief is designed around a simple morning routine. Here's how to use it from start to finish.</p>
+      </div>
+      <div class="hw-steps">
+        <div class="hw-step">
+          <div class="hw-step-num">1</div>
+          <div class="hw-step-body">
+            <div class="hw-step-title">Open TradeBrief — Data Loads Automatically</div>
+            <p class="hw-p">When you open the app, it automatically fetches current price data for every stock on your watchlist. No button needed. Each card shows the ticker with its price, RSI, EMA trend, and directional signal — all collapsed for a quick scan.</p>
+          </div>
+        </div>
+        <div class="hw-step">
+          <div class="hw-step-num">2</div>
+          <div class="hw-step-body">
+            <div class="hw-step-title">Scan the Briefing Cards</div>
+            <p class="hw-p">Look at the left border color and the signal badge on each card. Green border + CALLS = bullish setup. Red border + PUTS = bearish. Amber = wait. Check the RSI number — if it's in the 40–60 range and the EMAs confirm the direction, that's your best candidate.</p>
+            <div class="hw-diagram">
+              <div class="hw-diag-row"><div class="hw-diag-bar" style="background:var(--good)"></div><div class="hw-diag-text"><b>Green border + CALLS</b> — Price above both EMAs, RSI healthy, uptrend confirmed</div></div>
+              <div class="hw-diag-row"><div class="hw-diag-bar" style="background:var(--danger)"></div><div class="hw-diag-text"><b>Red border + PUTS</b> — Price below both EMAs, RSI not oversold, downtrend confirmed</div></div>
+              <div class="hw-diag-row"><div class="hw-diag-bar" style="background:var(--warning)"></div><div class="hw-diag-text"><b>Amber border + WAIT</b> — Mixed signals, overbought, or oversold without confirmation</div></div>
+            </div>
+          </div>
+        </div>
+        <div class="hw-step">
+          <div class="hw-step-num">3</div>
+          <div class="hw-step-body">
+            <div class="hw-step-title">Expand a Card to Dig Deeper</div>
+            <p class="hw-p">Tap the ∨ chevron on any card to expand it. You'll see the TradingView live chart and three key stat blocks with explanations. Use this to confirm the signal before going to Fidelity.</p>
+          </div>
+        </div>
+        <div class="hw-step">
+          <div class="hw-step-num">4</div>
+          <div class="hw-step-body">
+            <div class="hw-step-title">Pull the Option Chain from Fidelity</div>
+            <p class="hw-p">Open Fidelity, navigate to the option chain for your stock. Take screenshots of each expiration you want to analyze (aim for 21–35 days out). Come back to this chat, upload the screenshots, and type <b>cvsit</b>. Claude will extract the data as a CSV.</p>
+          </div>
+        </div>
+        <div class="hw-step">
+          <div class="hw-step-num">5</div>
+          <div class="hw-step-body">
+            <div class="hw-step-title">Run the Options Spreadsheet</div>
+            <p class="hw-p">Paste the CSV into your Google Sheets Options Calculator (RAW_FIDELITY tab). Update the CONTROLS tab with the current stock price, ticker, and your budget. The scanner runs automatically and shows you the Top 3 call spreads and put spreads ranked by quality.</p>
+          </div>
+        </div>
+        <div class="hw-step">
+          <div class="hw-step-num">6</div>
+          <div class="hw-step-body">
+            <div class="hw-step-title">Place the Trade on Fidelity</div>
+            <p class="hw-p">Review the GOOD-rated spreads. Look at R/R ratio (minimum 1.5x), cost vs your budget, and break-even vs expected move. Place your trade on Fidelity. Then come back and log it in TradeBrief's Trades tab.</p>
+          </div>
+        </div>
+        <div class="hw-step">
+          <div class="hw-step-num">7</div>
+          <div class="hw-step-body">
+            <div class="hw-step-title">Monitor with the Open Positions Dashboard</div>
+            <p class="hw-p">Your open trade appears in the Briefing tab below the stock cards. Watch the status badge. When it says 🎯 TAKE PROFIT or 🔥 CLOSE NOW — go to Fidelity and close the position. Then come back and log the close in the Trades tab.</p>
+            <div class="hw-diagram">
+              <div class="hw-diag-row"><span style="font-size:16px;">🔴</span><div class="hw-diag-text"><b>UNDERWATER</b> — Position is below your cost basis</div></div>
+              <div class="hw-diag-row"><span style="font-size:16px;">🟡</span><div class="hw-diag-text"><b>IN PLAY</b> — In profit but below your target %</div></div>
+              <div class="hw-diag-row"><span style="font-size:16px;">🟢</span><div class="hw-diag-text"><b>BUILDING</b> — Good progress, over 50% toward target</div></div>
+              <div class="hw-diag-row"><span style="font-size:16px;">📈</span><div class="hw-diag-text"><b>HOLD</b> — Target % hit but trend still strong — let it run</div></div>
+              <div class="hw-diag-row"><span style="font-size:16px;">🎯</span><div class="hw-diag-text"><b>TAKE PROFIT</b> — Target hit AND trend weakening — consider closing</div></div>
+              <div class="hw-diag-row"><span style="font-size:16px;">⚠️</span><div class="hw-diag-text"><b>EXPIRING</b> — Less than 5 days left, take action</div></div>
+              <div class="hw-diag-row"><span style="font-size:16px;">🔥</span><div class="hw-diag-text"><b>CLOSE NOW</b> — Profitable AND expiring soon — exit immediately</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="hw-section">
+        <h2 class="hw-h2">Tips for Best Results</h2>
+        <div class="hw-tips">
+          <div class="hw-tip">✅ Check TradeBrief every morning before market open (9:00–9:25 AM ET)</div>
+          <div class="hw-tip">✅ Only trade stocks where RSI is between 35–65 — avoid extremes unless you know what you're doing</div>
+          <div class="hw-tip">✅ Always confirm the signal with the TradingView chart before pulling the option chain</div>
+          <div class="hw-tip">✅ Never spend more than your Max Budget setting per trade — it's there to protect you</div>
+          <div class="hw-tip">✅ Add earnings dates in the Earn tab — never hold a spread through earnings</div>
+          <div class="hw-tip">⚠️ If the signal says WAIT — wait. There will always be another trade.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- GLOSSARY -->
+    <div class="howto-content" id="hw-glossary">
+      <div class="hw-section">
+        <h2 class="hw-h2">Options & Trading Glossary</h2>
+        <p class="hw-p">Every term you'll encounter in TradeBrief — explained in plain English, with context for why it matters to your trading.</p>
+      </div>
+      <div class="glossary-list">
+        <div class="gterm"><div class="gterm-word">Call Option</div><div class="gterm-def">The right to BUY 100 shares of a stock at a specific price (the strike) before a specific date (expiration). You profit when the stock goes UP.</div><div class="gterm-why">💡 Why it matters: Calls let you control 100 shares with a fraction of the capital. Your max loss is limited to what you paid.</div></div>
+        <div class="gterm"><div class="gterm-word">Put Option</div><div class="gterm-def">The right to SELL 100 shares of a stock at a specific price before expiration. You profit when the stock goes DOWN.</div><div class="gterm-why">💡 Why it matters: Puts let you profit from falling stocks without shorting — with defined, limited risk.</div></div>
+        <div class="gterm"><div class="gterm-word">Long Call</div><div class="gterm-def">Buying a call option outright with no ceiling on profit. If the stock rockets to the moon, you capture all of it. Cost is higher than a spread.</div><div class="gterm-why">💡 Why it matters: Best when you have very strong conviction. Higher cost but unlimited upside potential.</div></div>
+        <div class="gterm"><div class="gterm-word">Call Spread (Debit Spread)</div><div class="gterm-def">Buying a call at one strike AND selling a call at a higher strike. Caps your max profit but significantly reduces your cost. Both strikes must expire.</div><div class="gterm-why">💡 Why it matters: Better R/R ratio than a long call. Cheaper entry means you can be wrong and still survive. TradeBrief defaults to this strategy.</div></div>
+        <div class="gterm"><div class="gterm-word">Long Put</div><div class="gterm-def">Buying a put option outright. Profits when the stock falls. Unlimited profit potential (down to zero). Higher cost than a put spread.</div><div class="gterm-why">💡 Why it matters: Use when you have strong bearish conviction and want to maximize downside profit.</div></div>
+        <div class="gterm"><div class="gterm-word">Put Spread</div><div class="gterm-def">Buying a put at one strike AND selling a put at a lower strike. Caps profit but reduces cost significantly.</div><div class="gterm-why">💡 Why it matters: Defined risk on both sides. Cheaper than a long put and still benefits from downward moves.</div></div>
+        <div class="gterm"><div class="gterm-word">Strike Price</div><div class="gterm-def">The price at which you have the right to buy (call) or sell (put) shares. Chosen when you enter the trade.</div><div class="gterm-why">💡 Why it matters: Choosing the right strike determines your break-even, your cost, and your probability of profit.</div></div>
+        <div class="gterm"><div class="gterm-word">Expiration Date (DTE)</div><div class="gterm-def">The date the option contract expires and becomes worthless if not exercised. DTE = Days To Expiration.</div><div class="gterm-why">💡 Why it matters: Options lose value as expiration approaches (time decay). TradeBrief targets 21–35 DTE for best balance of cost and time.</div></div>
+        <div class="gterm"><div class="gterm-word">Premium</div><div class="gterm-def">The price you pay to buy an option. This is your total risk — the most you can lose.</div><div class="gterm-why">💡 Why it matters: Always know your premium before entering. If you can't afford to lose it, don't trade it.</div></div>
+        <div class="gterm"><div class="gterm-word">Break-Even</div><div class="gterm-def">The stock price at which your trade makes exactly $0 profit. For a call spread: Buy Strike + Net Cost per share.</div><div class="gterm-why">💡 Why it matters: Your break-even must be within the stock's expected move range. TradeBrief checks this automatically.</div></div>
+        <div class="gterm"><div class="gterm-word">R/R (Reward-to-Risk Ratio)</div><div class="gterm-def">Max Profit divided by Max Loss. A 2.0 R/R means you could make $200 for every $100 risked.</div><div class="gterm-why">💡 Why it matters: TradeBrief requires a minimum 1.5 R/R. Trades below this aren't worth the risk mathematically.</div></div>
+        <div class="gterm"><div class="gterm-word">PoP (Probability of Profit)</div><div class="gterm-def">The estimated chance your trade will be profitable at expiration, derived from the option's delta.</div><div class="gterm-why">💡 Why it matters: Higher PoP = more likely to win but usually lower payout. TradeBrief minimum is 30% PoP.</div></div>
+        <div class="gterm"><div class="gterm-word">Delta</div><div class="gterm-def">How much the option price moves for every $1 move in the stock. A delta of 0.40 means the option gains $0.40 when the stock gains $1.</div><div class="gterm-why">💡 Why it matters: Delta is also a rough probability estimate. TradeBrief targets 0.15–0.70 delta for balanced trades.</div></div>
+        <div class="gterm"><div class="gterm-word">IV (Implied Volatility)</div><div class="gterm-def">The market's expectation of how much a stock will move. High IV = expensive options. Low IV = cheap options.</div><div class="gterm-why">💡 Why it matters: Buying options when IV is very high means you're overpaying. TradeBrief warns you when IV rank is elevated.</div></div>
+        <div class="gterm"><div class="gterm-word">IV Crush</div><div class="gterm-def">After a major event (like earnings), IV drops sharply — causing option prices to collapse even if the stock moved your way.</div><div class="gterm-why">💡 Why it matters: This is why TradeBrief flags any trade where earnings falls before expiration as RISKY. IV crush can wipe out your profit.</div></div>
+        <div class="gterm"><div class="gterm-word">RSI (Relative Strength Index)</div><div class="gterm-def">A momentum indicator from 0–100. Above 70 = overbought (due for a pullback). Below 30 = oversold (due for a bounce). Sweet spot: 40–60.</div><div class="gterm-why">💡 Why it matters: RSI tells you if a stock is extended. Buying calls on an RSI of 80 is buying at the top. TradeBrief uses RSI 14-period.</div></div>
+        <div class="gterm"><div class="gterm-word">EMA (Exponential Moving Average)</div><div class="gterm-def">A moving average that gives more weight to recent prices. EMA 8 reacts fast. EMA 21 is slower and smoother.</div><div class="gterm-why">💡 Why it matters: When price is above both EMAs and EMA 8 is above EMA 21, that's a confirmed uptrend — the ideal entry for calls.</div></div>
+        <div class="gterm"><div class="gterm-word">EMA Crossover</div><div class="gterm-def">When the fast EMA (8) crosses above or below the slow EMA (21). A bullish crossover signals upward momentum. A bearish crossover signals downward momentum.</div><div class="gterm-why">💡 Why it matters: TradeBrief uses EMA alignment (both EMAs in the same direction, price above/below both) to confirm trend before signaling CALLS or PUTS.</div></div>
+        <div class="gterm"><div class="gterm-word">Expected Move</div><div class="gterm-def">How far the market expects a stock to move by expiration, calculated from the ATM option prices.</div><div class="gterm-why">💡 Why it matters: Your break-even must be inside the expected move or the trade is unlikely to profit. TradeBrief checks this automatically.</div></div>
+        <div class="gterm"><div class="gterm-word">Time Decay (Theta)</div><div class="gterm-def">Options lose value every day just from the passage of time, even if the stock doesn't move. This is theta decay.</div><div class="gterm-why">💡 Why it matters: The closer to expiration, the faster the decay. This is why you close winning trades early instead of holding to expiration.</div></div>
+        <div class="gterm"><div class="gterm-word">Open Interest</div><div class="gterm-def">The total number of active contracts at a given strike. High open interest = liquid, easy to trade. Low open interest = harder to fill.</div><div class="gterm-why">💡 Why it matters: Always check open interest before trading. Strikes with less than 100 open interest may have wide bid/ask spreads that cost you money.</div></div>
+        <div class="gterm"><div class="gterm-word">Bid/Ask Spread</div><div class="gterm-def">The difference between what buyers will pay (bid) and what sellers want (ask). You typically buy at the ask and sell at the bid.</div><div class="gterm-why">💡 Why it matters: Wide bid/ask spreads eat into your profit. Always try to fill near the midpoint price. Liquid stocks have tighter spreads.</div></div>
+        <div class="gterm"><div class="gterm-word">Realized P&L</div><div class="gterm-def">Profit or loss from trades you have already closed. This is real money — in or out of your account.</div><div class="gterm-why">💡 Why it matters: The only P&L that counts. Unrealized P&L can disappear before you close.</div></div>
+        <div class="gterm"><div class="gterm-word">Unrealized P&L</div><div class="gterm-def">The current paper profit or loss on open positions. What you WOULD make if you closed right now.</div><div class="gterm-why">💡 Why it matters: Watch this closely. A trade showing +120% unrealized can reverse fast. When the signal weakens, lock it in.</div></div>
+      </div>
+    </div>
+  </div>
+
   <!-- ── BRIEFING ───────────────────────────────────────────── -->
-  <div class="tab-content active" id="tab-briefing">
+  <div class="tab-content" id="tab-briefing">
     <div class="sec">Watchlist</div>
     <div class="wl-box">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;">
@@ -589,13 +804,20 @@ setInterval(clk,1000);clk();
 
 // ── TABS ───────────────────────────────────────────────────────────────────
 function go(n){
-  const ns=['briefing','trades','earnings','ai','settings'];
+  const ns=['howto','briefing','trades','earnings','ai','settings'];
   document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',ns[i]===n));
   document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
   document.getElementById('tab-'+n).classList.add('active');
   if(n==='earnings')rE();
   if(n==='trades'){rT();rClosed();}
   if(n==='settings')loadS();
+}
+
+function hwTab(n){
+  document.querySelectorAll('.howto-tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.howto-content').forEach(c=>c.classList.remove('active'));
+  document.getElementById('hw-'+n).classList.add('active');
+  event.target.classList.add('active');
 }
 
 // ── SETTINGS ───────────────────────────────────────────────────────────────
@@ -760,12 +982,10 @@ function handleAllBtn(){
 
 function toggleChart(ticker){
   chartStates[ticker]=!chartStates[ticker];
-  // Update just the chart div and chevron without full re-render
-  const chartEl=document.getElementById('chart-'+ticker);
+  const expandEl=document.getElementById('chart-'+ticker);
   const chevEl=document.getElementById('chev-'+ticker);
-  if(chartEl){chartEl.className='tv-chart '+(chartStates[ticker]?'open':'closed');}
+  if(expandEl){expandEl.className='card-expand '+(chartStates[ticker]?'open':'closed');}
   if(chevEl){chevEl.textContent=chartStates[ticker]?'∧':'∨';}
-  // Update allExpanded state
   allExpanded=wl.filter(t=>sd[t]&&!sd[t].loading&&!sd[t].error).every(t=>chartStates[t]);
   updateAllBtn();
 }
@@ -973,6 +1193,9 @@ function rB(){
     const teas=(d.teasers||[]).map(t=>`<div class="tstat"><div class="tlabel">${t.label}</div><div class="tval">${t.value}</div><div class="tnote">${t.note}</div></div>`).join('');
     const chartOpen=chartStates[ticker]||false;
     const srcNote=d.dataSource==='estimated'?'<span style="font-size:9px;color:var(--warning);margin-left:8px;">~ estimated</span>':'';
+    const trendVal=d.price>d.ema8&&d.price>d.ema21?'BULLISH':'BEARISH';
+    const trendColor=trendVal==='BULLISH'?'var(--good)':'var(--danger)';
+    const dayColor=d.changePct>=0?'var(--good)':'var(--danger)';
 
     return`<div class="data-card">
       <div class="acc ${tr2}"></div>
@@ -986,19 +1209,23 @@ function rB(){
           <div class="ip"><span class="il">RSI 14</span><span class="iv ${rc(d.rsi14)}">${d.rsi14.toFixed(1)}</span></div>
           <div class="ip"><span class="il">EMA ${parts[0]}</span><span class="iv ${a8}">$${d.ema8.toFixed(2)}</span></div>
           <div class="ip"><span class="il">EMA ${parts[1]}</span><span class="iv ${a21}">$${d.ema21.toFixed(2)}</span></div>
+          <div class="ip"><span class="il">TREND</span><span class="iv" style="color:${trendColor};font-size:9px;">${trendVal}</span></div>
+          <div class="ip"><span class="il">DAY</span><span class="iv" style="color:${dayColor};">${(d.changePct>=0?'+':'')+d.changePct.toFixed(1)}%</span></div>
         </div>
         <div style="margin-left:auto;display:flex;align-items:center;gap:6px;">
           <div class="sbadge ${sig}">${sig}</div>
-          <button class="chart-toggle" id="chev-${ticker}" onclick="toggleChart('${ticker}')" title="${chartOpen?'Collapse':'Expand'} chart">${chartOpen?'∧':'∨'}</button>
+          <button class="chart-toggle" id="chev-${ticker}" onclick="toggleChart('${ticker}')" title="${chartOpen?'Collapse':'Expand'}">${chartOpen?'∧':'∨'}</button>
         </div>
       </div>
-      <div class="card-mid">
-        <div class="reason">"${d.reason}"${srcNote}</div>
-        <div class="tgrid">${teas}</div>
-      </div>
-      <div class="tv-chart ${chartOpen?'open':'closed'}" id="chart-${ticker}">
-        <iframe src="https://s.tradingview.com/widgetembed/?symbol=${ticker}&interval=D&theme=dark&style=1&locale=en&hide_top_toolbar=1&hide_legend=1&save_image=0&calendar=0&hide_volume=0&studies=RSI%407%40%40RSI%3Blength%3D14"
-          loading="lazy" allow="clipboard-write"></iframe>
+      <div class="card-expand ${chartOpen?'open':'closed'}" id="chart-${ticker}">
+        <div class="card-mid">
+          <div class="reason">"${d.reason}"${srcNote}</div>
+          <div class="tgrid">${teas}</div>
+        </div>
+        <div class="tv-chart">
+          <iframe src="https://s.tradingview.com/widgetembed/?symbol=${ticker}&interval=D&theme=dark&style=1&locale=en&hide_top_toolbar=1&hide_legend=1&save_image=0&calendar=0&hide_volume=0&studies=RSI%407%40%40RSI%3Blength%3D14"
+            loading="lazy" allow="clipboard-write"></iframe>
+        </div>
       </div>
       <div class="card-bot">
         <button class="sel-btn" onclick="select('${ticker}')">⬇ Select</button>
@@ -1438,6 +1665,9 @@ rT();
 rClosed();
 updatePnL();
 document.getElementById('fg').value=S('target');
+// Auto-load data and start on briefing tab
+go('briefing');
+getAll();
 </script>
 </body>
 </html>
