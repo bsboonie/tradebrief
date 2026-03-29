@@ -567,45 +567,105 @@ function addT(){
 function rmT(t){wl=wl.filter(x=>x!==t);delete sd[t];sWL();rChips();rB();}
 
 // ── FETCH ──────────────────────────────────────────────────────────────────
-async function callClaude(prompt){
-  // Try direct first (works in Claude artifacts), fall back to proxy for local use
-  const url='https://api.anthropic.com/v1/messages';
-  const proxyUrl='https://corsproxy.io/?'+encodeURIComponent(url);
-  const body=JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:500,messages:[{role:'user',content:prompt}]});
-  const headers={'Content-Type':'application/json'};
-  // Try direct
-  try{
-    const r=await fetch(url,{method:'POST',headers,body});
-    if(r.ok){const d=await r.json();return d.content[0].text;}
-  }catch(e){}
-  // Fall back to proxy
-  try{
-    const r=await fetch(proxyUrl,{method:'POST',headers,body});
-    if(r.ok){const d=await r.json();return d.content[0].text;}
-  }catch(e){}
-  throw new Error('API unavailable');
+// Yahoo Finance public API — no key, no CORS issues
+async function fetchYahoo(ticker){
+  const url=`https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=60d`;
+  const r=await fetch(url);
+  if(!r.ok) throw new Error('Yahoo fetch failed');
+  return await r.json();
+}
+
+function calcEMA(prices,period){
+  const k=2/(period+1);
+  let ema=prices.slice(0,period).reduce((a,b)=>a+b,0)/period;
+  for(let i=period;i<prices.length;i++) ema=prices[i]*k+ema*(1-k);
+  return parseFloat(ema.toFixed(2));
+}
+
+function calcRSI(prices,period=14){
+  const changes=prices.slice(1).map((p,i)=>p-prices[i]);
+  let gains=0,losses=0;
+  for(let i=0;i<period;i++){if(changes[i]>0)gains+=changes[i];else losses-=changes[i];}
+  let ag=gains/period,al=losses/period;
+  for(let i=period;i<changes.length;i++){
+    const g=changes[i]>0?changes[i]:0,l=changes[i]<0?-changes[i]:0;
+    ag=(ag*(period-1)+g)/period;al=(al*(period-1)+l)/period;
+  }
+  return al===0?100:parseFloat((100-100/(1+ag/al)).toFixed(1));
+}
+
+function getSignal(price,ema8,ema21,rsi,rsiOb,rsiOs){
+  if(rsi<20) return{signal:'WAIT',reason:'Extreme oversold — wait for bounce confirmation'};
+  if(price>ema8&&price>ema21&&ema8>ema21&&rsi<rsiOb) return{signal:'CALLS',reason:'Uptrend confirmed, EMAs aligned bullish'};
+  if(price<ema8&&price<ema21&&ema8<ema21&&rsi>rsiOs) return{signal:'PUTS',reason:'Downtrend confirmed, EMAs aligned bearish'};
+  if(rsi<rsiOs&&!( price>ema8)) return{signal:'WAIT',reason:'Oversold bounce possible — wait for green candle'};
+  if(rsi>rsiOb&&price>ema8) return{signal:'WAIT',reason:'Overbought — wait for RSI to cool'};
+  return{signal:'WAIT',reason:'Mixed signals — no clear directional setup'};
+}
+
+function buildTeasers(price,ema8,ema21,rsi,change,changePct,budget){
+  const teasers=[];
+  // RSI insight
+  if(rsi<35) teasers.push({label:'RSI Signal',value:rsi.toFixed(1),note:'Oversold — bounce potential'});
+  else if(rsi>65) teasers.push({label:'RSI Signal',value:rsi.toFixed(1),note:'Overbought — caution needed'});
+  else teasers.push({label:'RSI Signal',value:rsi.toFixed(1),note:'Neutral — healthy range'});
+  // EMA trend
+  const aboveBoth=price>ema8&&price>ema21;
+  teasers.push({label:'EMA Trend',value:aboveBoth?'BULLISH':'BEARISH',note:aboveBoth?'Price above both EMAs':'Price below both EMAs'});
+  // Day move
+  const absChg=Math.abs(changePct).toFixed(2);
+  teasers.push({label:"Today's Move",value:(changePct>=0?'+':'')+changePct.toFixed(2)+'%',note:absChg>3?'Big move today':'Quiet session today'});
+  return teasers.slice(0,3);
 }
 
 async function fetch1(ticker){
   sd[ticker]={loading:true};rB();
-  const emaCfg=S('ema');
   try{
-    const prompt=`Return ONLY a raw JSON object, no markdown, no code fences, no explanation.
-For stock ${ticker} as of today provide:
-{"ticker":"${ticker}","price":<number>,"change":<number today vs yesterday close>,"changePct":<number>,"rsi14":<number 0-100>,"ema8":<number, short EMA ${emaCfg.split(',')[0]} period>,"ema21":<number, long EMA ${emaCfg.split(',')[1]} period>,"earningsDate":"<YYYY-MM-DD or null>","signal":"<CALLS|PUTS|WAIT>","reason":"<max 10 words>","teasers":[{"label":"<compelling stat name>","value":"<specific value string>","note":"<5 words max>"},{"label":"<stat>","value":"<val>","note":"<5 words>"},{"label":"<stat>","value":"<val>","note":"<5 words>"}]}
-Settings to consider: Min R/R=${S('rr')}, Min PoP=${S('pop')}%, Budget=$${S('budget')}, RSI OB=${S('rsiOb')}, OS=${S('rsiOs')}.
-3 compelling teasers for a retail options trader. Unknown ticker: {"error":"unknown"}`;
-    const text=await callClaude(prompt);
-    const clean=text.trim().replace(/```json|```/g,'').trim();
-    const p=JSON.parse(clean);
-    sd[ticker]=p.error?{error:true}:p;
+    const data=await fetchYahoo(ticker);
+    const result=data.chart.result[0];
+    const meta=result.meta;
+    const closes=result.indicators.quote[0].close.filter(Boolean);
+    if(closes.length<22) throw new Error('Not enough data');
+
+    const price=parseFloat((meta.regularMarketPrice||closes[closes.length-1]).toFixed(2));
+    const prevClose=parseFloat((meta.previousClose||meta.chartPreviousClose||closes[closes.length-2]).toFixed(2));
+    const change=parseFloat((price-prevClose).toFixed(2));
+    const changePct=parseFloat(((change/prevClose)*100).toFixed(2));
+
+    const emaCfg=S('ema').split(',');
+    const ema8=calcEMA(closes,parseInt(emaCfg[0]));
+    const ema21=calcEMA(closes,parseInt(emaCfg[1]));
+    const rsi14=calcRSI(closes,14);
+
+    const sig=getSignal(price,ema8,ema21,rsi14,S('rsiOb'),S('rsiOs'));
+    const teasers=buildTeasers(price,ema8,ema21,rsi14,change,changePct,S('budget'));
+
+    // Earnings — best effort from Yahoo meta
+    let earningsDate=null;
+    try{
+      const eq=await fetch(`https://query1.finance.yahoo.com/v10/finance/quoteSummary/${ticker}?modules=calendarEvents`);
+      if(eq.ok){
+        const edata=await eq.json();
+        const ev=edata?.quoteSummary?.result?.[0]?.calendarEvents?.earnings?.earningsDate?.[0]?.raw;
+        if(ev) earningsDate=new Date(ev*1000).toISOString().split('T')[0];
+      }
+    }catch(e){}
+
+    sd[ticker]={ticker,price,change,changePct,rsi14,ema8,ema21,earningsDate,signal:sig.signal,reason:sig.reason,teasers};
   }catch(e){
-    console.error(ticker,e);
+    console.error(ticker,e.message);
     sd[ticker]={error:true,msg:e.message};
   }
   rB();rE();
 }
 async function getAll(){sd={};rB();for(const t of wl)await fetch1(t);}
+
+// AI chat still needs Claude — use sendPrompt for now
+async function callClaude(prompt){
+  // When hosted on GitHub Pages, Anthropic API is blocked by CORS
+  // Route through the AI tab's sendPrompt instead
+  throw new Error('Use AI tab for analysis');
+}
 
 // ── SELECT ─────────────────────────────────────────────────────────────────
 function select(ticker){
@@ -852,13 +912,36 @@ Loaded stock data: ${Object.keys(sd).filter(k=>!sd[k].loading&&!sd[k].error).map
 Be concise, friendly, and educational. Use plain language. Focus on helping the user learn options trading and make better decisions.`;
 
   try{
-    const reply=await callClaude(chatHistory.slice(-10).map(m=>m.role+': '+m.content).join('\n\n')+'\n\nSystem context: '+context);
+    // AI chat works when accessed through Claude.ai
+    // When hosted externally, direct API calls are blocked by CORS
+    // Workaround: show loaded stock data context and ask user to paste into Claude
+    const stockCtx=Object.keys(sd).filter(k=>!sd[k].loading&&!sd[k].error)
+      .map(k=>`${k}: $${sd[k].price} RSI:${sd[k].rsi14} Signal:${sd[k].signal}`).join(', ');
+    const fullPrompt=`You are TradeBrief AI helping a retail options trader.
+Their watchlist: ${wl.join(', ')}.
+Settings: Min R/R=${S('rr')}, Budget=$${S('budget')}, RSI OB=${S('rsiOb')}, OS=${S('rsiOs')}.
+Open trades: ${trades.length?trades.map(t=>`${t.ticker} ${t.type} $${t.buy}/$${t.sell} exp ${t.exp}`).join('; '):'none'}.
+Stock data: ${stockCtx||'none loaded'}.
+Question: ${text}
+Answer concisely and educationally. Focus on debit spreads and defined risk.`;
+
+    // Try Claude API
+    const r=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:500,messages:[{role:'user',content:fullPrompt}]})
+    });
+    if(!r.ok) throw new Error('API blocked');
+    const data=await r.json();
+    const reply=data.content[0].text.trim();
     rmTyping();
     addMsg('ai',reply);
     chatHistory.push({role:'assistant',content:reply});
   }catch(e){
     rmTyping();
-    addMsg('ai','Sorry, something went wrong. Please try again.');
+    const stockCtx=Object.keys(sd).filter(k=>!sd[k].loading&&!sd[k].error)
+      .map(k=>`${k} $${sd[k].price} RSI:${sd[k].rsi14} Signal:${sd[k].signal}`).join(', ');
+    addMsg('ai',`⚠️ AI chat requires the Claude.ai environment to work (API is blocked when hosted externally).\n\nTo get an answer, copy this into Claude.ai:\n\n"${text}\n\nContext: Watchlist=${wl.join(',')}, Trades=${trades.length}, Stocks=${stockCtx||'none loaded'}"`);
   }
   document.getElementById('send-btn').disabled=false;
 }
