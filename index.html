@@ -381,6 +381,36 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
 .chat-suggestion{display:inline-block;background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:4px 11px;font-size:11px;cursor:pointer;margin:3px;color:var(--muted);transition:all 0.2s;}
 .chat-suggestion:hover{border-color:var(--accent);color:var(--accent);}
 
+/* ── PENDING TRADES ─────────────────────────────────────────── */
+.pending-card{background:var(--surface);border:1px solid var(--accent);border-radius:12px;padding:14px;margin-bottom:9px;position:relative;}
+.pending-card .pending-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.pending-card .pending-ticker{font-family:'Space Mono',monospace;font-size:16px;font-weight:700;}
+.pending-card .pending-signal{font-family:'Space Mono',monospace;font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;}
+.pending-card .pending-signal.CALLS{background:rgba(0,255,157,0.15);color:var(--good);border:1px solid rgba(0,255,157,0.3);}
+.pending-card .pending-signal.PUTS{background:rgba(255,71,87,0.15);color:var(--danger);border:1px solid rgba(255,71,87,0.3);}
+.pending-card .pending-signal.WAIT{background:rgba(255,165,2,0.15);color:var(--warning);border:1px solid rgba(255,165,2,0.3);}
+.pending-dismiss{position:absolute;top:8px;right:10px;background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer;padding:4px;line-height:1;}
+.pending-dismiss:hover{color:var(--danger);}
+.pending-auto{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:6px;margin-bottom:10px;}
+.pending-auto-item{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:6px 9px;}
+.pending-auto-label{font-size:8px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:2px;}
+.pending-auto-val{font-family:'Space Mono',monospace;font-size:12px;font-weight:700;color:var(--accent);}
+.pending-manual{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;margin-bottom:10px;}
+.pending-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.controls-btn{background:none;border:1px solid var(--accent);border-radius:7px;padding:6px 12px;font-size:11px;font-family:'Space Mono',monospace;color:var(--accent);cursor:pointer;transition:all 0.2s;}
+.controls-btn:hover{background:var(--accent);color:#000;}
+.controls-panel{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;margin-top:10px;display:none;}
+.controls-panel.open{display:block;}
+.controls-section-title{font-family:'Space Mono',monospace;font-size:11px;font-weight:700;color:var(--accent);margin:10px 0 6px;padding-bottom:4px;border-bottom:1px solid var(--border);}
+.controls-section-title:first-child{margin-top:0;}
+.controls-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px;}
+.controls-row{display:flex;justify-content:space-between;align-items:center;padding:5px 8px;border-radius:4px;font-family:'Space Mono',monospace;font-size:11px;}
+.controls-row:nth-child(odd){background:rgba(0,212,255,0.03);}
+.controls-row .cl{color:var(--muted);font-size:10px;}
+.controls-row .cv{color:var(--text);font-weight:700;}
+.controls-row .cv.manual{color:var(--warning);font-style:italic;font-weight:400;}
+.controls-row .cv.auto{color:var(--accent);}
+
 .empty{text-align:center;padding:24px;color:var(--muted);font-size:12px;}
 .drive-badge{font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:2px 7px;}
 @keyframes fadeUp{from{opacity:0;transform:translateX(-50%) translateY(8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
@@ -735,6 +765,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
 
   <!-- ── TRADES ─────────────────────────────────────────────── -->
   <div class="tab-content" id="tab-trades">
+    <div id="pending-section"></div>
     <div class="sec">Open Trades</div>
     <div id="tlist"></div>
     <div class="sec">Closed Trades</div>
@@ -902,6 +933,7 @@ let cfg=JSON.parse(localStorage.getItem('cfg')||'{}');
 let chatHistory=[];
 let closingTradeIdx=-1;
 let selectedOutcome='';
+let pendingTrades=[];
 
 const DEFAULTS={rsiOb:70,rsiOs:30,ema:'8,21',rr:1.5,pop:30,cw:0.50,dmin:0.15,dmax:0.70,budget:250,iv:true,earn:true,dte:5,profitAlert:75,target:80,contracts:1,pricefmt:'both',speed:3};
 function S(k){return cfg[k]!==undefined?cfg[k]:DEFAULTS[k];}
@@ -942,7 +974,7 @@ function go(n){
   document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
   document.getElementById('tab-'+n).classList.add('active');
   if(n==='earnings')rE();
-  if(n==='trades'){rT();rClosed();}
+  if(n==='trades'){rPending();rT();rClosed();}
   if(n==='settings')loadS();
 }
 
@@ -1759,21 +1791,154 @@ Be concise, educational, and friendly. Focus on practical advice.`;
   document.getElementById('send-btn').disabled=false;
 }
 
-// ── SELECT / DOWNLOAD ──────────────────────────────────────────────────────
+// ── SELECT → PENDING TRADE ────────────────────────────────────────────────
 function select(ticker){
   const d=sd[ticker];
   if(!d||d.loading||d.error){toast('Load data for '+ticker+' first');return;}
-  const today=new Date().toISOString().split('T')[0];
-  const csv=['TradeBrief — '+ticker+' — '+today,'',
-    'Ticker,Price,Change%,RSI14,EMA8,EMA21,Signal,Reason',
-    [ticker,d.price,d.changePct,d.rsi14,d.ema8,d.ema21,d.signal,'"'+d.reason+'"'].join(','),
-    '','Key Stats','Label,Value,Note',
-    ...(d.teasers||[]).map(t=>['"'+t.label+'"','"'+t.value+'"','"'+t.note+'"'].join(',')),
-    '','Earnings,'+( d.earningsDate||'Unknown'),'Generated,'+new Date().toLocaleString()].join('\n');
-  const b=new Blob([csv],{type:'text/csv'});
-  const u=URL.createObjectURL(b),a=document.createElement('a');
-  a.href=u;a.download=ticker+'_TradeBrief_'+today+'.csv';a.click();
-  URL.revokeObjectURL(u);toast('↓ Downloaded '+ticker+' briefing');
+  // Determine type from signal
+  const type=d.signal==='CALLS'?'Call Spread':d.signal==='PUTS'?'Put Spread':'Call Spread';
+  pendingTrades.push({
+    id:Date.now()+'_'+ticker,
+    ticker,
+    type,
+    price:d.price,
+    signal:d.signal,
+    earningsDate:d.earningsDate||'Unknown',
+    contracts:S('contracts'),
+    budget:S('budget'),
+    rr:S('rr'),
+    cw:S('cw'),
+    dmin:S('dmin'),
+    dmax:S('dmax'),
+    target:S('target'),
+    // Manual fields
+    exp:'',
+    buy:'',
+    sell:'',
+    cost:'',
+    profit:'',
+    controlsOpen:false
+  });
+  go('trades');
+  rPending();
+  toast('⬇ '+ticker+' added to pending trades');
+}
+
+function rPending(){
+  const el=document.getElementById('pending-section');
+  if(!pendingTrades.length){el.innerHTML='';return;}
+  el.innerHTML='<div class="sec">Pending Trades — Select Queue</div>'+pendingTrades.map((p,i)=>{
+    const isLong=p.type==='Long Call'||p.type==='Long Put';
+    const showSell=!isLong;
+    const showProfit=!isLong;
+    return`<div class="pending-card">
+      <button class="pending-dismiss" onclick="dismissPending(${i})" title="Dismiss">✕</button>
+      <div class="pending-header">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span class="pending-ticker">${p.ticker}</span>
+          <span class="pending-signal ${p.signal}">${p.signal}</span>
+          <span style="font-family:'Space Mono',monospace;font-size:13px;color:var(--accent);">$${p.price.toFixed(2)}</span>
+        </div>
+      </div>
+      <div class="pending-auto">
+        <div class="pending-auto-item"><div class="pending-auto-label">Type</div><div class="pending-auto-val">${p.type}</div></div>
+        <div class="pending-auto-item"><div class="pending-auto-label">Contracts</div><div class="pending-auto-val">${p.contracts}</div></div>
+        <div class="pending-auto-item"><div class="pending-auto-label">Budget</div><div class="pending-auto-val">$${p.budget}</div></div>
+        <div class="pending-auto-item"><div class="pending-auto-label">Target %</div><div class="pending-auto-val">${p.target}%</div></div>
+        <div class="pending-auto-item"><div class="pending-auto-label">Earnings</div><div class="pending-auto-val">${p.earningsDate}</div></div>
+      </div>
+      <div class="pending-manual">
+        <div class="ff"><label class="fl">Type</label>
+          <select class="fsel" id="pt-type-${i}" onchange="pendingTypeChange(${i})">
+            <option value="Long Call" ${p.type==='Long Call'?'selected':''}>Long Call</option>
+            <option value="Call Spread" ${p.type==='Call Spread'?'selected':''}>Call Spread</option>
+            <option value="Long Put" ${p.type==='Long Put'?'selected':''}>Long Put</option>
+            <option value="Put Spread" ${p.type==='Put Spread'?'selected':''}>Put Spread</option>
+          </select>
+        </div>
+        <div class="ff"><label class="fl">Exp Date</label><input class="fi" id="pt-exp-${i}" type="date" value="${p.exp}"></div>
+        <div class="ff"><label class="fl">Buy Strike</label><input class="fi" id="pt-buy-${i}" type="number" step="0.5" placeholder="—" value="${p.buy}"></div>
+        <div class="ff" ${showSell?'':'style="display:none"'} id="pt-sell-wrap-${i}"><label class="fl">Sell Strike</label><input class="fi" id="pt-sell-${i}" type="number" step="0.5" placeholder="—" value="${p.sell}"></div>
+        <div class="ff"><label class="fl">Cost ($)</label><input class="fi" id="pt-cost-${i}" type="number" step="0.01" placeholder="—" value="${p.cost}"></div>
+        <div class="ff" ${showProfit?'':'style="display:none"'} id="pt-profit-wrap-${i}"><label class="fl">Max Profit ($)</label><input class="fi" id="pt-profit-${i}" type="number" step="0.01" placeholder="—" value="${p.profit}"></div>
+      </div>
+      <div class="pending-actions">
+        <button class="sub-btn" onclick="logPending(${i})">Log Trade</button>
+        <button class="controls-btn" onclick="toggleControls(${i})">📋 Controls Info</button>
+      </div>
+      <div class="controls-panel ${p.controlsOpen?'open':''}" id="ctrl-panel-${i}">
+        ${renderControlsInfo(p)}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function pendingTypeChange(i){
+  const type=document.getElementById('pt-type-'+i).value;
+  pendingTrades[i].type=type;
+  rPending();
+}
+
+function dismissPending(i){
+  pendingTrades.splice(i,1);
+  rPending();
+  toast('Pending trade dismissed');
+}
+
+function toggleControls(i){
+  pendingTrades[i].controlsOpen=!pendingTrades[i].controlsOpen;
+  const panel=document.getElementById('ctrl-panel-'+i);
+  if(panel)panel.classList.toggle('open');
+}
+
+function renderControlsInfo(p){
+  const isCall=p.type==='Call Spread'||p.type==='Long Call';
+  const sideLabel=isCall?'CALL':'PUT';
+  return`
+    <div class="controls-section-title">${sideLabel} Inputs — Controls Tab</div>
+    <div class="controls-row"><span class="cl">Ticker</span><span class="cv auto">${p.ticker}</span></div>
+    <div class="controls-row"><span class="cl">Expiration Date</span><span class="cv manual">✏️ manual</span></div>
+    <div class="controls-row"><span class="cl">Current Stock Price</span><span class="cv auto">${p.price.toFixed(2)}</span></div>
+    <div class="controls-row"><span class="cl">Pricing Basis</span><span class="cv auto">MID</span></div>
+    <div class="controls-row"><span class="cl">Buy Strike</span><span class="cv manual">✏️ manual</span></div>
+    <div class="controls-row"><span class="cl">Sell Strike</span><span class="cv manual">✏️ manual</span></div>
+    <div class="controls-row"><span class="cl">Contracts</span><span class="cv auto">${p.contracts}</span></div>
+    <div class="controls-row"><span class="cl">Max Budget ($)</span><span class="cv auto">${p.budget.toFixed(2)}</span></div>
+    <div class="controls-row"><span class="cl">Min Reward/Risk</span><span class="cv auto">${p.rr.toFixed(2)}</span></div>
+    <div class="controls-row"><span class="cl">Max Cost/Width</span><span class="cv auto">${p.cw.toFixed(2)}</span></div>
+    <div class="controls-row"><span class="cl">Min Delta</span><span class="cv auto">${p.dmin.toFixed(2)}</span></div>
+    <div class="controls-row"><span class="cl">Max Delta</span><span class="cv auto">${p.dmax.toFixed(2)}</span></div>
+    <div class="controls-row"><span class="cl">IV Rank (0-100)</span><span class="cv manual">✏️ manual</span></div>
+    <div style="margin-top:8px;font-size:10px;color:var(--muted);text-align:center;">
+      <span style="color:var(--accent);">● auto-filled</span>&nbsp;&nbsp;&nbsp;<span style="color:var(--warning);">✏️ manual entry</span>
+    </div>
+  `;
+}
+
+function logPending(i){
+  const p=pendingTrades[i];
+  const type=document.getElementById('pt-type-'+i).value;
+  const exp=document.getElementById('pt-exp-'+i).value;
+  const buy=parseFloat(document.getElementById('pt-buy-'+i).value);
+  const cost=parseFloat(document.getElementById('pt-cost-'+i).value);
+  const sell=parseFloat((document.getElementById('pt-sell-'+i)||{}).value)||null;
+  const profit=parseFloat((document.getElementById('pt-profit-'+i)||{}).value)||null;
+  const isLong=type==='Long Call'||type==='Long Put';
+
+  if(!buy||!cost||!exp){alert('Fill in Exp Date, Buy Strike, and Cost');return;}
+  if(!isLong&&!sell){alert('Sell strike required for spreads');return;}
+
+  const d=sd[p.ticker];
+  trades.push({
+    ticker:p.ticker,type,buy,sell,cost,profit,exp,target:p.target,
+    maxUnlimited:isLong,
+    entryPrice:d?d.price:p.price,
+    entryDate:new Date().toISOString().split('T')[0]
+  });
+  sTR();
+  pendingTrades.splice(i,1);
+  rPending();rT();rB();updatePnL();
+  toast('✓ '+p.ticker+' trade logged');
 }
 
 function exportTrades(){
