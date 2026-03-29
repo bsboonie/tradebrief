@@ -624,72 +624,31 @@ function addT(){
 }
 function rmT(t){wl=wl.filter(x=>x!==t);delete sd[t];sWL();rChips();rB();}
 
-// ── DATA FETCH (TradingView + Yahoo Finance fallback) ──────────────────────
-async function fetchYahoo(ticker){
-  const url=`https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=60d`;
-  const r=await fetch(url);
-  if(!r.ok)throw new Error('Yahoo failed');
-  return await r.json();
-}
-
-function calcEMA(prices,period){
-  const k=2/(period+1);
-  let ema=prices.slice(0,period).reduce((a,b)=>a+b,0)/period;
-  for(let i=period;i<prices.length;i++)ema=prices[i]*k+ema*(1-k);
-  return parseFloat(ema.toFixed(2));
-}
-
-function calcRSI(prices,period=14){
-  const ch=prices.slice(1).map((p,i)=>p-prices[i]);
-  let ag=0,al=0;
-  for(let i=0;i<period;i++){if(ch[i]>0)ag+=ch[i];else al-=ch[i];}
-  ag/=period;al/=period;
-  for(let i=period;i<ch.length;i++){
-    const g=ch[i]>0?ch[i]:0,l=ch[i]<0?-ch[i]:0;
-    ag=(ag*(period-1)+g)/period;al=(al*(period-1)+l)/period;
-  }
-  return al===0?100:parseFloat((100-100/(1+ag/al)).toFixed(1));
-}
-
-function getSignal(price,ema8,ema21,rsi){
-  const ob=S('rsiOb'),os=S('rsiOs');
-  if(price>ema8&&price>ema21&&ema8>ema21&&rsi<ob&&rsi>40)return{signal:'CALLS',reason:'Uptrend confirmed, EMAs bullish, RSI healthy'};
-  if(price<ema8&&price<ema21&&ema8<ema21&&rsi>os&&rsi<60)return{signal:'PUTS',reason:'Downtrend confirmed, EMAs bearish'};
-  if(rsi<os)return{signal:'WAIT',reason:'Oversold — wait for bounce confirmation'};
-  if(rsi>ob)return{signal:'WAIT',reason:'Overbought — wait for RSI to cool'};
-  return{signal:'WAIT',reason:'Mixed signals — no clear directional setup'};
-}
-
-// Trend analysis for take profit decisions
-function trendStrength(closes,ema8,ema21,rsi){
-  const price=closes[closes.length-1];
-  const prev=closes[closes.length-2];
-  const rsiOb=S('rsiOb');
-  // Signs of weakening trend
-  let weakSignals=0;
-  if(rsi>rsiOb)weakSignals++;           // overbought
-  if(price<ema8)weakSignals++;           // broke below fast EMA
-  if(price<ema8&&ema8<ema21)weakSignals++; // full bearish cross
-  if(prev>ema8&&price<ema8)weakSignals++; // just crossed below EMA8
-  const recentChg=((closes[closes.length-1]-closes[closes.length-4])/closes[closes.length-4])*100;
-  if(recentChg<-3)weakSignals++;         // dropped >3% in 3 days
-  return{weakSignals,trending:weakSignals<2};
-}
+// ── DATA FETCH (Finnhub) ───────────────────────────────────────────────────
+const FINNHUB_KEY='d74aqr1r01qno4q12vl0d74aqr1r01qno4q12vlg';
+const FH='https://finnhub.io/api/v1';
 
 async function fetch1(ticker){
   sd[ticker]={loading:true};rB();
   try{
-    const data=await fetchYahoo(ticker);
-    const result=data.chart.result[0];
-    const meta=result.meta;
-    const closes=result.indicators.quote[0].close.filter(Boolean);
-    if(closes.length<22)throw new Error('Not enough data');
+    // Quote (current price)
+    const qr=await fetch(`${FH}/quote?symbol=${ticker}&token=${FINNHUB_KEY}`);
+    const q=await qr.json();
+    if(!q.c||q.c===0)throw new Error('No price data');
 
-    const price=parseFloat((meta.regularMarketPrice||closes[closes.length-1]).toFixed(2));
-    const prevClose=parseFloat((meta.previousClose||meta.chartPreviousClose||closes[closes.length-2]).toFixed(2));
+    const price=parseFloat(q.c.toFixed(2));
+    const prevClose=parseFloat(q.pc.toFixed(2));
     const change=parseFloat((price-prevClose).toFixed(2));
     const changePct=parseFloat(((change/prevClose)*100).toFixed(2));
 
+    // Candles for RSI/EMA (60 days of daily data)
+    const to=Math.floor(Date.now()/1000);
+    const from=to-60*24*60*60;
+    const cr=await fetch(`${FH}/stock/candle?symbol=${ticker}&resolution=D&from=${from}&to=${to}&token=${FINNHUB_KEY}`);
+    const candles=await cr.json();
+    if(!candles.c||candles.c.length<22)throw new Error('Not enough candle data');
+
+    const closes=candles.c;
     const parts=S('ema').split(',');
     const ema8=calcEMA(closes,parseInt(parts[0]));
     const ema21=calcEMA(closes,parseInt(parts[1]));
@@ -700,21 +659,19 @@ async function fetch1(ticker){
     // Teasers
     const ob=S('rsiOb'),os=S('rsiOs');
     const teasers=[
-      {label:'RSI 14',value:rsi14.toFixed(1),note:rsi14<os?'Oversold bounce potential':rsi14>ob?'Overbought — caution':'Healthy momentum range'},
+      {label:'RSI 14',value:rsi14.toFixed(1),note:rsi14<os?'Oversold — bounce potential':rsi14>ob?'Overbought — caution':'Healthy momentum range'},
       {label:'Trend',value:price>ema8&&price>ema21?'BULLISH':'BEARISH',note:price>ema8&&price>ema21?'Price above both EMAs':'Price below key EMAs'},
-      {label:"Day Move",value:(changePct>=0?'+':'')+changePct.toFixed(2)+'%',note:Math.abs(changePct)>3?'Big move today':'Quiet session today'}
+      {label:'Day Move',value:(changePct>=0?'+':'')+changePct.toFixed(2)+'%',note:Math.abs(changePct)>3?'Big move today':'Quiet session today'}
     ];
 
-    // Earnings from Yahoo
+    // Earnings from Finnhub
     let earningsDate=earningsOverrides[ticker]||null;
     if(!earningsDate){
       try{
-        const eq=await fetch(`https://query1.finance.yahoo.com/v10/finance/quoteSummary/${ticker}?modules=calendarEvents`);
-        if(eq.ok){
-          const ed=await eq.json();
-          const ev=ed?.quoteSummary?.result?.[0]?.calendarEvents?.earnings?.earningsDate?.[0]?.raw;
-          if(ev)earningsDate=new Date(ev*1000).toISOString().split('T')[0];
-        }
+        const er=await fetch(`${FH}/calendar/earnings?symbol=${ticker}&token=${FINNHUB_KEY}`);
+        const edata=await er.json();
+        const upcoming=(edata.earningsCalendar||[]).filter(e=>new Date(e.date)>=new Date()).sort((a,b)=>new Date(a.date)-new Date(b.date));
+        if(upcoming.length)earningsDate=upcoming[0].date;
       }catch(e){}
     }
 
@@ -728,8 +685,43 @@ async function fetch1(ticker){
 async function getAll(){sd={};rB();for(const t of wl)await fetch1(t);}
 
 // ── PRICE HELPERS ──────────────────────────────────────────────────────────
+function calcEMA(prices,period){
+  const k=2/(period+1);
+  let ema=prices.slice(0,period).reduce((a,b)=>a+b,0)/period;
+  for(let i=period;i<prices.length;i++)ema=prices[i]*k+ema*(1-k);
+  return parseFloat(ema.toFixed(2));
+}
+function calcRSI(prices,period=14){
+  const ch=prices.slice(1).map((p,i)=>p-prices[i]);
+  let ag=0,al=0;
+  for(let i=0;i<period;i++){if(ch[i]>0)ag+=ch[i];else al-=ch[i];}
+  ag/=period;al/=period;
+  for(let i=period;i<ch.length;i++){
+    const g=ch[i]>0?ch[i]:0,l=ch[i]<0?-ch[i]:0;
+    ag=(ag*(period-1)+g)/period;al=(al*(period-1)+l)/period;
+  }
+  return al===0?100:parseFloat((100-100/(1+ag/al)).toFixed(1));
+}
+function getSignal(price,ema8,ema21,rsi){
+  const ob=S('rsiOb'),os=S('rsiOs');
+  if(price>ema8&&price>ema21&&ema8>ema21&&rsi<ob&&rsi>40)return{signal:'CALLS',reason:'Uptrend confirmed, EMAs bullish, RSI healthy'};
+  if(price<ema8&&price<ema21&&ema8<ema21&&rsi>os&&rsi<60)return{signal:'PUTS',reason:'Downtrend confirmed, EMAs bearish'};
+  if(rsi<os)return{signal:'WAIT',reason:'Oversold — wait for bounce confirmation'};
+  if(rsi>ob)return{signal:'WAIT',reason:'Overbought — wait for RSI to cool'};
+  return{signal:'WAIT',reason:'Mixed signals — no clear directional setup'};
+}
+function trendStrength(closes,ema8,ema21,rsi){
+  const price=closes[closes.length-1],prev=closes[closes.length-2];
+  const ob=S('rsiOb');
+  let w=0;
+  if(rsi>ob)w++;
+  if(price<ema8)w++;
+  if(price<ema8&&ema8<ema21)w++;
+  if(prev>ema8&&price<ema8)w++;
+  if(((closes[closes.length-1]-closes[closes.length-4])/closes[closes.length-4])*100<-3)w++;
+  return{weakSignals:w,trending:w<2};
+}
 function pc(change){return!isOpen()?'flat':change>0?'up':change<0?'dn':'flat';}
-function chgStr(d){
   const fmt=S('pricefmt');
   const dol=(d.change>=0?'+':'')+d.change.toFixed(2);
   const pct=(d.changePct>=0?'+':'')+d.changePct.toFixed(2)+'%';
