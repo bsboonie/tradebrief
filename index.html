@@ -722,6 +722,7 @@ function trendStrength(closes,ema8,ema21,rsi){
   return{weakSignals:w,trending:w<2};
 }
 function pc(change){return!isOpen()?'flat':change>0?'up':change<0?'dn':'flat';}
+function chgStr(d){
   const fmt=S('pricefmt');
   const dol=(d.change>=0?'+':'')+d.change.toFixed(2);
   const pct=(d.changePct>=0?'+':'')+d.changePct.toFixed(2)+'%';
