@@ -411,6 +411,18 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
 .controls-row .cv.manual{color:var(--warning);font-style:italic;font-weight:400;}
 .controls-row .cv.auto{color:var(--accent);}
 
+/* ── SCANNER STATUS ─────────────────────────────────────────── */
+.scan-bar{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.scan-status{font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);}
+.scan-status .active{color:var(--accent);}
+.scan-btn{background:var(--accent);border:none;border-radius:7px;padding:5px 12px;font-size:10px;font-family:'Space Mono',monospace;color:#000;cursor:pointer;font-weight:700;}
+.scan-progress{height:3px;background:var(--surface);border-radius:2px;overflow:hidden;margin-top:6px;}
+.scan-progress-bar{height:100%;background:var(--accent);border-radius:2px;transition:width 0.3s;}
+.not-ready-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;margin-bottom:9px;overflow:hidden;position:relative;opacity:0.6;}
+.not-ready-card .nr-badge{position:absolute;top:10px;right:10px;font-family:'Space Mono',monospace;font-size:9px;padding:3px 8px;border-radius:12px;background:rgba(255,165,2,0.15);color:var(--warning);border:1px solid rgba(255,165,2,0.3);}
+.top3-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.top3-count{font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);}
+
 .empty{text-align:center;padding:24px;color:var(--muted);font-size:12px;}
 .drive-badge{font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:2px 7px;}
 @keyframes fadeUp{from{opacity:0;transform:translateX(-50%) translateY(8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
@@ -467,9 +479,8 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
     <div class="tab active" onclick="go('howto')">📖 How-To</div>
     <div class="tab" onclick="go('briefing')">📊 Brief</div>
     <div class="tab" onclick="go('trades')">💼 Trades</div>
-    <div class="tab" onclick="go('earnings')">📅 Earn</div>
     <div class="tab" onclick="go('ai')">🤖 AI</div>
-    <div class="tab" onclick="go('settings')">⚙️ Set</div>
+    <div class="tab" onclick="go('settings')">⚙️ Settings</div>
   </div>
 
   <!-- ── HOW-TO ─────────────────────────────────────────────── -->
@@ -521,7 +532,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
           <div class="hw-tab-row"><span class="hw-tab-label">📖 How-To</span><span class="hw-tab-desc">You are here. Learn the tool, look up terms.</span></div>
           <div class="hw-tab-row"><span class="hw-tab-label">📊 Brief</span><span class="hw-tab-desc">Your morning briefing. Stock signals, live prices, open positions, alerts.</span></div>
           <div class="hw-tab-row"><span class="hw-tab-label">💼 Trades</span><span class="hw-tab-desc">Log new trades, close them, view history.</span></div>
-          <div class="hw-tab-row"><span class="hw-tab-label">📅 Earn</span><span class="hw-tab-desc">Earnings calendar for your watchlist — avoid IV crush.</span></div>
+          <div class="hw-tab-row"><span class="hw-tab-label">🤖 AI</span><span class="hw-tab-desc">Chat with TradeBrief AI about your trades and strategy.</span></div>
           <div class="hw-tab-row"><span class="hw-tab-label">🤖 AI</span><span class="hw-tab-desc">Ask anything about your trades, options strategy, or market conditions.</span></div>
           <div class="hw-tab-row"><span class="hw-tab-label">⚙️ Set</span><span class="hw-tab-desc">Configure your thresholds, budget, alerts, and display.</span></div>
         </div>
@@ -747,18 +758,11 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
             <button class="all-btn" id="all-btn" onclick="handleAllBtn()">↓ Get All Data</button>
           </div>
         </div>
-        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-family:'Space Mono',monospace;font-size:10px;min-width:160px;">
-          <div style="color:var(--muted);letter-spacing:1px;margin-bottom:8px;font-size:9px;">CARD COLOR KEY</div>
-          <div style="display:flex;flex-direction:column;gap:5px;">
-            <div style="display:flex;align-items:center;gap:8px;"><div style="width:4px;height:16px;border-radius:2px;background:var(--good);"></div><span style="color:var(--text);">CALLS — Bullish setup</span></div>
-            <div style="display:flex;align-items:center;gap:8px;"><div style="width:4px;height:16px;border-radius:2px;background:var(--danger);"></div><span style="color:var(--text);">PUTS — Bearish setup</span></div>
-            <div style="display:flex;align-items:center;gap:8px;"><div style="width:4px;height:16px;border-radius:2px;background:var(--warning);"></div><span style="color:var(--text);">WAIT — Mixed signals</span></div>
-          </div>
-        </div>
       </div>
     </div>
+    <div id="scan-bar-area"></div>
     <div id="alerts"></div>
-    <div class="sec">Stock Briefings</div>
+    <div class="sec" id="brief-header">Top Picks</div>
     <div id="blist"></div>
     <div id="positions-section"></div>
   </div>
@@ -770,35 +774,6 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
     <div id="tlist"></div>
     <div class="sec">Closed Trades</div>
     <div id="closed-list"></div>
-    <div class="sec">Log New Trade</div>
-    <div class="form-box">
-      <div class="fgrid">
-        <div class="ff"><label class="fl">Ticker</label><input class="fi" id="ft" placeholder="WULF" style="text-transform:uppercase"></div>
-        <div class="ff"><label class="fl">Type</label>
-          <select class="fsel" id="ftype" onchange="updateTradeForm()">
-            <option value="Long Call">Long Call</option>
-            <option value="Call Spread">Call Spread</option>
-            <option value="Long Put">Long Put</option>
-            <option value="Put Spread">Put Spread</option>
-          </select>
-        </div>
-        <div class="ff"><label class="fl">Buy Strike</label><input class="fi" id="fb" type="number" step="0.5" placeholder="15.50"></div>
-        <div class="ff" id="ff-sell"><label class="fl">Sell Strike</label><input class="fi" id="fs" type="number" step="0.5" placeholder="16.00"></div>
-        <div class="ff"><label class="fl">Cost ($)</label><input class="fi" id="fc" type="number" step="0.01" placeholder="19.50"></div>
-        <div class="ff" id="ff-profit"><label class="fl">Max Profit ($)</label><input class="fi" id="fp" type="number" step="0.01" placeholder="30.50"></div>
-        <div class="ff"><label class="fl">Exp Date</label><input class="fi" id="fe" type="date"></div>
-        <div class="ff"><label class="fl">Target %</label><input class="fi" id="fg" type="number"></div>
-      </div>
-      <div id="unlimited-note" style="display:none;margin-bottom:10px;font-family:'Space Mono',monospace;font-size:11px;color:var(--accent);">♾ Max Profit: Unlimited — no ceiling on upside</div>
-      <button class="sub-btn" onclick="addTrade()">Log Trade</button>
-    </div>
-  </div>
-
-  <!-- ── EARNINGS ───────────────────────────────────────────── -->
-  <div class="tab-content" id="tab-earnings">
-    <div class="sec">Earnings Calendar</div>
-    <div id="elist"><div class="empty">Load briefing data first</div></div>
-    <p style="color:var(--muted);font-size:10px;margin-top:8px;text-align:center;">Always verify on Fidelity before trading.</p>
   </div>
 
   <!-- ── AI ─────────────────────────────────────────────────── -->
@@ -917,6 +892,32 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
     </div>
   </div>
 </div>
+<div class="modal-overlay" id="edit-trade-modal" style="display:none;">
+  <div class="modal" style="max-width:420px;">
+    <h3 id="edit-trade-title">EDIT OPEN TRADE</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div class="modal-field"><div class="modal-label">Ticker</div><input class="modal-input" id="et-ticker" style="text-transform:uppercase"></div>
+      <div class="modal-field"><div class="modal-label">Type</div>
+        <select class="modal-input" id="et-type" onchange="editTradeTypeChange()">
+          <option value="Long Call">Long Call</option>
+          <option value="Call Spread">Call Spread</option>
+          <option value="Long Put">Long Put</option>
+          <option value="Put Spread">Put Spread</option>
+        </select>
+      </div>
+      <div class="modal-field"><div class="modal-label">Buy Strike</div><input class="modal-input" id="et-buy" type="number" step="0.5"></div>
+      <div class="modal-field" id="et-sell-wrap"><div class="modal-label">Sell Strike</div><input class="modal-input" id="et-sell" type="number" step="0.5"></div>
+      <div class="modal-field"><div class="modal-label">Cost ($)</div><input class="modal-input" id="et-cost" type="number" step="0.01"></div>
+      <div class="modal-field" id="et-profit-wrap"><div class="modal-label">Max Profit ($)</div><input class="modal-input" id="et-profit" type="number" step="0.01"></div>
+      <div class="modal-field"><div class="modal-label">Exp Date</div><input class="modal-input" id="et-exp" type="date"></div>
+      <div class="modal-field"><div class="modal-label">Target %</div><input class="modal-input" id="et-target" type="number"></div>
+    </div>
+    <div class="modal-actions" style="margin-top:16px;">
+      <button class="modal-confirm" onclick="saveEditTrade()">Save Changes</button>
+      <button class="modal-cancel" onclick="cancelEditTrade()">Cancel</button>
+    </div>
+  </div>
+</div>
 
 <script>
 // ── CONFIG ─────────────────────────────────────────────────────────────────
@@ -932,8 +933,213 @@ let sd={};
 let cfg=JSON.parse(localStorage.getItem('cfg')||'{}');
 let chatHistory=[];
 let closingTradeIdx=-1;
+let editingTradeIdx=-1;
 let selectedOutcome='';
 let pendingTrades=[];
+
+// ── SCANNER UNIVERSE ──────────────────────────────────────────────────────
+const UNIVERSE=[
+  // Crypto/Blockchain (low price, high IV)
+  'WULF','MARA','RIOT','BITF','HUT','CLSK',
+  // Energy (mid price, solid options)
+  'PR','OVV','RIG','SWN','AR','CTRA','MUR',
+  // Fintech/Financial (varied)
+  'HOOD','AFRM','SQ','SOFI','UPST','NU',
+  // Tech/AI/Cloud (mid-high)
+  'PLTR','RKLB','IONQ','BBAI','BIGB','AI',
+  // Semiconductors
+  'AMD','MU','ON','WOLF','SMCI',
+  // Social/Internet
+  'RDDT','SNAP','PINS','GRAB',
+  // Biotech/Healthcare (volatile, cheap options)
+  'MRNA','DNA','CRSP','BEAM',
+  // EV/Clean Energy
+  'RIVN','LCID','NIO','FSLR','PLUG',
+  // Consumer/Retail
+  'DIS','NKE','DKNG','PENN',
+  // Industrials
+  'JOBY','LUNR','RDW','ACHR'
+];
+
+// ── TOP 3 STATE ───────────────────────────────────────────────────────────
+let top3=[];// tickers currently displayed as actionable
+let notReadyList=[];// tickers close to qualifying shown as fallback
+let scannerRunning=false;
+let scannerProgress=0;
+let scannerTotal=0;
+let autoRefreshTimer=null;
+const AUTO_REFRESH_MS=5*60*1000;// 5 minutes
+
+// ── SCANNER FUNCTIONS ─────────────────────────────────────────────────────
+function getQualifyingTickers(){
+  // Return all watchlist+scanned tickers that have CALLS or PUTS signal
+  const allTickers=[...new Set([...wl,...Object.keys(sd)])];
+  return allTickers.filter(t=>{
+    const d=sd[t];
+    return d&&!d.loading&&!d.error&&d.dataSource!=='none'&&(d.signal==='CALLS'||d.signal==='PUTS');
+  });
+}
+
+function getNotReadyTickers(){
+  // Return tickers closest to qualifying (WAIT but with some positive signals)
+  const allTickers=[...new Set([...wl,...Object.keys(sd)])];
+  return allTickers.filter(t=>{
+    const d=sd[t];
+    if(!d||d.loading||d.error||d.dataSource==='none')return false;
+    if(d.signal==='CALLS'||d.signal==='PUTS')return false;// already qualifying
+    return true;
+  }).map(t=>{
+    const d=sd[t];
+    // Score how close to qualifying: higher = closer
+    let score=0;
+    const ob=S('rsiOb'),os=S('rsiOs');
+    // RSI in healthy range
+    if(d.rsi14>40&&d.rsi14<ob)score+=2;
+    else if(d.rsi14>os&&d.rsi14<ob)score+=1;
+    // Price near EMA crossover
+    const pctFromEma8=Math.abs((d.price-d.ema8)/d.price)*100;
+    if(pctFromEma8<2)score+=2;
+    else if(pctFromEma8<5)score+=1;
+    // EMAs close to crossing
+    const emaDiff=Math.abs((d.ema8-d.ema21)/d.ema21)*100;
+    if(emaDiff<1)score+=2;
+    else if(emaDiff<3)score+=1;
+    return{ticker:t,score};
+  }).sort((a,b)=>b.score-a.score).map(x=>x.ticker);
+}
+
+function buildTop3(){
+  const qualifying=getQualifyingTickers();
+  const budget=S('budget');
+
+  // Budget-aware affordability scoring (tiered)
+  // At $50 budget: stocks under $20 are ideal, $20-40 possible, $40+ unlikely
+  // At $250 budget: stocks under $80 ideal, $80-150 possible, $150+ unlikely
+  // Scale thresholds relative to budget
+  const idealMax=budget*0.4;   // e.g. $50 budget → stocks under $20
+  const okMax=budget*0.8;      // e.g. $50 budget → stocks under $40
+  const stretchMax=budget*1.5; // e.g. $50 budget → stocks under $75
+
+  const scored=qualifying.map(t=>{
+    const d=sd[t];
+    let affordScore=0;
+    // Only consider tickers with real data
+    if(d.dataSource==='none')return{ticker:t,affordScore:-100};
+    if(d.price<=idealMax)affordScore=10;       // Best fit for budget
+    else if(d.price<=okMax)affordScore=6;       // Possible fit
+    else if(d.price<=stretchMax)affordScore=3;  // Stretch but maybe
+    else affordScore=1;                          // Likely too expensive
+    return{ticker:t,affordScore};
+  }).filter(s=>s.affordScore>0).sort((a,b)=>b.affordScore-a.affordScore);
+
+  // Keep current top3 members if still qualifying (stability)
+  const stillGood=top3.filter(t=>qualifying.includes(t));
+  const newQualifiers=scored.map(s=>s.ticker).filter(t=>!stillGood.includes(t));
+
+  // Fill up to 3: keep stable picks first, then add new ones
+  top3=[...stillGood,...newQualifiers].slice(0,3);
+
+  // Build not-ready fallback list
+  const notReady=getNotReadyTickers().filter(t=>!top3.includes(t));
+  const slotsNeeded=3-top3.length;
+  notReadyList=slotsNeeded>0?notReady.slice(0,slotsNeeded):[];
+
+  updateScanBar();
+}
+
+async function runScanner(){
+  if(scannerRunning)return;
+  // Only scan if we need to fill slots
+  const qualifying=getQualifyingTickers();
+  const currentGood=top3.filter(t=>qualifying.includes(t));
+  if(currentGood.length>=3){
+    buildTop3();rB();
+    return;
+  }
+
+  scannerRunning=true;
+  // Determine which universe tickers need scanning (not already loaded)
+  const toScan=UNIVERSE.filter(t=>!sd[t]||sd[t].error);
+  scannerTotal=toScan.length;
+  scannerProgress=0;
+  updateScanBar();
+
+  // Scan in batches of 4 (each ticker uses ~4 API calls, 4*4=16 per batch, well under 60/min)
+  const batchSize=4;
+  for(let i=0;i<toScan.length;i+=batchSize){
+    const batch=toScan.slice(i,i+batchSize);
+    await Promise.all(batch.map(t=>fetch1(t)));
+    scannerProgress=Math.min(i+batchSize,toScan.length);
+    updateScanBar();
+
+    // Check if we have enough qualifying tickers now
+    buildTop3();
+    rB();
+    if(top3.length>=3){
+      scannerRunning=false;
+      updateScanBar();
+      return;
+    }
+
+    // Rate limit pause between batches
+    if(i+batchSize<toScan.length){
+      await new Promise(r=>setTimeout(r,4500));
+    }
+  }
+
+  scannerRunning=false;
+  buildTop3();
+  rB();
+  updateScanBar();
+}
+
+function updateScanBar(){
+  const el=document.getElementById('scan-bar-area');
+  if(!el)return;
+  const qualifying=getQualifyingTickers();
+  const statusText=scannerRunning
+    ?`<span class="active">⟳ Scanning... ${scannerProgress}/${scannerTotal}</span>`
+    :`${qualifying.length} qualifying · ${top3.length}/3 slots filled`;
+  const progressPct=scannerRunning&&scannerTotal>0?((scannerProgress/scannerTotal)*100):0;
+
+  el.innerHTML=`<div class="scan-bar">
+    <div class="scan-status">${statusText}</div>
+    <button class="scan-btn" onclick="runScanner()" ${scannerRunning?'disabled':''}>${scannerRunning?'Scanning...':'🔍 Scan Now'}</button>
+  </div>
+  ${scannerRunning?`<div class="scan-progress"><div class="scan-progress-bar" style="width:${progressPct}%"></div></div>`:''}`;
+}
+
+// ── AUTO-REFRESH ──────────────────────────────────────────────────────────
+async function autoRefresh(){
+  if(!isOpen())return;// Only during market hours
+
+  // Re-fetch data for current top3
+  for(const t of top3){
+    await fetch1(t);
+  }
+
+  // Rebuild top3 — if any dropped to WAIT, scanner fills the slot
+  const oldTop3=[...top3];
+  buildTop3();
+
+  // Check if any slots opened up
+  const slotsOpen=3-top3.length;
+  if(slotsOpen>0){
+    // Run scanner to backfill
+    await runScanner();
+  }
+
+  rB();
+}
+
+function startAutoRefresh(){
+  if(autoRefreshTimer)clearInterval(autoRefreshTimer);
+  autoRefreshTimer=setInterval(autoRefresh,AUTO_REFRESH_MS);
+}
+
+function stopAutoRefresh(){
+  if(autoRefreshTimer){clearInterval(autoRefreshTimer);autoRefreshTimer=null;}
+}
 
 const DEFAULTS={rsiOb:70,rsiOs:30,ema:'8,21',rr:1.5,pop:30,cw:0.50,dmin:0.15,dmax:0.70,budget:250,iv:true,earn:true,dte:5,profitAlert:75,target:80,contracts:1,pricefmt:'both',speed:3};
 function S(k){return cfg[k]!==undefined?cfg[k]:DEFAULTS[k];}
@@ -969,11 +1175,10 @@ setInterval(clk,1000);clk();
 
 // ── TABS ───────────────────────────────────────────────────────────────────
 function go(n){
-  const ns=['howto','briefing','trades','earnings','ai','settings'];
+  const ns=['howto','briefing','trades','ai','settings'];
   document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',ns[i]===n));
   document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
   document.getElementById('tab-'+n).classList.add('active');
-  if(n==='earnings')rE();
   if(n==='trades'){rPending();rT();rClosed();}
   if(n==='settings')loadS();
 }
@@ -1058,17 +1263,18 @@ function addT(){
   if(t&&!wl.includes(t)){wl.push(t);sWL();rChips();rB();}
   inp.value='';
 }
-function rmT(t){wl=wl.filter(x=>x!==t);delete sd[t];sWL();rChips();rB();}
+function rmT(t){
+  wl=wl.filter(x=>x!==t);delete sd[t];sWL();
+  // Remove from top3 if present
+  top3=top3.filter(x=>x!==t);
+  rChips();buildTop3();rB();
+  // Scanner looks for replacement
+  if(top3.length<3)runScanner();
+}
 
 // ── DATA FETCH (Finnhub) ───────────────────────────────────────────────────
 const FINNHUB_KEY='d74aqr1r01qno4q12vl0d74aqr1r01qno4q12vlg';
 const FH='https://finnhub.io/api/v1';
-
-function simulateCloses(currentPrice,days){
-  const closes=[];let p=currentPrice*0.92;
-  for(let i=0;i<days;i++){p=p*(1+(Math.random()-0.48)*0.02);closes.push(parseFloat(p.toFixed(2)));}
-  closes[closes.length-1]=currentPrice;return closes;
-}
 
 async function fetch1(ticker){
   sd[ticker]={loading:true};rB();
@@ -1093,7 +1299,31 @@ async function fetch1(ticker){
         closes=candles.c;dataSource='live';
       }
     }catch(e){}
-    if(!closes.length)closes=simulateCloses(price,60);
+    if(!closes.length){
+      // No candle data available — cannot compute reliable signals
+      sd[ticker]={ticker,price,change,changePct,rsi14:50,ema8:price,ema21:price,earningsDate:null,
+        signal:'WAIT',reason:'No historical data — cannot verify signal',
+        teasers:[
+          {label:'RSI 14',value:'—',note:'No candle data from Finnhub'},
+          {label:'Trend',value:'UNKNOWN',note:'Insufficient data for analysis'},
+          {label:'Day Move',value:(changePct>=0?'+':'')+changePct.toFixed(2)+'%',note:Math.abs(changePct)>3?'Big move today':'Quiet session today'}
+        ],
+        closes:[],trend:{weakSignals:0,trending:false},dataSource:'none'};
+      // Still try to get earnings
+      let earningsDate2=earningsOverrides[ticker]||null;
+      if(!earningsDate2){
+        try{
+          const er=await fetch(`${FH}/calendar/earnings?symbol=${ticker}&token=${FINNHUB_KEY}`);
+          const edata=await er.json();
+          const upcoming=(edata.earningsCalendar||[]).filter(e=>new Date(e.date)>=new Date()).sort((a,b)=>new Date(a.date)-new Date(b.date));
+          if(upcoming.length)earningsDate2=upcoming[0].date;
+        }catch(e){}
+      }
+      sd[ticker].earningsDate=earningsDate2;
+      fetchInvestorSignal(ticker).then(inv=>{if(inv){sd[ticker].investorSignal=inv;rB();}});
+      rB();updatePnL();updateAllBtn();buildTop3();
+      return;
+    }
 
     const parts=S('ema').split(',');
     const ema8=calcEMA(closes,parseInt(parts[0]));
@@ -1124,7 +1354,7 @@ async function fetch1(ticker){
     console.error(ticker,e.message);
     sd[ticker]={error:true,msg:e.message};
   }
-  rB();rE();updatePnL();updateAllBtn();
+  rB();updatePnL();updateAllBtn();buildTop3();
 } // ticker -> true=open, false=closed
 let allDataLoaded=false;
 let allExpanded=false;
@@ -1170,10 +1400,16 @@ function updateAllBtn(){
 
 async function getAll(){
   sd={};chartStates={};allExpanded=false;
-  wl.forEach(t=>{chartStates[t]=false;}); // start collapsed
+  wl.forEach(t=>{chartStates[t]=false;});
   updateAllBtn();rB();
   for(const t of wl)await fetch1(t);
+  buildTop3();
   updateAllBtn();
+  rB();
+  // If we don't have 3 qualifying, run the scanner
+  if(top3.length<3)runScanner();
+  // Start auto-refresh cycle
+  startAutoRefresh();
 }
 
 // ── PRICE HELPERS ──────────────────────────────────────────────────────────
@@ -1302,7 +1538,7 @@ function rB(){
   const al=document.getElementById('alerts');
   al.innerHTML='';
 
-  if(!wl.length){el.innerHTML='<div class="empty">Add tickers to get started</div>';return;}
+  if(!wl.length&&!Object.keys(sd).length){el.innerHTML='<div class="empty">Add tickers or run the scanner to get started</div>';return;}
 
   // DTE + profit alerts
   trades.forEach(tr=>{
@@ -1318,100 +1554,137 @@ function rB(){
     }
   });
 
-  el.innerHTML=wl.map(ticker=>{
+  // Update header
+  const headerEl=document.getElementById('brief-header');
+  if(headerEl)headerEl.textContent=`Top Picks · ${top3.length}/3`;
+
+  // Build cards for top3 (qualifying tickers)
+  const top3Cards=top3.map(ticker=>renderDataCard(ticker)).join('');
+
+  // Build not-ready cards
+  const nrCards=notReadyList.map(ticker=>{
     const d=sd[ticker];
-
-    if(!d){
-      const pts=pre(ticker);
-      const items=[...pts,...pts].map(s=>`<span class="ti"><b>${s}</b></span>`).join('');
-      return `<div class="idle-card">
-        <div class="idle-top">
-          <div class="idle-name">
-            <div class="idle-ticker">${ticker}</div>
-            <div class="idle-price flat">—</div>
-          </div>
-          <div class="card-acts">
-            <button class="sel-btn" onclick="select('${ticker}')">⬇ Select</button>
-            <button class="get-btn" onclick="fetch1('${ticker}')">↓ Get Data</button>
-          </div>
-        </div>
-        <div class="tape"><div class="tape-inner">${items}&nbsp;&nbsp;&nbsp;${items}</div></div>
-      </div>`;}
-
-    if(d.loading)return`<div class="load-card">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-        <div class="idle-ticker">${ticker}</div><div class="sbadge LOADING">FETCHING...</div>
-      </div>
-      <div style="display:flex;gap:8px;">
-        <div class="shimmer" style="width:100px;"></div>
-        <div class="shimmer" style="width:70px;"></div>
-        <div class="shimmer" style="width:90px;"></div>
-      </div></div>`;
-
-    if(d.error)return`<div class="idle-card">
-      <div class="idle-top">
-        <div class="idle-ticker">${ticker}</div>
-        <div style="color:var(--danger);font-size:11px;">${d.msg||'Failed'}</div>
-        <button class="get-btn" onclick="fetch1('${ticker}')">↺ Retry</button>
-      </div></div>`;
-
-    const sig=d.signal||'WAIT';
-    const tr2=sig==='CALLS'?'bullish':sig==='PUTS'?'bearish':'neutral';
+    if(!d||d.loading||d.error)return'';
     const priceClass=pc(d.change);
-    const a8=d.price>d.ema8?'low':'high',a21=d.price>d.ema21?'low':'high';
     const parts=S('ema').split(',');
-    const teas=(d.teasers||[]).map(t=>`<div class="tstat"><div class="tlabel">${t.label}</div><div class="tval">${t.value}</div><div class="tnote">${t.note}</div></div>`).join('');
-    const chartOpen=chartStates[ticker]||false;
-    const srcNote=d.dataSource==='estimated'?'<span style="font-size:9px;color:var(--warning);margin-left:8px;">~ estimated</span>':'';
+    const a8=d.price>d.ema8?'low':'high',a21=d.price>d.ema21?'low':'high';
     const trendVal=d.price>d.ema8&&d.price>d.ema21?'BULLISH':'BEARISH';
     const trendColor=trendVal==='BULLISH'?'var(--good)':'var(--danger)';
     const dayColor=d.changePct>=0?'var(--good)':'var(--danger)';
-
-    return`<div class="data-card">
-      <div class="acc ${tr2}"></div>
-      <div class="card-top">
-        <div class="card-name">
+    return`<div class="not-ready-card">
+      <div class="nr-badge">⏳ NOT READY</div>
+      <div style="padding:12px 14px;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
           <div class="tbadge">${ticker}</div>
           <div class="cprice ${priceClass}">$${d.price.toFixed(2)}</div>
+          <div class="pch ${priceClass}" style="font-size:10px;">${chgStr(d)}</div>
         </div>
-        <div><div class="pch ${priceClass}">${chgStr(d)}</div></div>
-        <div class="inds">
+        <div class="inds" style="margin-bottom:8px;">
           <div class="ip"><span class="il">RSI 14</span><span class="iv ${rc(d.rsi14)}">${d.rsi14.toFixed(1)}</span></div>
           <div class="ip"><span class="il">EMA ${parts[0]}</span><span class="iv ${a8}">$${d.ema8.toFixed(2)}</span></div>
           <div class="ip"><span class="il">EMA ${parts[1]}</span><span class="iv ${a21}">$${d.ema21.toFixed(2)}</span></div>
           <div class="ip"><span class="il">TREND</span><span class="iv" style="color:${trendColor};font-size:9px;">${trendVal}</span></div>
           <div class="ip"><span class="il">DAY</span><span class="iv" style="color:${dayColor};">${(d.changePct>=0?'+':'')+d.changePct.toFixed(1)}%</span></div>
         </div>
-        <div style="margin-left:auto;display:flex;align-items:center;gap:6px;">
-          <div class="sbadge ${sig}">${sig}</div>
-          <button class="chart-toggle" id="chev-${ticker}" onclick="toggleChart('${ticker}')" title="${chartOpen?'Collapse':'Expand'}">${chartOpen?'∧':'∨'}</button>
-        </div>
-      </div>
-      <div class="card-expand ${chartOpen?'open':'closed'}" id="chart-${ticker}">
-        <div class="card-mid">
-          <div class="reason">"${d.reason}"${srcNote}</div>
-          <div class="tgrid">${teas}</div>
-        </div>
-        <div class="tv-chart">
-          <iframe src="https://s.tradingview.com/widgetembed/?symbol=${ticker}&interval=D&theme=dark&style=1&locale=en&hide_top_toolbar=1&hide_legend=1&save_image=0&calendar=0&hide_volume=0&studies=RSI%407%40%40RSI%3Blength%3D14"
-            loading="lazy" allow="clipboard-write"></iframe>
-        </div>
-      </div>
-      <div class="card-bot">
-        <button class="sel-btn" onclick="select('${ticker}')">⬇ Select</button>
-        <button class="ref-sm" onclick="fetch1('${ticker}')">↺ Refresh</button>
-        ${d.earningsDate?`<span class="earn-lbl">Earnings: ${d.earningsDate}</span>`:''}
-        ${d.investorSignal?`<div style="margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:3px;">
-          <div class="inv-badge ${d.investorSignal.bclass}">${d.investorSignal.badge}</div>
-          <div class="inv-thesis">${d.investorSignal.thesis}</div>
-          <button class="inv-elaborate" onclick="elaborateStock('${ticker}')">Ask AI to elaborate →</button>
-        </div>`:''}
+        <div style="font-size:11px;color:var(--warning);font-style:italic;">${d.reason||'Mixed signals — waiting for confirmation'}</div>
       </div>
     </div>`;
   }).join('');
 
+  // Show loading cards for tickers still being fetched
+  const loadingCards=wl.filter(t=>sd[t]&&sd[t].loading).map(ticker=>`<div class="load-card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+      <div class="idle-ticker">${ticker}</div><div class="sbadge LOADING">FETCHING...</div>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <div class="shimmer" style="width:100px;"></div>
+      <div class="shimmer" style="width:70px;"></div>
+      <div class="shimmer" style="width:90px;"></div>
+    </div></div>`).join('');
+
+  // No actionable picks message
+  const emptyMsg=top3.length===0&&notReadyList.length===0&&!scannerRunning&&Object.keys(sd).some(k=>!sd[k].loading)
+    ?'<div class="empty">No actionable setups right now. Hit "Scan Now" to search for opportunities.</div>':'';
+
+  el.innerHTML=top3Cards+nrCards+loadingCards+emptyMsg;
+
   // Open positions dashboard
   rPositions();
+}
+
+function renderDataCard(ticker){
+  const d=sd[ticker];
+  if(!d||d.loading||d.error)return'';
+
+  const sig=d.signal||'WAIT';
+  const tr2=sig==='CALLS'?'bullish':sig==='PUTS'?'bearish':'neutral';
+  const priceClass=pc(d.change);
+  const a8=d.price>d.ema8?'low':'high',a21=d.price>d.ema21?'low':'high';
+  const parts=S('ema').split(',');
+  const teas=(d.teasers||[]).map(t=>`<div class="tstat"><div class="tlabel">${t.label}</div><div class="tval">${t.value}</div><div class="tnote">${t.note}</div></div>`).join('');
+  const chartOpen=chartStates[ticker]||false;
+  const srcNote=d.dataSource==='estimated'?'<span style="font-size:9px;color:var(--warning);margin-left:8px;">~ estimated</span>':'';
+  const trendVal=d.price>d.ema8&&d.price>d.ema21?'BULLISH':'BEARISH';
+  const trendColor=trendVal==='BULLISH'?'var(--good)':'var(--danger)';
+  const dayColor=d.changePct>=0?'var(--good)':'var(--danger)';
+  const earnDate=d.earningsDate;
+  const earnDTE=earnDate?Math.ceil((new Date(earnDate)-new Date())/86400000):null;
+  const earnPillColor=earnDTE!==null?(earnDTE<=14?'high':earnDTE<=30?'mid':'low'):'mid';
+  const earnPillText=earnDTE!==null?(earnDTE<=0?'NOW':earnDTE+'d'):'—';
+  const earnRisky=earnDate?trades.some(t=>t.ticker===ticker&&new Date(earnDate)<=new Date(t.exp)):false;
+
+  return`<div class="data-card">
+    <div class="acc ${tr2}"></div>
+    <div class="card-top">
+      <div class="card-name">
+        <div class="tbadge">${ticker}</div>
+        <div class="cprice ${priceClass}">$${d.price.toFixed(2)}</div>
+      </div>
+      <div><div class="pch ${priceClass}">${chgStr(d)}</div></div>
+      <div class="inds">
+        <div class="ip"><span class="il">RSI 14</span><span class="iv ${rc(d.rsi14)}">${d.rsi14.toFixed(1)}</span></div>
+        <div class="ip"><span class="il">EMA ${parts[0]}</span><span class="iv ${a8}">$${d.ema8.toFixed(2)}</span></div>
+        <div class="ip"><span class="il">EMA ${parts[1]}</span><span class="iv ${a21}">$${d.ema21.toFixed(2)}</span></div>
+        <div class="ip"><span class="il">TREND</span><span class="iv" style="color:${trendColor};font-size:9px;">${trendVal}</span></div>
+        <div class="ip"><span class="il">DAY</span><span class="iv" style="color:${dayColor};">${(d.changePct>=0?'+':'')+d.changePct.toFixed(1)}%</span></div>
+        <div class="ip"><span class="il">EARN</span><span class="iv ${earnPillColor}">${earnPillText}</span></div>
+      </div>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:6px;">
+        <div class="sbadge ${sig}">${sig}</div>
+        <button class="chart-toggle" id="chev-${ticker}" onclick="toggleChart('${ticker}')" title="${chartOpen?'Collapse':'Expand'}">${chartOpen?'∧':'∨'}</button>
+      </div>
+    </div>
+    <div class="card-expand ${chartOpen?'open':'closed'}" id="chart-${ticker}">
+      <div class="card-mid">
+        <div class="reason">"${d.reason}"${srcNote}</div>
+        <div class="tgrid">
+          ${teas}
+          <div class="tstat">
+            <div class="tlabel">EARNINGS</div>
+            <div class="tval" style="color:${earnDTE!==null&&earnDTE<=14?'var(--danger)':earnDTE!==null&&earnDTE<=30?'var(--warning)':'var(--accent)'};">${earnDate||'Unknown'}</div>
+            <div class="tnote">${earnDTE!==null?(earnDTE<=0?'Today / Past':earnDTE+'d away — '+(earnRisky?'⚠️ RISKY':'✅ Safe')):'No data'}</div>
+          </div>
+        </div>
+        <div style="margin-top:8px;display:flex;align-items:center;gap:6px;">
+          <input class="earn-input" id="earn-in-${ticker}" type="date" placeholder="Override" value="${earningsOverrides[ticker]||''}" style="flex:1;max-width:160px;">
+          <button class="earn-save" onclick="saveEarningsOverride('${ticker}')">Override</button>
+        </div>
+      </div>
+      <div class="tv-chart">
+        <iframe src="https://s.tradingview.com/widgetembed/?symbol=${ticker}&interval=D&theme=dark&style=1&locale=en&hide_top_toolbar=1&hide_legend=1&save_image=0&calendar=0&hide_volume=0&studies=RSI%407%40%40RSI%3Blength%3D14"
+          loading="lazy" allow="clipboard-write"></iframe>
+      </div>
+    </div>
+    <div class="card-bot">
+      <button class="sel-btn" onclick="select('${ticker}')">⬇ Select</button>
+      <button class="ref-sm" onclick="fetch1('${ticker}')">↺ Refresh</button>
+      ${d.investorSignal?`<div style="margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:3px;">
+        <div class="inv-badge ${d.investorSignal.bclass}">${d.investorSignal.badge}</div>
+        <div class="inv-thesis">${d.investorSignal.thesis}</div>
+        <button class="inv-elaborate" onclick="elaborateStock('${ticker}')">Ask AI to elaborate →</button>
+      </div>`:''}
+    </div>
+  </div>`;
 }
 
 // ── POSITIONS DASHBOARD ────────────────────────────────────────────────────
@@ -1470,6 +1743,7 @@ function rPositions(){
       </div>
       <div class="pos-actions">
         <button class="close-btn" onclick="openCloseModal(${i})">Close Trade</button>
+        <button class="ref-sm" onclick="openEditTrade(${i})">✏️ Edit</button>
         <span style="font-size:10px;color:var(--muted);font-family:'Space Mono',monospace;margin-left:8px;">Cost: $${t.cost.toFixed(2)} · Max: ${maxProfitStr} · Target: ${t.target}%</span>
       </div>
     </div>`;
@@ -1541,41 +1815,68 @@ function cancelClose(){
   closingTradeIdx=-1;
 }
 
-// ── TRADE FORM ─────────────────────────────────────────────────────────────
-function updateTradeForm(){
-  const type=document.getElementById('ftype').value;
-  const isLong=type==='Long Call'||type==='Long Put';
-  document.getElementById('ff-sell').style.display=isLong?'none':'';
-  document.getElementById('ff-profit').style.display=isLong?'none':'';
-  document.getElementById('unlimited-note').style.display=isLong?'block':'none';
+// ── EDIT OPEN TRADE ───────────────────────────────────────────────────────
+function openEditTrade(idx){
+  editingTradeIdx=idx;
+  const t=trades[idx];
+  const isLong=t.type==='Long Call'||t.type==='Long Put';
+  document.getElementById('edit-trade-title').textContent='EDIT — '+t.ticker+' '+t.type;
+  document.getElementById('et-ticker').value=t.ticker;
+  document.getElementById('et-type').value=t.type;
+  document.getElementById('et-buy').value=t.buy;
+  document.getElementById('et-sell').value=t.sell||'';
+  document.getElementById('et-cost').value=t.cost;
+  document.getElementById('et-profit').value=t.profit||'';
+  document.getElementById('et-exp').value=t.exp;
+  document.getElementById('et-target').value=t.target;
+  document.getElementById('et-sell-wrap').style.display=isLong?'none':'';
+  document.getElementById('et-profit-wrap').style.display=isLong?'none':'';
+  document.getElementById('edit-trade-modal').style.display='flex';
 }
 
-function addTrade(){
-  const ticker=document.getElementById('ft').value.trim().toUpperCase();
-  const type=document.getElementById('ftype').value;
-  const buy=parseFloat(document.getElementById('fb').value);
-  const sell=parseFloat(document.getElementById('fs').value)||null;
-  const cost=parseFloat(document.getElementById('fc').value);
-  const profit=parseFloat(document.getElementById('fp').value)||null;
-  const exp=document.getElementById('fe').value;
-  const target=parseFloat(document.getElementById('fg').value)||S('target');
+function editTradeTypeChange(){
+  const type=document.getElementById('et-type').value;
+  const isLong=type==='Long Call'||type==='Long Put';
+  document.getElementById('et-sell-wrap').style.display=isLong?'none':'';
+  document.getElementById('et-profit-wrap').style.display=isLong?'none':'';
+}
+
+function saveEditTrade(){
+  if(editingTradeIdx<0)return;
+  const type=document.getElementById('et-type').value;
+  const ticker=document.getElementById('et-ticker').value.trim().toUpperCase();
+  const buy=parseFloat(document.getElementById('et-buy').value);
+  const sell=parseFloat(document.getElementById('et-sell').value)||null;
+  const cost=parseFloat(document.getElementById('et-cost').value);
+  const profit=parseFloat(document.getElementById('et-profit').value)||null;
+  const exp=document.getElementById('et-exp').value;
+  const target=parseFloat(document.getElementById('et-target').value)||S('target');
   const isLong=type==='Long Call'||type==='Long Put';
 
   if(!ticker||!buy||!cost||!exp){alert('Fill in required fields');return;}
   if(!isLong&&!sell){alert('Sell strike required for spreads');return;}
 
-  const d=sd[ticker];
-  trades.push({
-    ticker,type,buy,sell,cost,profit,exp,target,
-    maxUnlimited:isLong,
-    entryPrice:d?d.price:null,
-    entryDate:new Date().toISOString().split('T')[0]
-  });
-  sTR();rT();rB();updatePnL();
-  ['ft','fb','fs','fc','fp','fe'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-  document.getElementById('fg').value=S('target');
-  document.getElementById('unlimited-note').style.display='none';
-  toast('Trade logged ✓');
+  const t=trades[editingTradeIdx];
+  t.ticker=ticker;
+  t.type=type;
+  t.buy=buy;
+  t.sell=sell;
+  t.cost=cost;
+  t.profit=profit;
+  t.exp=exp;
+  t.target=target;
+  t.maxUnlimited=isLong;
+
+  sTR();
+  document.getElementById('edit-trade-modal').style.display='none';
+  editingTradeIdx=-1;
+  rT();rB();updatePnL();
+  toast('✏️ Trade updated');
+}
+
+function cancelEditTrade(){
+  document.getElementById('edit-trade-modal').style.display='none';
+  editingTradeIdx=-1;
 }
 
 function rT(){
@@ -1592,6 +1893,7 @@ function rT(){
           <span style="font-family:'Space Mono',monospace;font-size:11px;color:var(--muted);">$${t.buy}${isSpread?'/$'+t.sell:''}</span>
         </div>
         <button class="close-btn" style="font-size:10px;padding:4px 10px;" onclick="openCloseModal(${i})">Close</button>
+        <button class="ref-sm" style="font-size:10px;padding:4px 10px;" onclick="openEditTrade(${i})">✏️ Edit</button>
       </div>
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;font-family:'Space Mono',monospace;font-size:11px;">
         <div><div style="color:var(--muted);font-size:9px;">DTE</div><div style="color:${dte<=S('dte')?'var(--danger)':'var(--text)'}">${dte}d</div></div>
@@ -1695,47 +1997,7 @@ function saveEarningsOverride(ticker){
     delete earningsOverrides[ticker];
   }
   localStorage.setItem('earningsOverrides',JSON.stringify(earningsOverrides));
-  rE();toast('Earnings date updated');
-}
-
-function rE(){
-  const el=document.getElementById('elist');
-  const items=wl.map(ticker=>{
-    const d=sd[ticker];
-    const edate=earningsOverrides[ticker]||(d&&d.earningsDate)||null;
-    const days=edate?Math.ceil((new Date(edate)-new Date())/86400000):999;
-    return{ticker,date:edate,days};
-  }).sort((a,b)=>a.days-b.days);
-
-  el.innerHTML=items.map(item=>{
-    const cls=item.days<=14?'soon':item.days<=30?'coming':'safe';
-    const daysStr=!item.date?'Unknown':item.days<=0?'TODAY / PAST':item.days+'d away';
-
-    // Check open trades vs earnings
-    const tradeWarnings=trades.filter(t=>t.ticker===item.ticker&&item.date).map(t=>{
-      const expDate=new Date(t.exp);
-      const earnDate=new Date(item.date);
-      const safe=earnDate>expDate;
-      return`<div class="etrade-row ${safe?'safe':'risky'}">
-        ${safe?'✅':'⚠️'} ${t.type} exp ${t.exp} — earnings ${safe?'after':'BEFORE'} expiration
-      </div>`;
-    }).join('');
-
-    return`<div class="ecard">
-      <div class="ecard-top">
-        <div class="etick">${item.ticker}</div>
-        <div style="display:flex;align-items:center;gap:8px;">
-          <div class="edate">${item.date||'No data'}</div>
-          ${item.date?`<div class="edays ${cls}">${daysStr}</div>`:''}
-        </div>
-      </div>
-      ${tradeWarnings}
-      <div class="earn-edit">
-        <input class="earn-input" id="earn-in-${item.ticker}" type="date" placeholder="Override date" value="${earningsOverrides[item.ticker]||''}">
-        <button class="earn-save" onclick="saveEarningsOverride('${item.ticker}')">Save</button>
-      </div>
-    </div>`;
-  }).join('');
+  rB();toast('Earnings date updated');
 }
 
 // ── AI CHAT ────────────────────────────────────────────────────────────────
@@ -1955,7 +2217,9 @@ function exportTrades(){
 function resetAll(){
   if(!confirm('Reset everything? Watchlist, trades, settings will be cleared.'))return;
   localStorage.clear();
+  stopAutoRefresh();
   wl=['WULF','PR','HOOD','VST'];trades=[];closedTrades=[];earningsOverrides={};sd={};cfg={};
+  top3=[];notReadyList=[];scannerRunning=false;
   rChips();rB();rT();rClosed();loadS();updatePnL();toast('Reset complete');
 }
 
@@ -2079,7 +2343,6 @@ rB();
 rT();
 rClosed();
 updatePnL();
-document.getElementById('fg').value=S('target');
 // Auto-load data and start on briefing tab
 go('briefing');
 getAll();
