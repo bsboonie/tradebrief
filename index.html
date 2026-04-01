@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v4.0 — Council Build                       ║
-     ║  Built: 2026-04-01                                      ║
+     ║  TRADEBRIEF v4.1 — Council Build (hotfix)                       ║
+     ║  Built: 2026-04-01 (v4.1 hotfix)                                      ║
      ║  Changes: Confidence score, Top 10, scan lock,          ║
      ║           expanded universe, no TradingView, no modes   ║
      ╚══════════════════════════════════════════════════════════╝ -->
@@ -766,7 +766,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
   <div class="tab-content" id="tab-briefing">
     <div id="scan-bar-area"></div>
     <div id="alerts"></div>
-    <div class="sec" id="brief-header">Top Picks</div>
+    <div class="sec" id="brief-header">Top 10 by Confidence</div>
     <div id="blist"></div>
     <div id="positions-section"></div>
   </div>
@@ -974,6 +974,7 @@ const UNIVERSE=[
 
 // ── TOP 10 STATE ──────────────────────────────────────────────────────────
 let top10=[];// tickers currently displayed, ranked by confidence
+let notReadyList=[];// WAIT tickers shown as fallback
 let scannerRunning=false;
 let scannerProgress=0;
 let scannerTotal=0;
@@ -1568,7 +1569,7 @@ function rB(){
 
   // Update header
   const headerEl=document.getElementById('brief-header');
-  if(headerEl)headerEl.textContent=`Top Picks · ${top10.length}/3`;
+  if(headerEl)headerEl.textContent=`Top ${top10.length} by Confidence`;
 
   // Build cards for top10 (qualifying tickers)
   const top3Cards=top10.map(ticker=>renderDataCard(ticker)).join('');
@@ -2364,7 +2365,7 @@ go('briefing');
 getAll();
 </script>
 <!-- ╔══════════════════════════════════════════════════════════╗
-     ║  END TRADEBRIEF v4.0 — Council Build                   ║
+     ║  END TRADEBRIEF v4.1 — Council Build (hotfix)                   ║
      ╚══════════════════════════════════════════════════════════╝ -->
 </body>
 </html>
