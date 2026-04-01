@@ -921,7 +921,6 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
 <script>
 // ── CONFIG ─────────────────────────────────────────────────────────────────
 const DRIVE_ON=false;
-const TV_BASE='https://s.tradingview.com/widgetembed/?frameElementId=tv_chart';
 
 // ── STATE ──────────────────────────────────────────────────────────────────
 let wl=JSON.parse(localStorage.getItem('wl')||'["WULF","PR","HOOD","VST"]');
@@ -1314,7 +1313,6 @@ function loadS(){
   document.getElementById('s-speed').value=S('speed');
   document.getElementById('speed-val').textContent=S('speed');
   document.getElementById('s-theme').value=S('theme')||'dark';
-  document.getElementById('s-sigmode').value=S('signalMode');
   applySpeed();applyTheme();
 }
 function applyTheme(){
@@ -1421,12 +1419,11 @@ async function fetch1(ticker){
 async function getAll(){
   sd={};
   rB();
-  for(const t of wl)await fetch1(t);
-  buildTop10();
-  rB();
-  // If we don't have 3 qualifying, run the scanner
-  if(top10.length<3)runScanner(false);
-  // Start auto-refresh cycle
+  updateScanBar();
+  // Only auto-scan if within scan window
+  if(inScanWindow()){
+    await runScanner(true);
+  }
   startAutoRefresh();
 }
 
@@ -1657,7 +1654,8 @@ function renderDataCard(ticker){
         <div class="ip"><span class="il">DAY</span><span class="iv" style="color:${dayColor};">${(d.changePct>=0?'+':'')+d.changePct.toFixed(1)}%</span></div>
         <div class="ip"><span class="il">EARN</span><span class="iv ${earnPillColor}">${earnPillText}</span></div>
       </div>
-      <div style="margin-left:auto;">
+      <div style="margin-left:auto;display:flex;align-items:center;gap:6px;">
+        <div style="font-family:'Space Mono',monospace;font-size:18px;font-weight:700;color:${(d.confidence||0)>=70?'var(--good)':(d.confidence||0)>=45?'var(--accent)':'var(--warning)'}">${d.confidence||0}</div>
         <div class="sbadge ${sig}">${sig}</div>
       </div>
     </div>
@@ -1675,10 +1673,6 @@ function renderDataCard(ticker){
         <input class="earn-input" id="earn-in-${ticker}" type="date" placeholder="Override" value="${earningsOverrides[ticker]||''}" style="flex:1;max-width:160px;">
         <button class="earn-save" onclick="saveEarningsOverride('${ticker}')">Override</button>
       </div>
-    </div>
-    <div class="tv-chart">
-      <iframe src="https://s.tradingview.com/widgetembed/?symbol=${ticker}&interval=D&theme=dark&style=1&locale=en&hide_top_toolbar=1&hide_legend=1&save_image=0&calendar=0&hide_volume=0&studies=RSI%407%40%40RSI%3Blength%3D14"
-        loading="lazy" allow="clipboard-write"></iframe>
     </div>
     <div class="card-bot">
       <button class="sel-btn" onclick="select('${ticker}')">⬇ Select</button>
