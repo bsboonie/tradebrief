@@ -411,6 +411,13 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
 .controls-row .cv.manual{color:var(--warning);font-style:italic;font-weight:400;}
 .controls-row .cv.auto{color:var(--accent);}
 
+/* ── SIGNAL MODE TOGGLE ─────────────────────────────────────── */
+.sig-mode-bar{display:flex;gap:2px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:2px;margin-right:8px;}
+.sig-mode-btn{padding:5px 10px;border:none;border-radius:6px;font-family:'Space Mono',monospace;font-size:9px;font-weight:700;cursor:pointer;transition:all 0.2s;background:none;color:var(--muted);}
+.sig-mode-btn.active-strict{background:rgba(255,71,87,0.2);color:var(--danger);border:1px solid rgba(255,71,87,0.3);}
+.sig-mode-btn.active-moderate{background:rgba(0,212,255,0.2);color:var(--accent);border:1px solid rgba(0,212,255,0.3);}
+.sig-mode-btn.active-loose{background:rgba(0,255,157,0.2);color:var(--good);border:1px solid rgba(0,255,157,0.3);}
+
 /* ── SCANNER STATUS ─────────────────────────────────────────── */
 .scan-bar{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:8px;}
 .scan-status{font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);}
@@ -747,19 +754,6 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
     </div>
   </div>
   <div class="tab-content" id="tab-briefing">
-    <div class="sec">Watchlist</div>
-    <div class="wl-box">
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;">
-        <div style="flex:1;">
-          <div class="chips" id="chips"></div>
-          <div class="wl-row">
-            <input class="add-input" id="new-t" placeholder="TICKER" maxlength="6" onkeydown="if(event.key==='Enter')addT()">
-            <button class="add-btn" onclick="addT()">+ ADD</button>
-            <button class="all-btn" id="all-btn" onclick="handleAllBtn()">↓ Get All Data</button>
-          </div>
-        </div>
-      </div>
-    </div>
     <div id="scan-bar-area"></div>
     <div id="alerts"></div>
     <div class="sec" id="brief-header">Top Picks</div>
@@ -806,6 +800,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
     <div class="sec">Signal Thresholds</div>
     <div class="settings-section">
       <h3>RSI & MOVING AVERAGES</h3>
+      <div class="setting-row"><div class="setting-info"><div class="setting-label">Signal Mode</div><div class="setting-desc">Strict = all conditions. Moderate = EMA cross + RSI 50. Loose = EMA cross only (Option Alpha style).</div></div><div class="setting-control"><select class="sel-input" id="s-sigmode" onchange="saveS();reSignalAll()"><option value="strict">🔴 Strict</option><option value="moderate" selected>🔵 Moderate</option><option value="loose">🟢 Loose</option></select></div></div>
       <div class="setting-row"><div class="setting-info"><div class="setting-label">RSI Overbought</div><div class="setting-desc">Above this = WAIT or PUTS. Default: 70</div></div><div class="setting-control"><input class="num-input" id="s-rsi-ob" type="number" min="60" max="90" value="70" onchange="saveS()"></div></div>
       <div class="setting-row"><div class="setting-info"><div class="setting-label">RSI Oversold</div><div class="setting-desc">Below this = potential bounce. Default: 30</div></div><div class="setting-control"><input class="num-input" id="s-rsi-os" type="number" min="10" max="40" value="30" onchange="saveS()"></div></div>
       <div class="setting-row"><div class="setting-info"><div class="setting-label">EMA Combination</div><div class="setting-desc">Short / Long periods</div></div><div class="setting-control"><select class="sel-input" id="s-ema" onchange="saveS()"><option value="8,21">8/21 (default)</option><option value="9,21">9/21</option><option value="10,20">10/20</option><option value="8,34">8/34</option></select></div></div>
@@ -869,6 +864,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
     <div class="modal-actions">
       <button class="modal-confirm" onclick="confirmEdit()">Save Changes</button>
       <button class="modal-cancel" onclick="cancelEdit()">Cancel</button>
+      <button class="close-btn" style="margin-left:auto;font-size:10px;padding:6px 12px;" onclick="deleteClosedTrade()">🗑 Delete</button>
     </div>
   </div>
 </div>
@@ -1097,16 +1093,47 @@ function updateScanBar(){
   const el=document.getElementById('scan-bar-area');
   if(!el)return;
   const qualifying=getQualifyingTickers();
+  const mode=S('signalMode');
   const statusText=scannerRunning
     ?`<span class="active">⟳ Scanning... ${scannerProgress}/${scannerTotal}</span>`
     :`${qualifying.length} qualifying · ${top3.length}/3 slots filled`;
   const progressPct=scannerRunning&&scannerTotal>0?((scannerProgress/scannerTotal)*100):0;
 
   el.innerHTML=`<div class="scan-bar">
+    <div class="sig-mode-bar">
+      <button class="sig-mode-btn ${mode==='strict'?'active-strict':''}" onclick="setSignalMode('strict')">Strict</button>
+      <button class="sig-mode-btn ${mode==='moderate'?'active-moderate':''}" onclick="setSignalMode('moderate')">Moderate</button>
+      <button class="sig-mode-btn ${mode==='loose'?'active-loose':''}" onclick="setSignalMode('loose')">Loose</button>
+    </div>
     <div class="scan-status">${statusText}</div>
     <button class="scan-btn" onclick="runScanner()" ${scannerRunning?'disabled':''}>${scannerRunning?'Scanning...':'🔍 Scan Now'}</button>
   </div>
   ${scannerRunning?`<div class="scan-progress"><div class="scan-progress-bar" style="width:${progressPct}%"></div></div>`:''}`;
+}
+
+function setSignalMode(mode){
+  cfg.signalMode=mode;
+  localStorage.setItem('cfg',JSON.stringify(cfg));
+  // Update Settings dropdown if it exists
+  const sel=document.getElementById('s-sigmode');
+  if(sel)sel.value=mode;
+  // Re-evaluate all signals with new mode
+  reSignalAll();
+  toast('Signal mode: '+mode.charAt(0).toUpperCase()+mode.slice(1));
+}
+
+function reSignalAll(){
+  // Re-calculate signals for all loaded tickers using new mode
+  Object.keys(sd).forEach(ticker=>{
+    const d=sd[ticker];
+    if(!d||d.loading||d.error||d.dataSource==='none')return;
+    const sig=getSignal(d.price,d.ema8,d.ema21,d.rsi14);
+    d.signal=sig.signal;
+    d.reason=sig.reason;
+  });
+  buildTop3();
+  rB();
+  updateScanBar();
 }
 
 // ── AUTO-REFRESH ──────────────────────────────────────────────────────────
@@ -1141,7 +1168,7 @@ function stopAutoRefresh(){
   if(autoRefreshTimer){clearInterval(autoRefreshTimer);autoRefreshTimer=null;}
 }
 
-const DEFAULTS={rsiOb:70,rsiOs:30,ema:'8,21',rr:1.5,pop:30,cw:0.50,dmin:0.15,dmax:0.70,budget:250,iv:true,earn:true,dte:5,profitAlert:75,target:80,contracts:1,pricefmt:'both',speed:3};
+const DEFAULTS={rsiOb:70,rsiOs:30,ema:'8,21',rr:1.5,pop:30,cw:0.50,dmin:0.15,dmax:0.70,budget:250,iv:true,earn:true,dte:5,profitAlert:75,target:80,contracts:1,pricefmt:'both',speed:3,signalMode:'moderate'};
 function S(k){return cfg[k]!==undefined?cfg[k]:DEFAULTS[k];}
 
 // Pre-loaded teasers for idle cards
@@ -1212,6 +1239,7 @@ function saveS(){
     speed:+document.getElementById('s-speed').value,
     notif:document.getElementById('s-notif').checked,
     theme:document.getElementById('s-theme').value,
+    signalMode:document.getElementById('s-sigmode').value,
   };
   localStorage.setItem('cfg',JSON.stringify(cfg));
   applySpeed();
@@ -1239,6 +1267,7 @@ function loadS(){
   document.getElementById('s-speed').value=S('speed');
   document.getElementById('speed-val').textContent=S('speed');
   document.getElementById('s-theme').value=S('theme')||'dark';
+  document.getElementById('s-sigmode').value=S('signalMode');
   applySpeed();applyTheme();
 }
 function applyTheme(){
@@ -1255,22 +1284,7 @@ function sWL(){localStorage.setItem('wl',JSON.stringify(wl));}
 function sTR(){localStorage.setItem('trades',JSON.stringify(trades));}
 function sCT(){localStorage.setItem('closedTrades',JSON.stringify(closedTrades));}
 
-function rChips(){
-  document.getElementById('chips').innerHTML=wl.map(t=>`<div class="chip">${t}<span class="chip-x" onclick="rmT('${t}')">×</span></div>`).join('');
-}
-function addT(){
-  const inp=document.getElementById('new-t'),t=inp.value.trim().toUpperCase();
-  if(t&&!wl.includes(t)){wl.push(t);sWL();rChips();rB();}
-  inp.value='';
-}
-function rmT(t){
-  wl=wl.filter(x=>x!==t);delete sd[t];sWL();
-  // Remove from top3 if present
-  top3=top3.filter(x=>x!==t);
-  rChips();buildTop3();rB();
-  // Scanner looks for replacement
-  if(top3.length<3)runScanner();
-}
+function rChips(){/* watchlist chips removed — scanner handles stock selection */}
 
 // ── DATA FETCH (Finnhub) ───────────────────────────────────────────────────
 const FINNHUB_KEY='d74aqr1r01qno4q12vl0d74aqr1r01qno4q12vlg';
@@ -1321,7 +1335,7 @@ async function fetch1(ticker){
       }
       sd[ticker].earningsDate=earningsDate2;
       fetchInvestorSignal(ticker).then(inv=>{if(inv){sd[ticker].investorSignal=inv;rB();}});
-      rB();updatePnL();updateAllBtn();buildTop3();
+      rB();updatePnL();buildTop3();
       return;
     }
 
@@ -1354,57 +1368,14 @@ async function fetch1(ticker){
     console.error(ticker,e.message);
     sd[ticker]={error:true,msg:e.message};
   }
-  rB();updatePnL();updateAllBtn();buildTop3();
-} // ticker -> true=open, false=closed
-let allDataLoaded=false;
-let allExpanded=false;
-
-function handleAllBtn(){
-  const anyLoaded=Object.keys(sd).some(k=>!sd[k].loading&&!sd[k].error);
-  if(!anyLoaded){
-    // No data yet — fetch everything
-    getAll();
-  } else if(allExpanded){
-    // All expanded — collapse all
-    wl.forEach(t=>{chartStates[t]=false;});
-    allExpanded=false;
-    updateAllBtn();
-    rB();
-  } else {
-    // All collapsed — expand all
-    wl.forEach(t=>{chartStates[t]=true;});
-    allExpanded=true;
-    updateAllBtn();
-    rB();
-  }
-}
-
-function toggleChart(ticker){
-  chartStates[ticker]=!chartStates[ticker];
-  const expandEl=document.getElementById('chart-'+ticker);
-  const chevEl=document.getElementById('chev-'+ticker);
-  if(expandEl){expandEl.className='card-expand '+(chartStates[ticker]?'open':'closed');}
-  if(chevEl){chevEl.textContent=chartStates[ticker]?'∧':'∨';}
-  allExpanded=wl.filter(t=>sd[t]&&!sd[t].loading&&!sd[t].error).every(t=>chartStates[t]);
-  updateAllBtn();
-}
-
-function updateAllBtn(){
-  const btn=document.getElementById('all-btn');
-  if(!btn)return;
-  const anyLoaded=wl.some(t=>sd[t]&&!sd[t].loading&&!sd[t].error);
-  if(!anyLoaded){btn.textContent='↓ Get All Data';return;}
-  if(allExpanded){btn.textContent='∧ Collapse All';}
-  else{btn.textContent='∨ Expand All';}
+  rB();updatePnL();buildTop3();
 }
 
 async function getAll(){
-  sd={};chartStates={};allExpanded=false;
-  wl.forEach(t=>{chartStates[t]=false;});
-  updateAllBtn();rB();
+  sd={};
+  rB();
   for(const t of wl)await fetch1(t);
   buildTop3();
-  updateAllBtn();
   rB();
   // If we don't have 3 qualifying, run the scanner
   if(top3.length<3)runScanner();
@@ -1432,8 +1403,23 @@ function calcRSI(prices,period=14){
 }
 function getSignal(price,ema8,ema21,rsi){
   const ob=S('rsiOb'),os=S('rsiOs');
-  if(price>ema8&&price>ema21&&ema8>ema21&&rsi<ob&&rsi>40)return{signal:'CALLS',reason:'Uptrend confirmed, EMAs bullish, RSI healthy'};
-  if(price<ema8&&price<ema21&&ema8<ema21&&rsi>os&&rsi<60)return{signal:'PUTS',reason:'Downtrend confirmed, EMAs bearish'};
+  const mode=S('signalMode');
+
+  if(mode==='strict'){
+    // Original rules: price above both EMAs + EMAs stacked + RSI in range
+    if(price>ema8&&price>ema21&&ema8>ema21&&rsi<ob&&rsi>40)return{signal:'CALLS',reason:'Strict: full uptrend confirmed, EMAs bullish, RSI healthy'};
+    if(price<ema8&&price<ema21&&ema8<ema21&&rsi>os&&rsi<60)return{signal:'PUTS',reason:'Strict: full downtrend confirmed, EMAs bearish'};
+  } else if(mode==='moderate'){
+    // EMA crossover + RSI above/below 50
+    if(ema8>ema21&&rsi>50&&rsi<ob)return{signal:'CALLS',reason:'Moderate: EMA crossover bullish, RSI confirms momentum'};
+    if(ema8<ema21&&rsi<50&&rsi>os)return{signal:'PUTS',reason:'Moderate: EMA crossover bearish, RSI confirms downside'};
+  } else {
+    // Loose (Option Alpha style): EMA crossover only
+    if(ema8>ema21)return{signal:'CALLS',reason:'Loose: short EMA above long EMA — bullish crossover'};
+    if(ema8<ema21)return{signal:'PUTS',reason:'Loose: short EMA below long EMA — bearish crossover'};
+  }
+
+  // Fallback WAIT reasons (all modes)
   if(rsi<os)return{signal:'WAIT',reason:'Oversold — wait for bounce confirmation'};
   if(rsi>ob)return{signal:'WAIT',reason:'Overbought — wait for RSI to cool'};
   return{signal:'WAIT',reason:'Mixed signals — no clear directional setup'};
@@ -1533,7 +1519,6 @@ function updatePnL(){
 
 // ── BRIEFING RENDER ────────────────────────────────────────────────────────
 function rB(){
-  rChips();
   const el=document.getElementById('blist');
   const al=document.getElementById('alerts');
   al.innerHTML='';
@@ -1622,7 +1607,6 @@ function renderDataCard(ticker){
   const a8=d.price>d.ema8?'low':'high',a21=d.price>d.ema21?'low':'high';
   const parts=S('ema').split(',');
   const teas=(d.teasers||[]).map(t=>`<div class="tstat"><div class="tlabel">${t.label}</div><div class="tval">${t.value}</div><div class="tnote">${t.note}</div></div>`).join('');
-  const chartOpen=chartStates[ticker]||false;
   const srcNote=d.dataSource==='estimated'?'<span style="font-size:9px;color:var(--warning);margin-left:8px;">~ estimated</span>':'';
   const trendVal=d.price>d.ema8&&d.price>d.ema21?'BULLISH':'BEARISH';
   const trendColor=trendVal==='BULLISH'?'var(--good)':'var(--danger)';
@@ -1649,31 +1633,28 @@ function renderDataCard(ticker){
         <div class="ip"><span class="il">DAY</span><span class="iv" style="color:${dayColor};">${(d.changePct>=0?'+':'')+d.changePct.toFixed(1)}%</span></div>
         <div class="ip"><span class="il">EARN</span><span class="iv ${earnPillColor}">${earnPillText}</span></div>
       </div>
-      <div style="margin-left:auto;display:flex;align-items:center;gap:6px;">
+      <div style="margin-left:auto;">
         <div class="sbadge ${sig}">${sig}</div>
-        <button class="chart-toggle" id="chev-${ticker}" onclick="toggleChart('${ticker}')" title="${chartOpen?'Collapse':'Expand'}">${chartOpen?'∧':'∨'}</button>
       </div>
     </div>
-    <div class="card-expand ${chartOpen?'open':'closed'}" id="chart-${ticker}">
-      <div class="card-mid">
-        <div class="reason">"${d.reason}"${srcNote}</div>
-        <div class="tgrid">
-          ${teas}
-          <div class="tstat">
-            <div class="tlabel">EARNINGS</div>
-            <div class="tval" style="color:${earnDTE!==null&&earnDTE<=14?'var(--danger)':earnDTE!==null&&earnDTE<=30?'var(--warning)':'var(--accent)'};">${earnDate||'Unknown'}</div>
-            <div class="tnote">${earnDTE!==null?(earnDTE<=0?'Today / Past':earnDTE+'d away — '+(earnRisky?'⚠️ RISKY':'✅ Safe')):'No data'}</div>
-          </div>
-        </div>
-        <div style="margin-top:8px;display:flex;align-items:center;gap:6px;">
-          <input class="earn-input" id="earn-in-${ticker}" type="date" placeholder="Override" value="${earningsOverrides[ticker]||''}" style="flex:1;max-width:160px;">
-          <button class="earn-save" onclick="saveEarningsOverride('${ticker}')">Override</button>
+    <div class="card-mid">
+      <div class="reason">"${d.reason}"${srcNote}</div>
+      <div class="tgrid">
+        ${teas}
+        <div class="tstat">
+          <div class="tlabel">EARNINGS</div>
+          <div class="tval" style="color:${earnDTE!==null&&earnDTE<=14?'var(--danger)':earnDTE!==null&&earnDTE<=30?'var(--warning)':'var(--accent)'};">${earnDate||'Unknown'}</div>
+          <div class="tnote">${earnDTE!==null?(earnDTE<=0?'Today / Past':earnDTE+'d away — '+(earnRisky?'⚠️ RISKY':'✅ Safe')):'No data'}</div>
         </div>
       </div>
-      <div class="tv-chart">
-        <iframe src="https://s.tradingview.com/widgetembed/?symbol=${ticker}&interval=D&theme=dark&style=1&locale=en&hide_top_toolbar=1&hide_legend=1&save_image=0&calendar=0&hide_volume=0&studies=RSI%407%40%40RSI%3Blength%3D14"
-          loading="lazy" allow="clipboard-write"></iframe>
+      <div style="margin-top:8px;display:flex;align-items:center;gap:6px;">
+        <input class="earn-input" id="earn-in-${ticker}" type="date" placeholder="Override" value="${earningsOverrides[ticker]||''}" style="flex:1;max-width:160px;">
+        <button class="earn-save" onclick="saveEarningsOverride('${ticker}')">Override</button>
       </div>
+    </div>
+    <div class="tv-chart">
+      <iframe src="https://s.tradingview.com/widgetembed/?symbol=${ticker}&interval=D&theme=dark&style=1&locale=en&hide_top_toolbar=1&hide_legend=1&save_image=0&calendar=0&hide_volume=0&studies=RSI%407%40%40RSI%3Blength%3D14"
+        loading="lazy" allow="clipboard-write"></iframe>
     </div>
     <div class="card-bot">
       <button class="sel-btn" onclick="select('${ticker}')">⬇ Select</button>
@@ -1988,6 +1969,17 @@ function cancelEdit(){
   document.getElementById('edit-modal').style.display='none';
   editingClosedIdx=-1;editOutcome='';
 }
+
+function deleteClosedTrade(){
+  if(editingClosedIdx<0)return;
+  const t=closedTrades[editingClosedIdx];
+  if(!confirm('Delete '+t.ticker+' '+t.type+' closed trade? This cannot be undone.'))return;
+  closedTrades.splice(editingClosedIdx,1);
+  sCT();rClosed();updatePnL();
+  document.getElementById('edit-modal').style.display='none';
+  editingClosedIdx=-1;editOutcome='';
+  toast('Trade deleted');
+}
 function saveEarningsOverride(ticker){
   const val=document.getElementById('earn-in-'+ticker).value;
   if(val){
@@ -2220,7 +2212,7 @@ function resetAll(){
   stopAutoRefresh();
   wl=['WULF','PR','HOOD','VST'];trades=[];closedTrades=[];earningsOverrides={};sd={};cfg={};
   top3=[];notReadyList=[];scannerRunning=false;
-  rChips();rB();rT();rClosed();loadS();updatePnL();toast('Reset complete');
+  rB();rT();rClosed();loadS();updatePnL();updateScanBar();toast('Reset complete');
 }
 
 function toast(msg){
@@ -2338,11 +2330,11 @@ if('serviceWorker' in navigator){
   });
 }
 loadS();applyTheme();
-rChips();
 rB();
 rT();
 rClosed();
 updatePnL();
+updateScanBar();
 // Auto-load data and start on briefing tab
 go('briefing');
 getAll();
