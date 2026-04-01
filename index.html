@@ -141,7 +141,14 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .ref-sm:hover{border-color:var(--accent);color:var(--accent);}
 .earn-lbl{font-size:10px;color:var(--muted);font-family:'Space Mono',monospace;margin-left:5px;}
 
-
+/* ── CHART TOGGLE ───────────────────────────────────────────── */
+.card-expand{overflow:hidden;transition:max-height 0.35s ease;}
+.card-expand.open{max-height:600px;}
+.card-expand.closed{max-height:0;}
+.tv-chart{border-top:1px solid var(--border);height:220px;overflow:hidden;}
+.tv-chart iframe{width:100%;height:220px;border:none;}
+.chart-toggle{background:none;border:none;color:var(--muted);font-size:14px;cursor:pointer;padding:2px 6px;border-radius:4px;transition:all 0.2s;font-family:'Space Mono',monospace;line-height:1;}
+.chart-toggle:hover{color:var(--accent);background:var(--surface2);}
 
 /* ── OPEN POSITION CARDS ────────────────────────────────────── */
 .pos-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;margin-bottom:9px;overflow:hidden;position:relative;}
@@ -404,7 +411,16 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
 .controls-row .cv.manual{color:var(--warning);font-style:italic;font-weight:400;}
 .controls-row .cv.auto{color:var(--accent);}
 
-
+/* ── CONFIDENCE SCORE ──────────────────────────────────────── */
+.conf-badge{font-family:'Space Mono',monospace;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;white-space:nowrap;}
+.conf-badge.high{background:rgba(0,255,157,0.15);color:var(--good);border:1px solid rgba(0,255,157,0.3);}
+.conf-badge.mid{background:rgba(0,212,255,0.15);color:var(--accent);border:1px solid rgba(0,212,255,0.3);}
+.conf-badge.low{background:rgba(255,165,2,0.15);color:var(--warning);border:1px solid rgba(255,165,2,0.3);}
+.conf-badge.poor{background:rgba(255,71,87,0.15);color:var(--danger);border:1px solid rgba(255,71,87,0.3);}
+.conf-bar-wrap{height:4px;background:var(--surface2);border-radius:2px;overflow:hidden;margin-top:4px;width:60px;}
+.conf-bar-fill{height:100%;border-radius:2px;transition:width 0.5s;}
+.countdown-display{font-family:'Space Mono',monospace;font-size:10px;color:var(--warning);display:flex;align-items:center;gap:5px;}
+.countdown-display .cd-time{font-weight:700;color:var(--accent);}
 
 /* ── SCANNER STATUS ─────────────────────────────────────────── */
 .scan-bar{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:8px;}
@@ -527,6 +543,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
           <div class="hw-tab-row"><span class="hw-tab-label">📖 How-To</span><span class="hw-tab-desc">You are here. Learn the tool, look up terms.</span></div>
           <div class="hw-tab-row"><span class="hw-tab-label">📊 Brief</span><span class="hw-tab-desc">Your morning briefing. Stock signals, live prices, open positions, alerts.</span></div>
           <div class="hw-tab-row"><span class="hw-tab-label">💼 Trades</span><span class="hw-tab-desc">Log new trades, close them, view history.</span></div>
+          <div class="hw-tab-row"><span class="hw-tab-label">🤖 AI</span><span class="hw-tab-desc">Chat with TradeBrief AI about your trades and strategy.</span></div>
           <div class="hw-tab-row"><span class="hw-tab-label">🤖 AI</span><span class="hw-tab-desc">Ask anything about your trades, options strategy, or market conditions.</span></div>
           <div class="hw-tab-row"><span class="hw-tab-label">⚙️ Set</span><span class="hw-tab-desc">Configure your thresholds, budget, alerts, and display.</span></div>
         </div>
@@ -680,7 +697,11 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
           <div class="feat-title">Earnings Guardrail</div>
           <div class="feat-desc">Automatically flags any spread where earnings falls before expiration as RISKY. IV crush kills options positions. TradeBrief protects you before you enter.</div>
         </div>
-
+        <div class="feat-card feat-accent-blue">
+          <div class="feat-icon">📈</div>
+          <div class="feat-title">Live TradingView Charts</div>
+          <div class="feat-desc">Embedded real-time candlestick charts with RSI for every stock, right inside the app. Expand any card and see the same chart you'd pull up on TradingView — without leaving TradeBrief.</div>
+        </div>
         <div class="feat-card feat-accent-purple">
           <div class="feat-icon">🤖</div>
           <div class="feat-title">Built-In AI Assistant</div>
@@ -725,6 +746,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
             <tr><td>Live P&L dashboard</td><td class="tb-col yes">✅</td><td class="yes">✅</td><td class="yes">✅</td><td class="yes">✅</td><td class="partial">~</td></tr>
             <tr><td>Investor Signal (fundamentals)</td><td class="tb-col yes">✅</td><td class="yes">✅</td><td class="no">❌</td><td class="no">❌</td><td class="no">❌</td></tr>
             <tr><td>Built-in AI assistant</td><td class="tb-col yes">✅</td><td class="no">❌</td><td class="no">❌</td><td class="no">❌</td><td class="no">❌</td></tr>
+            <tr><td>Embeds TradingView charts</td><td class="tb-col yes">✅</td><td class="yes">✅</td><td class="no">❌</td><td class="partial">~</td><td class="no">❌</td></tr>
             <tr><td>Works as phone app (PWA)</td><td class="tb-col yes">✅</td><td class="partial">~</td><td class="yes">✅</td><td class="yes">✅</td><td class="no">❌</td></tr>
             <tr><td>Browser push notifications</td><td class="tb-col yes">✅</td><td class="no">❌</td><td class="yes">✅</td><td class="partial">~</td><td class="no">❌</td></tr>
             <tr><td>Fully configurable to YOUR rules</td><td class="tb-col yes">✅</td><td class="no">❌</td><td class="no">❌</td><td class="no">❌</td><td class="yes">✅</td></tr>
@@ -738,7 +760,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
   <div class="tab-content" id="tab-briefing">
     <div id="scan-bar-area"></div>
     <div id="alerts"></div>
-    <div class="sec" id="brief-header">Top 10 by Confidence</div>
+    <div class="sec" id="brief-header">Top Picks</div>
     <div id="blist"></div>
     <div id="positions-section"></div>
   </div>
@@ -782,8 +804,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
     <div class="sec">Signal Thresholds</div>
     <div class="settings-section">
       <h3>RSI & MOVING AVERAGES</h3>
-
-      <div class="setting-row"><div class="setting-info"><div class="setting-label">RSI Overbought</div><div class="setting-desc">Above this = WAIT or PUTS. Default: 70</div></div><div class="setting-control"><input class="num-input" id="s-rsi-ob" type="number" min="60" max="90" value="70" onchange="saveS()"></div></div>
+      <div class="setting-row"><div class="setting-info"><div class="setting-label">RSI Overbought</div><div class="setting-desc">Above this = caution zone. Default: 70</div></div><div class="setting-control"><input class="num-input" id="s-rsi-ob" type="number" min="60" max="90" value="70" onchange="saveS()"></div></div>
       <div class="setting-row"><div class="setting-info"><div class="setting-label">RSI Oversold</div><div class="setting-desc">Below this = potential bounce. Default: 30</div></div><div class="setting-control"><input class="num-input" id="s-rsi-os" type="number" min="10" max="40" value="30" onchange="saveS()"></div></div>
       <div class="setting-row"><div class="setting-info"><div class="setting-label">EMA Combination</div><div class="setting-desc">Short / Long periods</div></div><div class="setting-control"><select class="sel-input" id="s-ema" onchange="saveS()"><option value="8,21">8/21 (default)</option><option value="9,21">9/21</option><option value="10,20">10/20</option><option value="8,34">8/34</option></select></div></div>
     </div>
@@ -900,6 +921,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
 <script>
 // ── CONFIG ─────────────────────────────────────────────────────────────────
 const DRIVE_ON=false;
+const TV_BASE='https://s.tradingview.com/widgetembed/?frameElementId=tv_chart';
 
 // ── STATE ──────────────────────────────────────────────────────────────────
 let wl=JSON.parse(localStorage.getItem('wl')||'["WULF","PR","HOOD","VST"]');
@@ -914,122 +936,201 @@ let editingTradeIdx=-1;
 let selectedOutcome='';
 let pendingTrades=[];
 
-// ── SCANNER UNIVERSE ──────────────────────────────────────────────────────
+// ── SCANNER UNIVERSE (~80 curated, liquid, options-active stocks) ─────────
 const UNIVERSE=[
   // Crypto/Blockchain (low price, high IV)
   'WULF','MARA','RIOT','BITF','HUT','CLSK',
   // Energy (mid price, solid options)
   'PR','OVV','RIG','SWN','AR','CTRA','MUR',
-  // Fintech/Financial
+  // Fintech/Financial (varied)
   'HOOD','AFRM','SQ','SOFI','UPST','NU',
-  // Tech/AI/Cloud
+  // Tech/AI/Cloud (mid)
   'PLTR','RKLB','IONQ','BBAI','AI',
-  // Semiconductors (removed AMD $150+, MU $90+, SMCI $40+)
+  // Semiconductors (affordable)
   'ON','WOLF',
   // Social/Internet
   'RDDT','SNAP','PINS','GRAB',
-  // Biotech/Healthcare (removed MRNA $40+)
+  // Biotech/Healthcare (volatile, cheap options)
   'DNA','CRSP','BEAM',
-  // EV/Clean Energy (removed FSLR $150+)
+  // EV/Clean Energy
   'RIVN','LCID','NIO','PLUG',
-  // Consumer/Retail (removed DIS $100+, NKE $70+)
+  // Consumer/Retail
   'DKNG','PENN',
-  // Industrials
+  // Industrials/Space
   'JOBY','LUNR','RDW','ACHR',
-  // ── NEW: Cheap liquid optionable stocks ──
-  'F','T','VALE','CLF','AAL','CCL',
-  'ET','TELL','OPEN','AMC','NOK','GSAT',
-  'AGNC','CLOV','SIRI','DNA',
-  'ENVX','LAZR','SPCE','SKLZ','WISH',
-  'NCLH','RUN','CHPT','VUZI','GOEV',
-  'PSNY','BARK','GENI','FUBO','MAPS'
+  // === NEW: Cheap, liquid, options-active additions ===
+  'F','T','VALE','CLF','AAL','CCL','ET','TELL',
+  'EOSE','FCEL','OPEN','AMC','NOK','GSAT',
+  'CLOV','SIRI','BTG','GOLD','KGC',
+  'AGNC','MPW','WBD','LYFT','UBER',
+  'BILI','BABA','JD','PDD',
+  'SPCE','STEM','BE','CHPT'
 ];
 
-// ── TOP 3 STATE ───────────────────────────────────────────────────────────
-let top3=[];// top 10 tickers by confidence score (legacy name for compat)
-let notReadyList=[];
+// ── TOP 10 STATE ──────────────────────────────────────────────────────────
+let top10=[];// tickers currently displayed, ranked by confidence
 let scannerRunning=false;
 let scannerProgress=0;
 let scannerTotal=0;
 let autoRefreshTimer=null;
-let scanCountdownTimer=null;
 const AUTO_REFRESH_MS=5*60*1000;// 5 minutes
-const SCAN_OPEN_HOUR=10;// 10:00 AM ET — scanning unlocks
-const SCAN_CLOSE_HOUR=16;// 4:00 PM ET — scanning locks
+let firstScanDone=false;
 
-// ── SCANNER FUNCTIONS ─────────────────────────────────────────────────────
-function getQualifyingTickers(){
-  // Return all tickers with a confidence score > 0 (CALLS or PUTS signal)
-  const allTickers=[...new Set([...wl,...Object.keys(sd)])];
-  return allTickers.filter(t=>{
-    const d=sd[t];
-    return d&&!d.loading&&!d.error&&d.dataSource!=='none'&&d.confidence>0&&(d.signal==='CALLS'||d.signal==='PUTS');
-  });
+// ── SCAN WINDOW CHECK (10:00 AM - 4:00 PM ET) ───────────────────────────
+function inScanWindow(){
+  const et=new Date(new Date().toLocaleString('en-US',{timeZone:'America/New_York'}));
+  const h=et.getHours(),m=et.getMinutes(),d=et.getDay();
+  return d>=1&&d<=5&&h>=10&&h<16;
+}
+function getCountdown(){
+  const et=new Date(new Date().toLocaleString('en-US',{timeZone:'America/New_York'}));
+  const h=et.getHours(),m=et.getMinutes(),s=et.getSeconds(),d=et.getDay();
+  // If weekend
+  if(d===0||d===6)return{text:'Market closed — scan resumes Monday 10:00 AM',seconds:null};
+  // If before 10:00 AM
+  if(h<10){
+    const totalSecs=(10-h-1)*3600+(60-m-1)*60+(60-s);
+    const hh=Math.floor(totalSecs/3600);
+    const mm=Math.floor((totalSecs%3600)/60);
+    const ss=totalSecs%60;
+    return{text:`Scan unlocks in`,time:`${hh}:${String(mm).padStart(2,'0')}:${String(ss).padStart(2,'0')}`,seconds:totalSecs};
+  }
+  // If after 4:00 PM
+  if(h>=16)return{text:'Market closed — scan resumes 10:00 AM',seconds:null};
+  return null;// in scan window
 }
 
-function getNotReadyTickers(){
-  // Return WAIT tickers sorted by how close to qualifying
-  const allTickers=[...new Set([...wl,...Object.keys(sd)])];
-  return allTickers.filter(t=>{
-    const d=sd[t];
-    if(!d||d.loading||d.error||d.dataSource==='none')return false;
-    if(d.signal==='CALLS'||d.signal==='PUTS')return false;
-    return true;
-  }).sort((a,b)=>(sd[b].confidence||0)-(sd[a].confidence||0)).map(t=>t);
+// ── CONFIDENCE SCORE (0-100) ─────────────────────────────────────────────
+function calcConfidence(price,ema8,ema21,rsi,volume,avgVolume,changePct){
+  let score=0;
+  const ob=S('rsiOb'),os=S('rsiOs');
+
+  // EMA alignment (0-25 pts)
+  const emaCrossover=ema8>ema21;// bullish
+  const emaCrossoverBear=ema8<ema21;// bearish
+  const priceAboveBoth=price>ema8&&price>ema21;
+  const priceBelowBoth=price<ema8&&price<ema21;
+  const emasStacked=emaCrossover&&priceAboveBoth;
+  const emasStackedBear=emaCrossoverBear&&priceBelowBoth;
+
+  if(emasStacked||emasStackedBear)score+=25;// full alignment
+  else if(emaCrossover||emaCrossoverBear)score+=15;// crossover but price not fully aligned
+  else score+=5;// no clear crossover
+
+  // RSI quality (0-25 pts)
+  // For calls: 40-65 is ideal. For puts: 35-60 is ideal.
+  // Near extremes is still useful (momentum), just lower score
+  if(emaCrossover){
+    if(rsi>=40&&rsi<=65)score+=25;// sweet spot for calls
+    else if(rsi>50&&rsi<=ob)score+=20;// decent momentum
+    else if(rsi>65&&rsi<=ob)score+=15;// strong but extended
+    else if(rsi>ob)score+=8;// overbought — still scored, not rejected
+    else if(rsi>=30&&rsi<40)score+=10;// below ideal for calls
+    else score+=3;// oversold with bullish EMA — contradictory
+  } else {
+    if(rsi>=35&&rsi<=60)score+=25;// sweet spot for puts
+    else if(rsi<50&&rsi>=os)score+=20;// decent
+    else if(rsi<35&&rsi>=os)score+=15;// strong but extended
+    else if(rsi<os)score+=8;// oversold — still scored
+    else if(rsi>60&&rsi<=70)score+=10;
+    else score+=3;
+  }
+
+  // Trend strength via EMA separation (0-15 pts)
+  const emaSep=Math.abs((ema8-ema21)/ema21)*100;
+  if(emaSep>3)score+=15;// strong separation
+  else if(emaSep>1.5)score+=10;// moderate
+  else if(emaSep>0.5)score+=6;// weak
+  else score+=2;// flat/crossing
+
+  // Day momentum (0-15 pts)
+  const absPct=Math.abs(changePct);
+  if(absPct>=2&&absPct<=6)score+=15;// solid move, not extreme
+  else if(absPct>=1)score+=10;// decent
+  else if(absPct>=0.3)score+=5;// quiet
+  else score+=2;// flat day
+
+  // Volume confirmation (0-10 pts)
+  if(avgVolume&&volume){
+    const volRatio=volume/avgVolume;
+    if(volRatio>=1.5)score+=10;// above average volume
+    else if(volRatio>=1.0)score+=7;
+    else if(volRatio>=0.5)score+=4;
+    else score+=1;
+  } else {
+    score+=5;// no volume data, neutral
+  }
+
+  // Budget affordability bonus (0-10 pts)
+  const budget=S('budget');
+  const idealMax=budget*0.4;
+  const okMax=budget*0.8;
+  const stretchMax=budget*1.5;
+  if(price<=idealMax)score+=10;
+  else if(price<=okMax)score+=7;
+  else if(price<=stretchMax)score+=4;
+  else score+=1;
+
+  // Determine direction
+  const direction=emaCrossover?'CALLS':'PUTS';
+
+  return{score:Math.min(100,score),direction};
+}
+
+// ── SCANNER FUNCTIONS ────────────────────────────────────────────────────
+function shuffleArray(arr){
+  const a=[...arr];
+  for(let i=a.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [a[i],a[j]]=[a[j],a[i]];
+  }
+  return a;
 }
 
 function buildTop10(){
-  // Get ALL tickers with signals, sort by confidence score
+  // Score ALL loaded tickers by confidence
   const allTickers=[...new Set([...wl,...Object.keys(sd)])];
-  const scored=allTickers.filter(t=>{
+  const scored=allTickers.map(t=>{
     const d=sd[t];
-    return d&&!d.loading&&!d.error&&d.dataSource!=='none'&&(d.signal==='CALLS'||d.signal==='PUTS');
-  }).sort((a,b)=>(sd[b].confidence||0)-(sd[a].confidence||0));
+    if(!d||d.loading||d.error||d.dataSource==='none')return null;
+    return{ticker:t,confidence:d.confidence||0,direction:d.direction||'WAIT'};
+  }).filter(Boolean).sort((a,b)=>b.confidence-a.confidence);
 
-  // Top 10 by confidence
-  top3=scored.slice(0,10);
-
-  // Not-ready: WAIT tickers that almost qualify
-  notReadyList=getNotReadyTickers().filter(t=>!top3.includes(t)).slice(0,5);
-
+  top10=scored.slice(0,10).map(s=>s.ticker);
   updateScanBar();
 }
-// Alias for backward compat
-function buildTop3(){buildTop10();}
 
 async function runScanner(force){
   if(scannerRunning)return;
-  // Check scan window (10 AM - 4 PM ET)
-  if(!isScanWindow()){
-    toast('Scanning available 10:00 AM – 4:00 PM ET');
+  // Check scan window unless forcing
+  if(!force&&!inScanWindow()){
+    updateScanBar();
     return;
   }
 
   scannerRunning=true;
-  // Shuffle universe to eliminate positional bias (council fix #2)
-  const shuffled=UNIVERSE.slice().sort(()=>Math.random()-0.5);
-  // If forcing, re-scan everything. Otherwise only scan unloaded tickers.
+  // Always scan full universe (shuffled to avoid sector bias)
   const toScan=force
-    ?shuffled
-    :shuffled.filter(t=>!sd[t]||sd[t].error||sd[t].dataSource==='none');
+    ?shuffleArray(UNIVERSE)
+    :shuffleArray(UNIVERSE.filter(t=>!sd[t]||sd[t].error||sd[t].dataSource==='none'));
   if(!toScan.length){
     scannerRunning=false;
-    buildTop3();rB();updateScanBar();
+    buildTop10();rB();updateScanBar();
     return;
   }
   scannerTotal=toScan.length;
   scannerProgress=0;
   updateScanBar();
 
-  // Scan FULL universe — no early stop (council fix #3)
+  // Scan ALL tickers — don't stop early. Find the BEST 10, not the first 10.
   const batchSize=4;
   for(let i=0;i<toScan.length;i+=batchSize){
     const batch=toScan.slice(i,i+batchSize);
     await Promise.all(batch.map(t=>fetch1(t)));
     scannerProgress=Math.min(i+batchSize,toScan.length);
-    buildTop3();
-    rB();
     updateScanBar();
+    buildTop10();
+    rB();
 
     // Rate limit pause between batches
     if(i+batchSize<toScan.length){
@@ -1038,103 +1139,74 @@ async function runScanner(force){
   }
 
   scannerRunning=false;
-  buildTop3();
+  firstScanDone=true;
+  buildTop10();
   rB();
   updateScanBar();
-}
-
-// Check if within scan window (10 AM - 4 PM ET, weekdays)
-function isScanWindow(){
-  const et=new Date(new Date().toLocaleString("en-US",{timeZone:"America/New_York"}));
-  const h=et.getHours(),d=et.getDay();
-  return d>=1&&d<=5&&h>=SCAN_OPEN_HOUR&&h<SCAN_CLOSE_HOUR;
-}
-
-// Get countdown string to next scan window
-function getScanCountdown(){
-  const et=new Date(new Date().toLocaleString("en-US",{timeZone:"America/New_York"}));
-  const h=et.getHours(),m=et.getMinutes(),s=et.getSeconds(),d=et.getDay();
-  if(d>=1&&d<=5&&h>=SCAN_CLOSE_HOUR) return{text:"Market closed",locked:true};
-  if(d===0||d===6) return{text:"Weekend — opens Mon 10:00 AM",locked:true};
-  if(d>=1&&d<=5&&h<SCAN_OPEN_HOUR||(h===SCAN_OPEN_HOUR-1)){
-    // Before 10 AM on a weekday
-    const targetMin=SCAN_OPEN_HOUR*60;
-    const currentMin=h*60+m;
-    const diff=targetMin-currentMin;
-    const rh=Math.floor(diff/60);
-    const rm=diff%60;
-    const rs=60-s;
-    return{text:(rh>0?rh+"h ":"")+rm+"m "+rs+"s",locked:true};
-  }
-  return{text:"",locked:false};
 }
 
 function updateScanBar(){
   const el=document.getElementById('scan-bar-area');
   if(!el)return;
-  const qualifying=getQualifyingTickers();
-  const cd=getScanCountdown();
-  const statusText=scannerRunning
-    ?`<span class="active">⟳ Scanning... ${scannerProgress}/${scannerTotal}</span>`
-    :`${qualifying.length} scored · Top ${top3.length} shown`;
+  const loaded=Object.keys(sd).filter(k=>sd[k]&&!sd[k].loading&&!sd[k].error&&sd[k].dataSource!=='none').length;
+  const countdown=getCountdown();
+
+  let statusText;
+  if(scannerRunning){
+    statusText=`<span class="active">⟳ Scanning... ${scannerProgress}/${scannerTotal}</span>`;
+  } else if(countdown){
+    statusText=`<span class="countdown-display">${countdown.text}${countdown.time?` <span class="cd-time">${countdown.time}</span>`:''}</span>`;
+  } else {
+    statusText=`${loaded} scanned · Top ${top10.length} shown`;
+  }
   const progressPct=scannerRunning&&scannerTotal>0?((scannerProgress/scannerTotal)*100):0;
-  const scanDisabled=scannerRunning||cd.locked;
+  const canScan=inScanWindow()||!firstScanDone;
 
   el.innerHTML=`<div class="scan-bar">
     <div class="scan-status">${statusText}</div>
-    ${cd.locked?`<div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--warning);display:flex;align-items:center;gap:6px;">
-      <span>⏱</span><span id="scan-cd">${cd.text}</span>
-    </div>`:''}
-    <button class="scan-btn" onclick="runScanner(true)" ${scanDisabled?'disabled':''}>${scannerRunning?'Scanning...':cd.locked?'🔒 Locked':'🔍 Scan Now'}</button>
+    <button class="scan-btn" onclick="runScanner(true)" ${scannerRunning||(!canScan&&firstScanDone)?'disabled':''}>${scannerRunning?'Scanning...':countdown&&firstScanDone?'🔒 Locked':'🔍 Scan Now'}</button>
   </div>
   ${scannerRunning?`<div class="scan-progress"><div class="scan-progress-bar" style="width:${progressPct}%"></div></div>`:''}`;
 }
 
 // Update countdown every second
-function startScanCountdown(){
-  if(scanCountdownTimer)clearInterval(scanCountdownTimer);
-  scanCountdownTimer=setInterval(()=>{
-    const cdEl=document.getElementById('scan-cd');
-    if(!cdEl)return;
-    const cd=getScanCountdown();
-    cdEl.textContent=cd.text;
-    // Auto-trigger first scan at 10:00 AM sharp
-    if(!cd.locked&&!scannerRunning&&top3.length===0){
-      clearInterval(scanCountdownTimer);
-      updateScanBar();
-      runScanner(true);
-    }
-    if(!cd.locked){
-      updateScanBar();// Remove countdown once unlocked
-    }
-  },1000);
-}
+setInterval(()=>{
+  if(!scannerRunning)updateScanBar();
+  // Auto-scan at 10:00 AM ET sharp
+  const et=new Date(new Date().toLocaleString('en-US',{timeZone:'America/New_York'}));
+  if(et.getHours()===10&&et.getMinutes()===0&&et.getSeconds()<=1&&!firstScanDone&&!scannerRunning){
+    runScanner(true);
+  }
+},1000);
 
 function reSignalAll(){
-  // Re-calculate signals + confidence for all loaded tickers
   Object.keys(sd).forEach(ticker=>{
     const d=sd[ticker];
     if(!d||d.loading||d.error||d.dataSource==='none')return;
-    const sig=getSignal(d.price,d.ema8,d.ema21,d.rsi14);
-    d.signal=sig.signal;
-    d.reason=sig.reason;
-    d.confidence=sig.confidence;
+    const conf=calcConfidence(d.price,d.ema8,d.ema21,d.rsi14,d.volume||0,d.avgVolume||0,d.changePct||0);
+    d.confidence=conf.score;
+    d.direction=conf.direction;
+    d.signal=conf.direction;
+    d.reason=`Confidence ${conf.score}/100 — ${conf.direction==='CALLS'?'Bullish':'Bearish'} setup`;
   });
-  buildTop3();
+  buildTop10();
   rB();
   updateScanBar();
 }
 
 // ── AUTO-REFRESH ──────────────────────────────────────────────────────────
 async function autoRefresh(){
-  if(!isScanWindow())return;// Only during scan hours
+  if(!inScanWindow())return;// Only during scan window (10 AM - 4 PM ET)
 
-  // Re-fetch data for current top 10
-  for(const t of top3){
+  // Re-fetch data for current top10
+  for(const t of top10){
     await fetch1(t);
   }
 
-  buildTop3();
+  buildTop10();
+  rB();
+}
+
   rB();
 }
 
@@ -1245,6 +1317,7 @@ function loadS(){
   document.getElementById('s-speed').value=S('speed');
   document.getElementById('speed-val').textContent=S('speed');
   document.getElementById('s-theme').value=S('theme')||'dark';
+  document.getElementById('s-sigmode').value=S('signalMode');
   applySpeed();applyTheme();
 }
 function applyTheme(){
@@ -1293,7 +1366,7 @@ async function fetch1(ticker){
     if(!closes.length){
       // No candle data available — cannot compute reliable signals
       sd[ticker]={ticker,price,change,changePct,rsi14:50,ema8:price,ema21:price,earningsDate:null,
-        signal:'WAIT',reason:'No historical data — cannot verify signal',
+        signal:'WAIT',reason:'No historical data — cannot verify signal',confidence:0,direction:'WAIT',
         teasers:[
           {label:'RSI 14',value:'—',note:'No candle data from Finnhub'},
           {label:'Trend',value:'UNKNOWN',note:'Insufficient data for analysis'},
@@ -1312,7 +1385,7 @@ async function fetch1(ticker){
       }
       sd[ticker].earningsDate=earningsDate2;
       fetchInvestorSignal(ticker).then(inv=>{if(inv){sd[ticker].investorSignal=inv;rB();}});
-      rB();updatePnL();buildTop3();
+      rB();updatePnL();buildTop10();
       return;
     }
 
@@ -1321,7 +1394,7 @@ async function fetch1(ticker){
     const ema21=calcEMA(closes,parseInt(parts[1]));
     const rsi14=calcRSI(closes,14);
     const trend=trendStrength(closes,ema8,ema21,rsi14);
-    const sig=getSignal(price,ema8,ema21,rsi14);
+    const conf=calcConfidence(price,ema8,ema21,rsi14,0,0,changePct);
     const ob=S('rsiOb'),os=S('rsiOs');
     const teasers=[
       {label:'RSI 14',value:rsi14.toFixed(1),note:rsi14<os?'Oversold — bounce potential':rsi14>ob?'Overbought — caution':'Healthy momentum range'},
@@ -1338,26 +1411,26 @@ async function fetch1(ticker){
         if(upcoming.length)earningsDate=upcoming[0].date;
       }catch(e){}
     }
-    sd[ticker]={ticker,price,change,changePct,rsi14,ema8,ema21,earningsDate,signal:sig.signal,reason:sig.reason,confidence:sig.confidence||0,teasers,closes,trend,dataSource};
+    sd[ticker]={ticker,price,change,changePct,rsi14,ema8,ema21,earningsDate,signal:conf.direction,reason:'Confidence '+conf.score+'/100 — '+(conf.direction==='CALLS'?'Bullish':'Bearish')+' setup',confidence:conf.score,direction:conf.direction,teasers,closes,trend,dataSource};
     // Fetch investor signal in background
     fetchInvestorSignal(ticker).then(inv=>{if(inv){sd[ticker].investorSignal=inv;rB();}});
   }catch(e){
     console.error(ticker,e.message);
     sd[ticker]={error:true,msg:e.message};
   }
-  rB();updatePnL();buildTop3();
+  rB();updatePnL();buildTop10();
 }
 
 async function getAll(){
   sd={};
   rB();
-  updateScanBar();
-  startScanCountdown();
-  // Only auto-scan if within scan window
-  if(isScanWindow()){
-    await runScanner(true);
-    startAutoRefresh();
-  }
+  for(const t of wl)await fetch1(t);
+  buildTop10();
+  rB();
+  // If we don't have 3 qualifying, run the scanner
+  if(top10.length<3)runScanner(false);
+  // Start auto-refresh cycle
+  startAutoRefresh();
 }
 
 // ── PRICE HELPERS ──────────────────────────────────────────────────────────
@@ -1377,76 +1450,6 @@ function calcRSI(prices,period=14){
     ag=(ag*(period-1)+g)/period;al=(al*(period-1)+l)/period;
   }
   return al===0?100:parseFloat((100-100/(1+ag/al)).toFixed(1));
-}
-function getSignal(price,ema8,ema21,rsi){
-  const ob=S('rsiOb'),os=S('rsiOs');
-  // ── CONFIDENCE SCORE MODEL (replaces 3-mode system) ──
-  // Score 0-100 based on multiple factors. Higher = stronger signal.
-  let score=0;
-  let direction=null;// 'CALLS' or 'PUTS'
-  let reasons=[];
-
-  // 1. EMA Crossover Direction (up to 25 pts) — primary signal
-  if(ema8>ema21){
-    direction='CALLS';
-    const spread=((ema8-ema21)/ema21)*100;
-    if(spread>2){score+=25;reasons.push('Strong EMA crossover ('+spread.toFixed(1)+'%)');}
-    else if(spread>0.5){score+=18;reasons.push('EMA crossover bullish');}
-    else{score+=10;reasons.push('Narrow EMA crossover');}
-  }else if(ema8<ema21){
-    direction='PUTS';
-    const spread=((ema21-ema8)/ema21)*100;
-    if(spread>2){score+=25;reasons.push('Strong bearish EMA crossover ('+spread.toFixed(1)+'%)');}
-    else if(spread>0.5){score+=18;reasons.push('EMA crossover bearish');}
-    else{score+=10;reasons.push('Narrow bearish EMA crossover');}
-  }
-
-  // 2. Price vs EMAs (up to 20 pts)
-  if(direction==='CALLS'){
-    if(price>ema8&&price>ema21){score+=20;reasons.push('Price above both EMAs');}
-    else if(price>ema21){score+=12;reasons.push('Price above slow EMA');}
-    else if(price>ema8){score+=5;reasons.push('Price above fast EMA only');}
-  }else if(direction==='PUTS'){
-    if(price<ema8&&price<ema21){score+=20;reasons.push('Price below both EMAs');}
-    else if(price<ema21){score+=12;reasons.push('Price below slow EMA');}
-    else if(price<ema8){score+=5;reasons.push('Price below fast EMA only');}
-  }
-
-  // 3. RSI Momentum (up to 25 pts) — NOT a gate, a score factor
-  if(direction==='CALLS'){
-    if(rsi>=45&&rsi<=65){score+=25;reasons.push('RSI ideal for calls ('+rsi.toFixed(0)+')');}
-    else if(rsi>=35&&rsi<=75){score+=15;reasons.push('RSI acceptable ('+rsi.toFixed(0)+')');}
-    else if(rsi>75){score+=5;reasons.push('RSI extended ('+rsi.toFixed(0)+')');}
-    else{score+=3;reasons.push('RSI low ('+rsi.toFixed(0)+')');}
-  }else if(direction==='PUTS'){
-    if(rsi>=35&&rsi<=55){score+=25;reasons.push('RSI ideal for puts ('+rsi.toFixed(0)+')');}
-    else if(rsi>=25&&rsi<=65){score+=15;reasons.push('RSI acceptable ('+rsi.toFixed(0)+')');}
-    else if(rsi<25){score+=5;reasons.push('RSI very oversold ('+rsi.toFixed(0)+')');}
-    else{score+=3;reasons.push('RSI high for puts ('+rsi.toFixed(0)+')');}
-  }
-
-  // 4. EMA Stacking Bonus (up to 15 pts)
-  if(direction==='CALLS'&&price>ema8&&ema8>ema21){score+=15;reasons.push('Full bullish stack');}
-  else if(direction==='PUTS'&&price<ema8&&ema8<ema21){score+=15;reasons.push('Full bearish stack');}
-
-  // 5. Budget Affordability (up to 15 pts)
-  const budget=S('budget');
-  const idealMax=budget*0.5;
-  const okMax=budget*1.0;
-  const stretchMax=budget*2.0;
-  if(price<=idealMax){score+=15;reasons.push('Great fit for $'+budget+' budget');}
-  else if(price<=okMax){score+=10;reasons.push('Fits $'+budget+' budget');}
-  else if(price<=stretchMax){score+=5;reasons.push('Stretch for budget');}
-  else{score+=0;reasons.push('May exceed budget');}
-
-  // Cap at 100
-  score=Math.min(100,score);
-
-  // Determine signal
-  if(!direction||score<10){
-    return{signal:'WAIT',reason:'No clear directional setup — confidence too low',confidence:score};
-  }
-  return{signal:direction,reason:reasons.slice(0,3).join(' · '),confidence:score};
 }
 function trendStrength(closes,ema8,ema21,rsi){
   const price=closes[closes.length-1],prev=closes[closes.length-2];
@@ -1565,10 +1568,10 @@ function rB(){
 
   // Update header
   const headerEl=document.getElementById('brief-header');
-  if(headerEl)headerEl.textContent=`Top ${top3.length} by Confidence`;
+  if(headerEl)headerEl.textContent=`Top Picks · ${top10.length}/3`;
 
-  // Build cards for top3 (qualifying tickers)
-  const top3Cards=top3.map(ticker=>renderDataCard(ticker)).join('');
+  // Build cards for top10 (qualifying tickers)
+  const top3Cards=top10.map(ticker=>renderDataCard(ticker)).join('');
 
   // Build not-ready cards
   const nrCards=notReadyList.map(ticker=>{
@@ -1612,7 +1615,7 @@ function rB(){
     </div></div>`).join('');
 
   // No actionable picks message
-  const emptyMsg=top3.length===0&&notReadyList.length===0&&!scannerRunning&&Object.keys(sd).some(k=>!sd[k].loading)
+  const emptyMsg=top10.length===0&&notReadyList.length===0&&!scannerRunning&&Object.keys(sd).some(k=>!sd[k].loading)
     ?'<div class="empty">No actionable setups right now. Hit "Scan Now" to search for opportunities.</div>':'';
 
   el.innerHTML=top3Cards+nrCards+loadingCards+emptyMsg;
@@ -1657,8 +1660,7 @@ function renderDataCard(ticker){
         <div class="ip"><span class="il">DAY</span><span class="iv" style="color:${dayColor};">${(d.changePct>=0?'+':'')+d.changePct.toFixed(1)}%</span></div>
         <div class="ip"><span class="il">EARN</span><span class="iv ${earnPillColor}">${earnPillText}</span></div>
       </div>
-      <div style="margin-left:auto;display:flex;align-items:center;gap:6px;">
-        <div style="font-family:'Space Mono',monospace;font-size:18px;font-weight:700;color:${d.confidence>=70?'var(--good)':d.confidence>=45?'var(--accent)':'var(--warning)'}">${d.confidence||0}</div>
+      <div style="margin-left:auto;">
         <div class="sbadge ${sig}">${sig}</div>
       </div>
     </div>
@@ -1677,7 +1679,10 @@ function renderDataCard(ticker){
         <button class="earn-save" onclick="saveEarningsOverride('${ticker}')">Override</button>
       </div>
     </div>
-
+    <div class="tv-chart">
+      <iframe src="https://s.tradingview.com/widgetembed/?symbol=${ticker}&interval=D&theme=dark&style=1&locale=en&hide_top_toolbar=1&hide_legend=1&save_image=0&calendar=0&hide_volume=0&studies=RSI%407%40%40RSI%3Blength%3D14"
+        loading="lazy" allow="clipboard-write"></iframe>
+    </div>
     <div class="card-bot">
       <button class="sel-btn" onclick="select('${ticker}')">⬇ Select</button>
       <button class="ref-sm" onclick="fetch1('${ticker}')">↺ Refresh</button>
@@ -2233,7 +2238,7 @@ function resetAll(){
   localStorage.clear();
   stopAutoRefresh();
   wl=['WULF','PR','HOOD','VST'];trades=[];closedTrades=[];earningsOverrides={};sd={};cfg={};
-  top3=[];notReadyList=[];scannerRunning=false;
+  top10=[];notReadyList=[];scannerRunning=false;
   rB();rT();rClosed();loadS();updatePnL();updateScanBar();toast('Reset complete');
 }
 
