@@ -1207,9 +1207,6 @@ async function autoRefresh(){
   rB();
 }
 
-  rB();
-}
-
 function startAutoRefresh(){
   if(autoRefreshTimer)clearInterval(autoRefreshTimer);
   autoRefreshTimer=setInterval(autoRefresh,AUTO_REFRESH_MS);
