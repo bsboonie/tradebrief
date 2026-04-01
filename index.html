@@ -1043,19 +1043,28 @@ function buildTop3(){
   updateScanBar();
 }
 
-async function runScanner(){
+async function runScanner(force){
   if(scannerRunning)return;
-  // Only scan if we need to fill slots
-  const qualifying=getQualifyingTickers();
-  const currentGood=top3.filter(t=>qualifying.includes(t));
-  if(currentGood.length>=3){
-    buildTop3();rB();
-    return;
+  // If not forcing, only scan if we need to fill slots
+  if(!force){
+    const qualifying=getQualifyingTickers();
+    const currentGood=top3.filter(t=>qualifying.includes(t));
+    if(currentGood.length>=3){
+      buildTop3();rB();
+      return;
+    }
   }
 
   scannerRunning=true;
-  // Determine which universe tickers need scanning (not already loaded)
-  const toScan=UNIVERSE.filter(t=>!sd[t]||sd[t].error);
+  // If forcing, re-scan everything. Otherwise only scan unloaded tickers.
+  const toScan=force
+    ?UNIVERSE.slice()
+    :UNIVERSE.filter(t=>!sd[t]||sd[t].error||sd[t].dataSource==='none');
+  if(!toScan.length){
+    scannerRunning=false;
+    buildTop3();rB();updateScanBar();
+    return;
+  }
   scannerTotal=toScan.length;
   scannerProgress=0;
   updateScanBar();
@@ -1106,7 +1115,7 @@ function updateScanBar(){
       <button class="sig-mode-btn ${mode==='loose'?'active-loose':''}" onclick="setSignalMode('loose')">Loose</button>
     </div>
     <div class="scan-status">${statusText}</div>
-    <button class="scan-btn" onclick="runScanner()" ${scannerRunning?'disabled':''}>${scannerRunning?'Scanning...':'🔍 Scan Now'}</button>
+    <button class="scan-btn" onclick="runScanner(true)" ${scannerRunning?'disabled':''}>${scannerRunning?'Scanning...':'🔍 Scan Now'}</button>
   </div>
   ${scannerRunning?`<div class="scan-progress"><div class="scan-progress-bar" style="width:${progressPct}%"></div></div>`:''}`;
 }
@@ -1119,6 +1128,10 @@ function setSignalMode(mode){
   if(sel)sel.value=mode;
   // Re-evaluate all signals with new mode
   reSignalAll();
+  // If still no qualifiers after re-evaluation, auto-scan
+  if(top3.length<3&&!scannerRunning){
+    runScanner(false);
+  }
   toast('Signal mode: '+mode.charAt(0).toUpperCase()+mode.slice(1));
 }
 
@@ -1153,7 +1166,7 @@ async function autoRefresh(){
   const slotsOpen=3-top3.length;
   if(slotsOpen>0){
     // Run scanner to backfill
-    await runScanner();
+    await runScanner(false);
   }
 
   rB();
@@ -1378,7 +1391,7 @@ async function getAll(){
   buildTop3();
   rB();
   // If we don't have 3 qualifying, run the scanner
-  if(top3.length<3)runScanner();
+  if(top3.length<3)runScanner(false);
   // Start auto-refresh cycle
   startAutoRefresh();
 }
