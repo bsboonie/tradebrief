@@ -1,16 +1,20 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v4.1 — Council Build (hotfix)                       ║
-     ║  Built: 2026-04-01 (v4.1 hotfix)                                      ║
-     ║  Changes: Confidence score, Top 10, scan lock,          ║
-     ║           expanded universe, no TradingView, no modes   ║
+     ║  TRADEBRIEF v4.2 — Scanner Fix Build                            ║
+     ║  Built: 2026-04-02                                              ║
+     ║  Changes: Fix API rate limiting (batch=1, 4s delay),    ║
+     ║    scan diagnostics + logging, show quote-only tickers  ║
+     ║    as LIMITED, defer investorSignal to top10 only,       ║
+     ║    scan window 9AM, autoRefresh guard, favicon fix,     ║
+     ║    dead CSS/JS cleanup, remove tape speed setting       ║
      ╚══════════════════════════════════════════════════════════╝ -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<link rel="icon" href="data:,">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#111827">
-<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="TradeBrief">
 <link rel="manifest" href="/tradebrief/manifest.json">
@@ -21,7 +25,7 @@
 :root{
   --bg:#0a0e1a;--surface:#111827;--surface2:#1a2235;--border:#1e2d45;
   --accent:#00d4ff;--accent2:#00ff9d;--danger:#ff4757;--warning:#ffa502;
-  --text:#e8edf5;--muted:#6b7a99;--good:#00ff9d;--tape-speed:28s;
+  --text:#e8edf5;--muted:#6b7a99;--good:#00ff9d;
 }
 body.light{
   --bg:#f0f4f8;--surface:#ffffff;--surface2:#e8edf5;--border:#d1dae8;
@@ -65,41 +69,13 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .tab-content{display:none;}
 .tab-content.active{display:block;}
 
-/* ── WATCHLIST ──────────────────────────────────────────────── */
-.wl-box{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:12px;}
-.chips{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px;}
-.chip{display:flex;align-items:center;gap:5px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:4px 10px;font-family:'Space Mono',monospace;font-size:11px;}
-.chip-x{cursor:pointer;color:var(--muted);transition:color 0.2s;}
-.chip-x:hover{color:var(--danger);}
-.wl-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap;}
-.add-input{background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-family:'Space Mono',monospace;font-size:11px;color:var(--text);outline:none;width:80px;text-transform:uppercase;transition:border-color 0.2s;}
-.add-input:focus{border-color:var(--accent);}
-.add-btn{background:var(--accent);border:none;border-radius:20px;padding:5px 12px;font-size:11px;font-family:'Space Mono',monospace;color:#000;cursor:pointer;font-weight:700;}
-.all-btn{background:none;border:1px solid var(--accent);border-radius:20px;padding:5px 12px;font-size:11px;font-family:'Space Mono',monospace;color:var(--accent);cursor:pointer;transition:all 0.2s;}
-.all-btn:hover{background:var(--accent);color:#000;}
 
-/* ── IDLE CARD ──────────────────────────────────────────────── */
-.idle-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;margin-bottom:9px;overflow:hidden;}
-.idle-top{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;}
-.idle-name{display:flex;align-items:baseline;gap:10px;}
-.idle-ticker{font-family:'Space Mono',monospace;font-size:17px;font-weight:700;}
-.idle-price{font-family:'Space Mono',monospace;font-size:13px;font-weight:700;}
-.idle-price.up{color:var(--good);}
-.idle-price.dn{color:var(--danger);}
-.idle-price.flat{color:var(--muted);}
-.card-acts{display:flex;gap:6px;}
+
+/* ── SELECT/GET BUTTONS ────────────────────────────────────── */
 .sel-btn{background:var(--accent2);border:none;border-radius:7px;padding:6px 12px;font-size:11px;font-family:'Space Mono',monospace;color:#000;cursor:pointer;font-weight:700;transition:opacity 0.2s;}
 .sel-btn:hover{opacity:0.8;}
 .get-btn{background:none;border:1px solid var(--accent);border-radius:7px;padding:6px 12px;font-size:11px;font-family:'Space Mono',monospace;color:var(--accent);cursor:pointer;transition:all 0.2s;}
 .get-btn:hover{background:var(--accent);color:#000;}
-
-/* ── TAPE ───────────────────────────────────────────────────── */
-.tape{overflow:hidden;background:var(--surface2);border-top:1px solid var(--border);padding:5px 0;white-space:nowrap;}
-.tape-inner{display:inline-block;animation:scroll var(--tape-speed) linear infinite;}
-.tape:hover .tape-inner{animation-play-state:paused;}
-@keyframes scroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
-.ti{display:inline-block;margin:0 16px;font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);}
-.ti b{color:var(--accent);}
 
 /* ── LOADING ────────────────────────────────────────────────── */
 .load-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:9px;}
@@ -147,14 +123,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .ref-sm:hover{border-color:var(--accent);color:var(--accent);}
 .earn-lbl{font-size:10px;color:var(--muted);font-family:'Space Mono',monospace;margin-left:5px;}
 
-/* ── CHART TOGGLE ───────────────────────────────────────────── */
-.card-expand{overflow:hidden;transition:max-height 0.35s ease;}
-.card-expand.open{max-height:600px;}
-.card-expand.closed{max-height:0;}
-.tv-chart{border-top:1px solid var(--border);height:220px;overflow:hidden;}
-.tv-chart iframe{width:100%;height:220px;border:none;}
-.chart-toggle{background:none;border:none;color:var(--muted);font-size:14px;cursor:pointer;padding:2px 6px;border-radius:4px;transition:all 0.2s;font-family:'Space Mono',monospace;line-height:1;}
-.chart-toggle:hover{color:var(--accent);background:var(--surface2);}
 
 /* ── OPEN POSITION CARDS ────────────────────────────────────── */
 .pos-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;margin-bottom:9px;overflow:hidden;position:relative;}
@@ -278,10 +246,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .num-input{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:5px 8px;color:var(--text);font-family:'Space Mono',monospace;font-size:11px;outline:none;width:70px;text-align:center;}
 .num-input:focus{border-color:var(--accent);}
 .sel-input{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:5px 8px;color:var(--text);font-family:'Space Mono',monospace;font-size:11px;outline:none;}
-.range-wrap{display:flex;align-items:center;gap:6px;}
-.range-val{font-family:'Space Mono',monospace;font-size:10px;color:var(--accent);min-width:24px;text-align:right;}
-input[type=range]{-webkit-appearance:none;width:100px;height:4px;background:var(--border);border-radius:4px;outline:none;}
-input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;background:var(--accent);border-radius:50%;cursor:pointer;}
 .action-btn{background:none;border:1px solid var(--border);border-radius:8px;padding:6px 12px;font-size:11px;color:var(--text);cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.2s;}
 .action-btn:hover{border-color:var(--accent);color:var(--accent);}
 .action-btn.danger{border-color:rgba(255,71,87,0.4);color:var(--danger);}
@@ -423,6 +387,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
 .conf-badge.mid{background:rgba(0,212,255,0.15);color:var(--accent);border:1px solid rgba(0,212,255,0.3);}
 .conf-badge.low{background:rgba(255,165,2,0.15);color:var(--warning);border:1px solid rgba(255,165,2,0.3);}
 .conf-badge.poor{background:rgba(255,71,87,0.15);color:var(--danger);border:1px solid rgba(255,71,87,0.3);}
+.limited-badge{font-family:'Space Mono',monospace;font-size:9px;font-weight:700;padding:2px 8px;border-radius:12px;background:rgba(107,122,153,0.15);color:var(--muted);border:1px solid rgba(107,122,153,0.3);}
 .conf-bar-wrap{height:4px;background:var(--surface2);border-radius:2px;overflow:hidden;margin-top:4px;width:60px;}
 .conf-bar-fill{height:100%;border-radius:2px;transition:width 0.5s;}
 .countdown-display{font-family:'Space Mono',monospace;font-size:10px;color:var(--warning);display:flex;align-items:center;gap:5px;}
@@ -843,7 +808,6 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
     <div class="settings-section">
       <h3>APPEARANCE</h3>
       <div class="setting-row"><div class="setting-info"><div class="setting-label">Theme</div><div class="setting-desc">Switch between dark and light mode</div></div><div class="setting-control"><select class="sel-input" id="s-theme" onchange="applyTheme();saveS()"><option value="dark">🌙 Dark</option><option value="light">☀️ Light</option></select></div></div>
-      <div class="setting-row"><div class="setting-info"><div class="setting-label">Ticker Tape Speed</div><div class="setting-desc">Scroll speed on idle cards</div></div><div class="setting-control"><div class="range-wrap"><span style="font-size:9px;color:var(--muted);">Slow</span><input type="range" id="s-speed" min="1" max="5" value="3" onchange="applySpeed();saveS()"><span style="font-size:9px;color:var(--muted);">Fast</span><span class="range-val" id="speed-val">3</span></div></div></div>
     </div>
     <div class="sec">Integrations</div>
     <div class="settings-section">
@@ -982,27 +946,27 @@ let autoRefreshTimer=null;
 const AUTO_REFRESH_MS=5*60*1000;// 5 minutes
 let firstScanDone=false;
 
-// ── SCAN WINDOW CHECK (10:00 AM - 4:00 PM ET) ───────────────────────────
+// ── SCAN WINDOW CHECK (9:00 AM - 4:00 PM ET) ───────────────────────────
 function inScanWindow(){
   const et=new Date(new Date().toLocaleString('en-US',{timeZone:'America/New_York'}));
   const h=et.getHours(),m=et.getMinutes(),d=et.getDay();
-  return d>=1&&d<=5&&h>=10&&h<16;
+  return d>=1&&d<=5&&h>=9&&h<16;
 }
 function getCountdown(){
   const et=new Date(new Date().toLocaleString('en-US',{timeZone:'America/New_York'}));
   const h=et.getHours(),m=et.getMinutes(),s=et.getSeconds(),d=et.getDay();
   // If weekend
-  if(d===0||d===6)return{text:'Market closed — scan resumes Monday 10:00 AM',seconds:null};
-  // If before 10:00 AM
-  if(h<10){
-    const totalSecs=(10-h-1)*3600+(60-m-1)*60+(60-s);
+  if(d===0||d===6)return{text:'Market closed — scan resumes Monday 9:00 AM',seconds:null};
+  // If before 9:00 AM
+  if(h<9){
+    const totalSecs=(9-h-1)*3600+(60-m-1)*60+(60-s);
     const hh=Math.floor(totalSecs/3600);
     const mm=Math.floor((totalSecs%3600)/60);
     const ss=totalSecs%60;
     return{text:`Scan unlocks in`,time:`${hh}:${String(mm).padStart(2,'0')}:${String(ss).padStart(2,'0')}`,seconds:totalSecs};
   }
   // If after 4:00 PM
-  if(h>=16)return{text:'Market closed — scan resumes 10:00 AM',seconds:null};
+  if(h>=16)return{text:'Market closed — scan resumes 9:00 AM',seconds:null};
   return null;// in scan window
 }
 
@@ -1083,6 +1047,34 @@ function calcConfidence(price,ema8,ema21,rsi,volume,avgVolume,changePct){
   return{score:Math.min(100,score),direction};
 }
 
+// Partial confidence for tickers with price only (no candle/EMA/RSI data)
+// Scores 0-35 max based on day momentum + budget affordability only
+function calcPartialConfidence(price,changePct){
+  let score=0;
+
+  // Day momentum (0-15 pts) — same as full model
+  const absPct=Math.abs(changePct);
+  if(absPct>=2&&absPct<=6)score+=15;
+  else if(absPct>=1)score+=10;
+  else if(absPct>=0.3)score+=5;
+  else score+=2;
+
+  // Budget affordability (0-10 pts) — same as full model
+  const budget=S('budget');
+  const idealMax=budget*0.4;
+  const okMax=budget*0.8;
+  const stretchMax=budget*1.5;
+  if(price<=idealMax)score+=10;
+  else if(price<=okMax)score+=7;
+  else if(price<=stretchMax)score+=4;
+  else score+=1;
+
+  // Base points for having a valid quote (0-10 pts)
+  score+=10;
+
+  return score;// max 35 — will always rank below full-data tickers
+}
+
 // ── SCANNER FUNCTIONS ────────────────────────────────────────────────────
 function shuffleArray(arr){
   const a=[...arr];
@@ -1094,12 +1086,12 @@ function shuffleArray(arr){
 }
 
 function buildTop10(){
-  // Score ALL loaded tickers by confidence
+  // Score ALL loaded tickers by confidence — include 'live', 'estimated', AND 'limited'
   const allTickers=[...new Set([...wl,...Object.keys(sd)])];
   const scored=allTickers.map(t=>{
     const d=sd[t];
-    if(!d||d.loading||d.error||d.dataSource==='none')return null;
-    return{ticker:t,confidence:d.confidence||0,direction:d.direction||'WAIT'};
+    if(!d||d.loading||d.error)return null;// only filter out errors and loading
+    return{ticker:t,confidence:d.confidence||0,direction:d.direction||'—'};
   }).filter(Boolean).sort((a,b)=>b.confidence-a.confidence);
 
   top10=scored.slice(0,10).map(s=>s.ticker);
@@ -1118,7 +1110,7 @@ async function runScanner(force){
   // Always scan full universe (shuffled to avoid sector bias)
   const toScan=force
     ?shuffleArray(UNIVERSE)
-    :shuffleArray(UNIVERSE.filter(t=>!sd[t]||sd[t].error||sd[t].dataSource==='none'));
+    :shuffleArray(UNIVERSE.filter(t=>!sd[t]||sd[t].error||sd[t].dataSource==='none'||sd[t].dataSource==='limited'));
   if(!toScan.length){
     scannerRunning=false;
     buildTop10();rB();updateScanBar();
@@ -1128,8 +1120,9 @@ async function runScanner(force){
   scannerProgress=0;
   updateScanBar();
 
-  // Scan ALL tickers — don't stop early. Find the BEST 10, not the first 10.
-  const batchSize=4;
+  // Scan ALL tickers — one at a time to respect Finnhub 60 calls/min limit
+  // Each ticker = ~3 API calls (quote + candle + earnings). At 4s delay = ~45 calls/min.
+  const batchSize=1;
   for(let i=0;i<toScan.length;i+=batchSize){
     const batch=toScan.slice(i,i+batchSize);
     await Promise.all(batch.map(t=>fetch1(t)));
@@ -1138,9 +1131,9 @@ async function runScanner(force){
     buildTop10();
     rB();
 
-    // Rate limit pause between batches
+    // Rate limit pause — 4s between tickers keeps us under 60 calls/min
     if(i+batchSize<toScan.length){
-      await new Promise(r=>setTimeout(r,4500));
+      await new Promise(r=>setTimeout(r,4000));
     }
   }
 
@@ -1149,12 +1142,34 @@ async function runScanner(force){
   buildTop10();
   rB();
   updateScanBar();
+
+  // Scan diagnostics
+  const stats={
+    total:UNIVERSE.length,
+    live:Object.values(sd).filter(d=>d.dataSource==='live').length,
+    limited:Object.values(sd).filter(d=>d.dataSource==='limited').length,
+    noData:Object.values(sd).filter(d=>d.dataSource==='none').length,
+    errors:Object.values(sd).filter(d=>d.error).length
+  };
+  console.log('📊 Scan complete:',stats);
+  console.log(`Top ${top10.length} tickers:`,top10.map(t=>`${t}(${sd[t]?.confidence||0})`).join(', '));
+
+  // Now fetch investor signals for top 10 only (deferred from scan to save API calls)
+  for(const t of top10){
+    if(sd[t]&&!sd[t].investorSignal){
+      fetchInvestorSignal(t).then(inv=>{if(inv){sd[t].investorSignal=inv;rB();}});
+      await new Promise(r=>setTimeout(r,2000));// rate limit investor signal calls too
+    }
+  }
 }
 
 function updateScanBar(){
   const el=document.getElementById('scan-bar-area');
   if(!el)return;
-  const loaded=Object.keys(sd).filter(k=>sd[k]&&!sd[k].loading&&!sd[k].error&&sd[k].dataSource!=='none').length;
+  const liveCount=Object.values(sd).filter(d=>d&&d.dataSource==='live').length;
+  const limitedCount=Object.values(sd).filter(d=>d&&d.dataSource==='limited').length;
+  const errorCount=Object.values(sd).filter(d=>d&&(d.error||d.dataSource==='none')).length;
+  const totalLoaded=liveCount+limitedCount;
   const countdown=getCountdown();
 
   let statusText;
@@ -1162,8 +1177,10 @@ function updateScanBar(){
     statusText=`<span class="active">⟳ Scanning... ${scannerProgress}/${scannerTotal}</span>`;
   } else if(countdown){
     statusText=`<span class="countdown-display">${countdown.text}${countdown.time?` <span class="cd-time">${countdown.time}</span>`:''}</span>`;
+  } else if(firstScanDone){
+    statusText=`${liveCount} live · ${limitedCount} limited · ${errorCount} no data · Top ${top10.length} shown`;
   } else {
-    statusText=`${loaded} scanned · Top ${top10.length} shown`;
+    statusText=`Ready to scan`;
   }
   const progressPct=scannerRunning&&scannerTotal>0?((scannerProgress/scannerTotal)*100):0;
   const canScan=inScanWindow()||!firstScanDone;
@@ -1178,9 +1195,9 @@ function updateScanBar(){
 // Update countdown every second
 setInterval(()=>{
   if(!scannerRunning)updateScanBar();
-  // Auto-scan at 10:00 AM ET sharp
+  // Auto-scan at 9:00 AM ET sharp
   const et=new Date(new Date().toLocaleString('en-US',{timeZone:'America/New_York'}));
-  if(et.getHours()===10&&et.getMinutes()===0&&et.getSeconds()<=1&&!firstScanDone&&!scannerRunning){
+  if(et.getHours()===9&&et.getMinutes()===0&&et.getSeconds()<=1&&!firstScanDone&&!scannerRunning){
     runScanner(true);
   }
 },1000);
@@ -1188,7 +1205,13 @@ setInterval(()=>{
 function reSignalAll(){
   Object.keys(sd).forEach(ticker=>{
     const d=sd[ticker];
-    if(!d||d.loading||d.error||d.dataSource==='none')return;
+    if(!d||d.loading||d.error)return;
+    // Skip limited-data tickers — they use calcPartialConfidence, not calcConfidence
+    if(d.dataSource==='limited'){
+      d.confidence=calcPartialConfidence(d.price,d.changePct||0);
+      return;
+    }
+    if(d.rsi14===null||d.ema8===null)return;// safety check
     const conf=calcConfidence(d.price,d.ema8,d.ema21,d.rsi14,d.volume||0,d.avgVolume||0,d.changePct||0);
     d.confidence=conf.score;
     d.direction=conf.direction;
@@ -1202,11 +1225,12 @@ function reSignalAll(){
 
 // ── AUTO-REFRESH ──────────────────────────────────────────────────────────
 async function autoRefresh(){
-  if(!inScanWindow())return;// Only during scan window (10 AM - 4 PM ET)
+  if(!inScanWindow()||scannerRunning)return;// Only during scan window, skip if scanner active
 
-  // Re-fetch data for current top10
+  // Re-fetch data for current top10 with rate limiting
   for(const t of top10){
     await fetch1(t);
+    await new Promise(r=>setTimeout(r,4000));// respect rate limit
   }
 
   buildTop10();
@@ -1222,19 +1246,8 @@ function stopAutoRefresh(){
   if(autoRefreshTimer){clearInterval(autoRefreshTimer);autoRefreshTimer=null;}
 }
 
-const DEFAULTS={rsiOb:70,rsiOs:30,ema:'8,21',rr:1.5,pop:30,cw:0.50,dmin:0.15,dmax:0.70,budget:150,iv:true,earn:true,dte:5,profitAlert:75,target:80,contracts:1,pricefmt:'both',speed:3};
+const DEFAULTS={rsiOb:70,rsiOs:30,ema:'8,21',rr:1.5,pop:30,cw:0.50,dmin:0.15,dmax:0.70,budget:150,iv:true,earn:true,dte:5,profitAlert:75,target:80,contracts:1,pricefmt:'both'};
 function S(k){return cfg[k]!==undefined?cfg[k]:DEFAULTS[k];}
-
-// Pre-loaded teasers for idle cards
-const PRE={
-  WULF:['Bitcoin miner + AI data','IV ~100% — rich premiums','Volatile — big moves'],
-  PR:  ['Permian Basin oil E&P','Strong Buy consensus','2.8% dividend + upside'],
-  HOOD:['Fintech + crypto play','Very liquid options','High beta — fast mover'],
-  VST: ['AI power demand play','Nuclear + gas fleet','Strong FCF generation'],
-  CEG: ['Nuclear power leader','AI data center play','Clean energy premium'],
-  CRWV:['AI cloud infra','$66B contracted backlog','High volatility'],
-};
-function pre(t){return PRE[t]||['Options available','Check chain for spreads','Verify before trading'];}
 
 // ── CLOCK & MARKET ─────────────────────────────────────────────────────────
 function isOpen(){
@@ -1290,13 +1303,10 @@ function saveS(){
     target:+document.getElementById('s-target').value,
     contracts:+document.getElementById('s-contracts').value,
     pricefmt:document.getElementById('s-pricefmt').value,
-    speed:+document.getElementById('s-speed').value,
     notif:document.getElementById('s-notif').checked,
     theme:document.getElementById('s-theme').value,
   };
   localStorage.setItem('cfg',JSON.stringify(cfg));
-  applySpeed();
-  document.getElementById('speed-val').textContent=S('speed');
   toast('Settings saved ✓');
 }
 function loadS(){
@@ -1317,26 +1327,18 @@ function loadS(){
   document.getElementById('s-contracts').value=S('contracts');
   document.getElementById('s-pricefmt').value=S('pricefmt');
   document.getElementById('s-notif').checked=S('notif')||false;
-  document.getElementById('s-speed').value=S('speed');
-  document.getElementById('speed-val').textContent=S('speed');
   document.getElementById('s-theme').value=S('theme')||'dark';
-  applySpeed();applyTheme();
+  applyTheme();
 }
 function applyTheme(){
   const t=document.getElementById('s-theme')?document.getElementById('s-theme').value:S('theme')||'dark';
   document.body.classList.toggle('light',t==='light');
-}
-function applySpeed(){
-  const speeds={1:'52s',2:'38s',3:'28s',4:'18s',5:'10s'};
-  document.documentElement.style.setProperty('--tape-speed',speeds[S('speed')]||'28s');
 }
 
 // ── WATCHLIST ──────────────────────────────────────────────────────────────
 function sWL(){localStorage.setItem('wl',JSON.stringify(wl));}
 function sTR(){localStorage.setItem('trades',JSON.stringify(trades));}
 function sCT(){localStorage.setItem('closedTrades',JSON.stringify(closedTrades));}
-
-function rChips(){/* watchlist chips removed — scanner handles stock selection */}
 
 // ── DATA FETCH (Finnhub) ───────────────────────────────────────────────────
 const FINNHUB_KEY='d74aqr1r01qno4q12vl0d74aqr1r01qno4q12vlg';
@@ -1346,6 +1348,7 @@ async function fetch1(ticker){
   sd[ticker]={loading:true};rB();
   try{
     const qr=await fetch(`${FH}/quote?symbol=${ticker}&token=${FINNHUB_KEY}`);
+    if(!qr.ok){console.warn(`${ticker}: quote HTTP ${qr.status}`);throw new Error('Quote HTTP '+qr.status);}
     const q=await qr.json();
     if(!q.c||q.c===0)throw new Error('No price data');
     const price=parseFloat(q.c.toFixed(2));
@@ -1360,21 +1363,27 @@ async function fetch1(ticker){
     let dataSource='estimated';
     try{
       const cr=await fetch(`${FH}/stock/candle?symbol=${ticker}&resolution=D&from=${from}&to=${to}&token=${FINNHUB_KEY}`);
+      if(!cr.ok){console.warn(`${ticker}: candle HTTP ${cr.status}`);throw new Error('Candle HTTP '+cr.status);}
       const candles=await cr.json();
       if(candles.s==='ok'&&candles.c&&candles.c.length>=22){
         closes=candles.c;dataSource='live';
+      } else {
+        console.warn(`${ticker}: candle status=${candles.s}, points=${candles.c?candles.c.length:0}`);
       }
-    }catch(e){}
+    }catch(e){console.warn(`${ticker}: candle fetch error — ${e.message}`);}
+
     if(!closes.length){
-      // No candle data available — cannot compute reliable signals
-      sd[ticker]={ticker,price,change,changePct,rsi14:50,ema8:price,ema21:price,earningsDate:null,
-        signal:'WAIT',reason:'No historical data — cannot verify signal',confidence:0,direction:'WAIT',
+      // No candle data — show as LIMITED with partial confidence score
+      // Score based on available data: day momentum + budget affordability only
+      const partialScore=calcPartialConfidence(price,changePct);
+      sd[ticker]={ticker,price,change,changePct,rsi14:null,ema8:null,ema21:null,earningsDate:null,
+        signal:'—',reason:'Limited data — price and momentum only',confidence:partialScore,direction:'—',
         teasers:[
           {label:'RSI 14',value:'—',note:'No candle data from Finnhub'},
-          {label:'Trend',value:'UNKNOWN',note:'Insufficient data for analysis'},
+          {label:'Trend',value:'—',note:'Needs candle history for EMA analysis'},
           {label:'Day Move',value:(changePct>=0?'+':'')+changePct.toFixed(2)+'%',note:Math.abs(changePct)>3?'Big move today':'Quiet session today'}
         ],
-        closes:[],trend:{weakSignals:0,trending:false},dataSource:'none'};
+        closes:[],trend:{weakSignals:0,trending:false},dataSource:'limited'};
       // Still try to get earnings
       let earningsDate2=earningsOverrides[ticker]||null;
       if(!earningsDate2){
@@ -1383,10 +1392,10 @@ async function fetch1(ticker){
           const edata=await er.json();
           const upcoming=(edata.earningsCalendar||[]).filter(e=>new Date(e.date)>=new Date()).sort((a,b)=>new Date(a.date)-new Date(b.date));
           if(upcoming.length)earningsDate2=upcoming[0].date;
-        }catch(e){}
+        }catch(e){console.warn(`${ticker}: earnings fetch error — ${e.message}`);}
       }
       sd[ticker].earningsDate=earningsDate2;
-      fetchInvestorSignal(ticker).then(inv=>{if(inv){sd[ticker].investorSignal=inv;rB();}});
+      // Investor signal deferred to post-scan for top 10 only
       rB();updatePnL();buildTop10();
       return;
     }
@@ -1411,13 +1420,12 @@ async function fetch1(ticker){
         const edata=await er.json();
         const upcoming=(edata.earningsCalendar||[]).filter(e=>new Date(e.date)>=new Date()).sort((a,b)=>new Date(a.date)-new Date(b.date));
         if(upcoming.length)earningsDate=upcoming[0].date;
-      }catch(e){}
+      }catch(e){console.warn(`${ticker}: earnings fetch error — ${e.message}`);}
     }
     sd[ticker]={ticker,price,change,changePct,rsi14,ema8,ema21,earningsDate,signal:conf.direction,reason:'Confidence '+conf.score+'/100 — '+(conf.direction==='CALLS'?'Bullish':'Bearish')+' setup',confidence:conf.score,direction:conf.direction,teasers,closes,trend,dataSource};
-    // Fetch investor signal in background
-    fetchInvestorSignal(ticker).then(inv=>{if(inv){sd[ticker].investorSignal=inv;rB();}});
+    // Investor signal deferred to post-scan for top 10 only
   }catch(e){
-    console.error(ticker,e.message);
+    console.warn(`${ticker}: fetch1 error — ${e.message}`);
     sd[ticker]={error:true,msg:e.message};
   }
   rB();updatePnL();buildTop10();
@@ -1629,15 +1637,18 @@ function renderDataCard(ticker){
   const d=sd[ticker];
   if(!d||d.loading||d.error)return'';
 
-  const sig=d.signal||'WAIT';
+  const isLimited=d.dataSource==='limited';
+  const sig=d.signal||'—';
   const tr2=sig==='CALLS'?'bullish':sig==='PUTS'?'bearish':'neutral';
   const priceClass=pc(d.change);
-  const a8=d.price>d.ema8?'low':'high',a21=d.price>d.ema21?'low':'high';
+  const hasEMA=d.ema8!==null&&d.ema8!==undefined;
+  const a8=hasEMA?(d.price>d.ema8?'low':'high'):'mid';
+  const a21=hasEMA?(d.price>d.ema21?'low':'high'):'mid';
   const parts=S('ema').split(',');
   const teas=(d.teasers||[]).map(t=>`<div class="tstat"><div class="tlabel">${t.label}</div><div class="tval">${t.value}</div><div class="tnote">${t.note}</div></div>`).join('');
-  const srcNote=d.dataSource==='estimated'?'<span style="font-size:9px;color:var(--warning);margin-left:8px;">~ estimated</span>':'';
-  const trendVal=d.price>d.ema8&&d.price>d.ema21?'BULLISH':'BEARISH';
-  const trendColor=trendVal==='BULLISH'?'var(--good)':'var(--danger)';
+  const srcNote=isLimited?'<span class="limited-badge" style="margin-left:8px;">LIMITED</span>':d.dataSource==='estimated'?'<span style="font-size:9px;color:var(--warning);margin-left:8px;">~ estimated</span>':'';
+  const trendVal=hasEMA?(d.price>d.ema8&&d.price>d.ema21?'BULLISH':'BEARISH'):'—';
+  const trendColor=trendVal==='BULLISH'?'var(--good)':trendVal==='BEARISH'?'var(--danger)':'var(--muted)';
   const dayColor=d.changePct>=0?'var(--good)':'var(--danger)';
   const earnDate=d.earningsDate;
   const earnDTE=earnDate?Math.ceil((new Date(earnDate)-new Date())/86400000):null;
@@ -1645,7 +1656,13 @@ function renderDataCard(ticker){
   const earnPillText=earnDTE!==null?(earnDTE<=0?'NOW':earnDTE+'d'):'—';
   const earnRisky=earnDate?trades.some(t=>t.ticker===ticker&&new Date(earnDate)<=new Date(t.exp)):false;
 
-  return`<div class="data-card">
+  // Indicator pills — show dashes for limited data
+  const rsiDisplay=d.rsi14!==null&&d.rsi14!==undefined?d.rsi14.toFixed(1):'—';
+  const rsiClass=d.rsi14!==null&&d.rsi14!==undefined?rc(d.rsi14):'mid';
+  const ema8Display=hasEMA?'$'+d.ema8.toFixed(2):'—';
+  const ema21Display=hasEMA?'$'+d.ema21.toFixed(2):'—';
+
+  return`<div class="data-card"${isLimited?' style="opacity:0.85;"':''}>
     <div class="acc ${tr2}"></div>
     <div class="card-top">
       <div class="card-name">
@@ -1654,9 +1671,9 @@ function renderDataCard(ticker){
       </div>
       <div><div class="pch ${priceClass}">${chgStr(d)}</div></div>
       <div class="inds">
-        <div class="ip"><span class="il">RSI 14</span><span class="iv ${rc(d.rsi14)}">${d.rsi14.toFixed(1)}</span></div>
-        <div class="ip"><span class="il">EMA ${parts[0]}</span><span class="iv ${a8}">$${d.ema8.toFixed(2)}</span></div>
-        <div class="ip"><span class="il">EMA ${parts[1]}</span><span class="iv ${a21}">$${d.ema21.toFixed(2)}</span></div>
+        <div class="ip"><span class="il">RSI 14</span><span class="iv ${rsiClass}">${rsiDisplay}</span></div>
+        <div class="ip"><span class="il">EMA ${parts[0]}</span><span class="iv ${a8}">${ema8Display}</span></div>
+        <div class="ip"><span class="il">EMA ${parts[1]}</span><span class="iv ${a21}">${ema21Display}</span></div>
         <div class="ip"><span class="il">TREND</span><span class="iv" style="color:${trendColor};font-size:9px;">${trendVal}</span></div>
         <div class="ip"><span class="il">DAY</span><span class="iv" style="color:${dayColor};">${(d.changePct>=0?'+':'')+d.changePct.toFixed(1)}%</span></div>
         <div class="ip"><span class="il">EARN</span><span class="iv ${earnPillColor}">${earnPillText}</span></div>
@@ -1682,7 +1699,7 @@ function renderDataCard(ticker){
       </div>
     </div>
     <div class="card-bot">
-      <button class="sel-btn" onclick="select('${ticker}')">⬇ Select</button>
+      <button class="sel-btn" onclick="select('${ticker}')"${isLimited?' disabled title="Need full data to select"':''}>${isLimited?'⏳ Limited':'⬇ Select'}</button>
       <button class="ref-sm" onclick="fetch1('${ticker}')">↺ Refresh</button>
       ${d.investorSignal?`<div style="margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:3px;">
         <div class="inv-badge ${d.investorSignal.bclass}">${d.investorSignal.badge}</div>
@@ -2365,7 +2382,7 @@ go('briefing');
 getAll();
 </script>
 <!-- ╔══════════════════════════════════════════════════════════╗
-     ║  END TRADEBRIEF v4.1 — Council Build (hotfix)                   ║
+     ║  END TRADEBRIEF v4.2 — Scanner Fix Build                        ║
      ╚══════════════════════════════════════════════════════════╝ -->
 </body>
 </html>
