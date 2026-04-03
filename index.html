@@ -1,13 +1,12 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v4.3 — Tradier API Swap Build                       ║
+     ║  TRADEBRIEF v4.3.1 — Risk Profile + Tiebreaker Build            ║
      ║  Built: 2026-04-02                                              ║
-     ║  Changes: Replace Finnhub with Tradier for quotes and   ║
-     ║    candles. Two-phase scan: batch quote sweep (1 call)  ║
-     ║    + history fetch for top ~25 candidates. Real volume  ║
-     ║    data in confidence scoring. Finnhub retained for     ║
-     ║    earnings calendar + investor signal (fundamentals).  ║
-     ║    Scan completes in ~20s vs 5+ min. Sandbox API.       ║
+     ║  Changes: Relabel investor badges to risk profile       ║
+     ║    (STABLE/MODERATE/VOLATILE/HIGH RISK), gap risk       ║
+     ║    framing, fundamentals tiebreaker in sort (within     ║
+     ║    3 pts), Risk Profile note on card, earnings          ║
+     ║    override input labeled. Tradier sandbox API.         ║
      ╚══════════════════════════════════════════════════════════╝ -->
 <html lang="en">
 <head>
@@ -282,10 +281,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
 /* ── INVESTOR SIGNAL ────────────────────────────────────────── */
 .inv-badge{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;font-family:'Space Mono',monospace;font-size:10px;font-weight:700;white-space:nowrap;margin-top:4px;}
-.inv-badge.hold{background:rgba(0,255,157,0.15);color:var(--good);border:1px solid rgba(0,255,157,0.3);}
-.inv-badge.watch{background:rgba(0,212,255,0.15);color:var(--accent);border:1px solid rgba(0,212,255,0.3);}
-.inv-badge.tradeonly{background:rgba(255,165,2,0.15);color:var(--warning);border:1px solid rgba(255,165,2,0.3);}
-.inv-badge.speculative{background:rgba(255,71,87,0.15);color:var(--danger);border:1px solid rgba(255,71,87,0.3);}
+.inv-badge.stable{background:rgba(0,255,157,0.15);color:var(--good);border:1px solid rgba(0,255,157,0.3);}
+.inv-badge.moderate{background:rgba(0,212,255,0.15);color:var(--accent);border:1px solid rgba(0,212,255,0.3);}
+.inv-badge.volatile{background:rgba(255,165,2,0.15);color:var(--warning);border:1px solid rgba(255,165,2,0.3);}
+.inv-badge.highrisk{background:rgba(255,71,87,0.15);color:var(--danger);border:1px solid rgba(255,71,87,0.3);}
 .inv-thesis{font-size:11px;color:var(--muted);margin-top:4px;font-style:italic;}
 .inv-elaborate{background:none;border:1px solid var(--border);border-radius:6px;padding:3px 9px;font-size:10px;font-family:'Space Mono',monospace;color:var(--muted);cursor:pointer;margin-top:4px;transition:all 0.2s;}
 .inv-elaborate:hover{border-color:var(--accent);color:var(--accent);}
@@ -1092,8 +1091,17 @@ function buildTop10(){
   const scored=allTickers.map(t=>{
     const d=sd[t];
     if(!d||d.loading||d.error)return null;// only filter out errors and loading
-    return{ticker:t,confidence:d.confidence||0,direction:d.direction||'—'};
-  }).filter(Boolean).sort((a,b)=>b.confidence-a.confidence);
+    const fundScore=d.investorSignal?d.investorSignal.score:0;
+    return{ticker:t,confidence:d.confidence||0,direction:d.direction||'—',fundScore};
+  }).filter(Boolean).sort((a,b)=>{
+    // Primary: confidence score descending
+    // Tiebreaker: within 3 confidence points, higher fundamental score ranks first
+    const diff=Math.abs(a.confidence-b.confidence);
+    if(diff>3)return b.confidence-a.confidence;
+    // Within 3 points — use fundamentals as tiebreaker
+    if(a.fundScore!==b.fundScore)return b.fundScore-a.fundScore;
+    return b.confidence-a.confidence;// fallback to confidence if funds equal too
+  });
 
   top10=scored.slice(0,10).map(s=>s.ticker);
   updateScanBar();
@@ -1859,17 +1867,22 @@ function renderDataCard(ticker){
           <div class="tnote">${earnDTE!==null?(earnDTE<=0?'Today / Past':earnDTE+'d away — '+(earnRisky?'⚠️ RISKY':'✅ Safe')):'No data'}</div>
         </div>
       </div>
-      <div style="margin-top:8px;display:flex;align-items:center;gap:6px;">
-        <input class="earn-input" id="earn-in-${ticker}" type="date" placeholder="Override" value="${earningsOverrides[ticker]||''}" style="flex:1;max-width:160px;">
-        <button class="earn-save" onclick="saveEarningsOverride('${ticker}')">Override</button>
+      <div style="margin-top:8px;">
+        <div style="font-family:'Space Mono',monospace;font-size:9px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;margin-bottom:4px;">Earnings Date Override</div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <input class="earn-input" id="earn-in-${ticker}" type="date" placeholder="Override earnings date" value="${earningsOverrides[ticker]||''}" style="flex:1;max-width:160px;">
+          <button class="earn-save" onclick="saveEarningsOverride('${ticker}')">Override</button>
+        </div>
       </div>
     </div>
     <div class="card-bot">
       <button class="sel-btn" onclick="select('${ticker}')"${isLimited?' disabled title="Need full data to select"':''}>${isLimited?'⏳ Limited':'⬇ Select'}</button>
       <button class="ref-sm" onclick="fetch1('${ticker}')">↺ Refresh</button>
       ${d.investorSignal?`<div style="margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:3px;">
+        <div style="font-family:'Space Mono',monospace;font-size:8px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;margin-bottom:2px;">Risk Profile</div>
         <div class="inv-badge ${d.investorSignal.bclass}">${d.investorSignal.badge}</div>
         <div class="inv-thesis">${d.investorSignal.thesis}</div>
+        <div style="font-size:9px;color:var(--muted);font-style:italic;max-width:240px;text-align:right;margin-top:2px;">Overnight gap risk — not factored into confidence score.</div>
         <button class="inv-elaborate" onclick="elaborateStock('${ticker}')">Ask AI to elaborate →</button>
       </div>`:''}
     </div>
@@ -2510,10 +2523,10 @@ async function fetchInvestorSignal(ticker){
     if(week52pct&&week52pct<-20)score+=1; // potential value
 
     let badge,bclass,thesis;
-    if(score>=8){badge='💎 LONG TERM HOLD';bclass='hold';thesis='Strong fundamentals across revenue, margins, and analyst consensus — a core holding candidate.';}
-    else if(score>=5){badge='👀 WORTH WATCHING';bclass='watch';thesis='Solid but not exceptional fundamentals — worth monitoring for a better entry point.';}
-    else if(score>=3){badge='⚠️ TRADE ONLY';bclass='tradeonly';thesis='Weak or mixed fundamentals — best suited for short-term options plays, not long-term holds.';}
-    else{badge='🚫 SPECULATIVE';bclass='speculative';thesis='High-risk profile with poor fundamentals — trade carefully with defined risk only.';}
+    if(score>=8){badge='🟢 STABLE';bclass='stable';thesis='Low overnight gap risk. Fundamental floor exists — adverse moves tend to be smaller and recoverable.';}
+    else if(score>=5){badge='🔵 MODERATE';bclass='moderate';thesis='Average gap risk. Decent fundamentals provide some cushion against unexpected moves.';}
+    else if(score>=3){badge='🟡 VOLATILE';bclass='volatile';thesis='Elevated gap risk. Weak fundamentals mean larger unexpected moves are more likely.';}
+    else{badge='🔴 HIGH RISK';bclass='highrisk';thesis='Maximum gap risk. No fundamental floor — overnight moves can be sharp and unpredictable.';}
 
     return{badge,bclass,thesis,score,pe,roe,revenueGrowth,netMargin};
   }catch(e){return null;}
@@ -2548,7 +2561,7 @@ go('briefing');
 getAll();
 </script>
 <!-- ╔══════════════════════════════════════════════════════════╗
-     ║  END TRADEBRIEF v4.3 — Tradier API Swap Build                   ║
+     ║  END TRADEBRIEF v4.3.1 — Risk Profile + Tiebreaker Build        ║
      ╚══════════════════════════════════════════════════════════╝ -->
 </body>
 </html>
