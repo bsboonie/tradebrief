@@ -1,12 +1,13 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v4.2 — Scanner Fix Build                            ║
+     ║  TRADEBRIEF v4.3 — Tradier API Swap Build                       ║
      ║  Built: 2026-04-02                                              ║
-     ║  Changes: Fix API rate limiting (batch=1, 4s delay),    ║
-     ║    scan diagnostics + logging, show quote-only tickers  ║
-     ║    as LIMITED, defer investorSignal to top10 only,       ║
-     ║    scan window 9AM, autoRefresh guard, favicon fix,     ║
-     ║    dead CSS/JS cleanup, remove tape speed setting       ║
+     ║  Changes: Replace Finnhub with Tradier for quotes and   ║
+     ║    candles. Two-phase scan: batch quote sweep (1 call)  ║
+     ║    + history fetch for top ~25 candidates. Real volume  ║
+     ║    data in confidence scoring. Finnhub retained for     ║
+     ║    earnings calendar + investor signal (fundamentals).  ║
+     ║    Scan completes in ~20s vs 5+ min. Sandbox API.       ║
      ╚══════════════════════════════════════════════════════════╝ -->
 <html lang="en">
 <head>
@@ -1100,43 +1101,121 @@ function buildTop10(){
 
 async function runScanner(force){
   if(scannerRunning)return;
-  // Check scan window unless forcing
   if(!force&&!inScanWindow()){
     updateScanBar();
     return;
   }
 
   scannerRunning=true;
-  // Always scan full universe (shuffled to avoid sector bias)
-  const toScan=force
-    ?shuffleArray(UNIVERSE)
-    :shuffleArray(UNIVERSE.filter(t=>!sd[t]||sd[t].error||sd[t].dataSource==='none'||sd[t].dataSource==='limited'));
-  if(!toScan.length){
-    scannerRunning=false;
-    buildTop10();rB();updateScanBar();
-    return;
-  }
-  scannerTotal=toScan.length;
+  scannerTotal=3;// 3 phases
   scannerProgress=0;
   updateScanBar();
 
-  // Scan ALL tickers — one at a time to respect Finnhub 60 calls/min limit
-  // Each ticker = ~3 API calls (quote + candle + earnings). At 4s delay = ~45 calls/min.
-  const batchSize=1;
-  for(let i=0;i<toScan.length;i+=batchSize){
-    const batch=toScan.slice(i,i+batchSize);
-    await Promise.all(batch.map(t=>fetch1(t)));
-    scannerProgress=Math.min(i+batchSize,toScan.length);
-    updateScanBar();
-    buildTop10();
-    rB();
+  // ── PHASE 1: Batch quote sweep (1 API call) ────────────────────────────
+  console.log('📡 Phase 1: Batch quote sweep for',UNIVERSE.length,'tickers...');
+  const quoteMap=await fetchAllQuotes(UNIVERSE);
+  const quotedTickers=Object.keys(quoteMap);
+  console.log(`✅ Phase 1 complete: ${quotedTickers.length} quotes received`);
 
-    // Rate limit pause — 4s between tickers keeps us under 60 calls/min
-    if(i+batchSize<toScan.length){
-      await new Promise(r=>setTimeout(r,4000));
+  // Store quote-only data for ALL tickers (partial confidence)
+  quotedTickers.forEach(ticker=>{
+    const q=quoteMap[ticker];
+    const partialScore=calcPartialConfidence(q.price,q.changePct);
+    sd[ticker]={ticker,price:q.price,change:q.change,changePct:q.changePct,
+      volume:q.volume,avgVolume:q.avgVolume,
+      rsi14:null,ema8:null,ema21:null,earningsDate:earningsOverrides[ticker]||null,
+      signal:'—',reason:'Limited data — price and momentum only',confidence:partialScore,direction:'—',
+      teasers:[
+        {label:'RSI 14',value:'—',note:'Awaiting candle data'},
+        {label:'Trend',value:'—',note:'Awaiting candle data'},
+        {label:'Day Move',value:(q.changePct>=0?'+':'')+q.changePct.toFixed(2)+'%',note:Math.abs(q.changePct)>3?'Big move today':'Quiet session today'}
+      ],
+      closes:[],trend:{weakSignals:0,trending:false},dataSource:'limited'};
+  });
+  // Mark tickers with no quotes
+  UNIVERSE.forEach(t=>{
+    if(!quoteMap[t]&&(!sd[t]||sd[t].loading)){
+      sd[t]={error:true,msg:'No quote from Tradier',dataSource:'none'};
+    }
+  });
+  scannerProgress=1;
+  buildTop10();rB();updateScanBar();
+
+  // ── PHASE 2: History fetch for top candidates (~25 calls) ──────────────
+  // Sort by day momentum + volume ratio to pick the most promising tickers
+  const ranked=quotedTickers.map(t=>{
+    const q=quoteMap[t];
+    const momentumScore=Math.abs(q.changePct);
+    const volRatio=q.avgVolume>0?(q.volume/q.avgVolume):0;
+    return{ticker:t,rankScore:momentumScore+(volRatio>1?volRatio*2:0)};
+  }).sort((a,b)=>b.rankScore-a.rankScore);
+
+  const HISTORY_LIMIT=25;// fetch candles for top 25 most promising
+  const historyTickers=ranked.slice(0,HISTORY_LIMIT).map(r=>r.ticker);
+  console.log(`📊 Phase 2: Fetching history for top ${historyTickers.length} candidates...`);
+
+  let histDone=0;
+  for(const ticker of historyTickers){
+    const q=quoteMap[ticker];
+    try{
+      const closes=await fetchHistory(ticker);
+      if(closes.length>=22){
+        const parts=S('ema').split(',');
+        const ema8=calcEMA(closes,parseInt(parts[0]));
+        const ema21=calcEMA(closes,parseInt(parts[1]));
+        const rsi14=calcRSI(closes,14);
+        const trend=trendStrength(closes,ema8,ema21,rsi14);
+        const conf=calcConfidence(q.price,ema8,ema21,rsi14,q.volume,q.avgVolume,q.changePct);
+        const ob=S('rsiOb'),os=S('rsiOs');
+        sd[ticker]={ticker,price:q.price,change:q.change,changePct:q.changePct,
+          volume:q.volume,avgVolume:q.avgVolume,
+          rsi14,ema8,ema21,earningsDate:earningsOverrides[ticker]||null,
+          signal:conf.direction,reason:'Confidence '+conf.score+'/100 — '+(conf.direction==='CALLS'?'Bullish':'Bearish')+' setup',
+          confidence:conf.score,direction:conf.direction,
+          teasers:[
+            {label:'RSI 14',value:rsi14.toFixed(1),note:rsi14<os?'Oversold — bounce potential':rsi14>ob?'Overbought — caution':'Healthy momentum range'},
+            {label:'Trend',value:q.price>ema8&&q.price>ema21?'BULLISH':'BEARISH',note:q.price>ema8&&q.price>ema21?'Price above both EMAs':'Price below key EMAs'},
+            {label:'Day Move',value:(q.changePct>=0?'+':'')+q.changePct.toFixed(2)+'%',note:Math.abs(q.changePct)>3?'Big move today':'Quiet session today'}
+          ],
+          closes,trend,dataSource:'live'};
+      } else {
+        console.warn(`${ticker}: insufficient history (${closes.length} points)`);
+      }
+    }catch(e){console.warn(`${ticker}: Phase 2 error — ${e.message}`);}
+
+    histDone++;
+    // Update progress bar smoothly during phase 2
+    scannerProgress=1+(histDone/historyTickers.length);
+    buildTop10();rB();updateScanBar();
+
+    // Rate limit: 120 req/min = 500ms between calls, use 600ms for safety
+    if(histDone<historyTickers.length){
+      await new Promise(r=>setTimeout(r,600));
+    }
+  }
+  console.log(`✅ Phase 2 complete: ${histDone} history fetches done`);
+
+  // ── PHASE 3: Earnings + finalize ───────────────────────────────────────
+  scannerProgress=2;
+  updateScanBar();
+  console.log('📅 Phase 3: Fetching earnings for top 10...');
+
+  buildTop10();// finalize ranking before earnings fetch
+
+  // Fetch earnings (Finnhub) for top 10 only — rate limited
+  for(const t of top10){
+    if(sd[t]&&!sd[t].earningsDate&&!earningsOverrides[t]){
+      try{
+        const er=await fetch(`${FH}/calendar/earnings?symbol=${t}&token=${FINNHUB_KEY}`);
+        const edata=await er.json();
+        const upcoming=(edata.earningsCalendar||[]).filter(e=>new Date(e.date)>=new Date()).sort((a,b)=>new Date(a.date)-new Date(b.date));
+        if(upcoming.length)sd[t].earningsDate=upcoming[0].date;
+      }catch(e){console.warn(`${t}: earnings fetch error — ${e.message}`);}
+      await new Promise(r=>setTimeout(r,2000));// Finnhub rate limit
     }
   }
 
+  scannerProgress=3;
   scannerRunning=false;
   firstScanDone=true;
   buildTop10();
@@ -1146,19 +1225,20 @@ async function runScanner(force){
   // Scan diagnostics
   const stats={
     total:UNIVERSE.length,
+    quoted:quotedTickers.length,
     live:Object.values(sd).filter(d=>d.dataSource==='live').length,
     limited:Object.values(sd).filter(d=>d.dataSource==='limited').length,
-    noData:Object.values(sd).filter(d=>d.dataSource==='none').length,
-    errors:Object.values(sd).filter(d=>d.error).length
+    noData:Object.values(sd).filter(d=>d.dataSource==='none'||d.error).length,
+    apiCalls:`~${1+histDone+Math.min(top10.length,10)} total (1 batch quote + ${histDone} history + earnings)`
   };
   console.log('📊 Scan complete:',stats);
   console.log(`Top ${top10.length} tickers:`,top10.map(t=>`${t}(${sd[t]?.confidence||0})`).join(', '));
 
-  // Now fetch investor signals for top 10 only (deferred from scan to save API calls)
+  // Fetch investor signals for top 10 (Finnhub fundamentals)
   for(const t of top10){
     if(sd[t]&&!sd[t].investorSignal){
       fetchInvestorSignal(t).then(inv=>{if(inv){sd[t].investorSignal=inv;rB();}});
-      await new Promise(r=>setTimeout(r,2000));// rate limit investor signal calls too
+      await new Promise(r=>setTimeout(r,2000));
     }
   }
 }
@@ -1174,7 +1254,8 @@ function updateScanBar(){
 
   let statusText;
   if(scannerRunning){
-    statusText=`<span class="active">⟳ Scanning... ${scannerProgress}/${scannerTotal}</span>`;
+    const phase=scannerProgress<1?'Fetching quotes...':scannerProgress<2?'Analyzing candidates...':'Finalizing...';
+    statusText=`<span class="active">⟳ ${phase}</span>`;
   } else if(countdown){
     statusText=`<span class="countdown-display">${countdown.text}${countdown.time?` <span class="cd-time">${countdown.time}</span>`:''}</span>`;
   } else if(firstScanDone){
@@ -1225,16 +1306,39 @@ function reSignalAll(){
 
 // ── AUTO-REFRESH ──────────────────────────────────────────────────────────
 async function autoRefresh(){
-  if(!inScanWindow()||scannerRunning)return;// Only during scan window, skip if scanner active
+  if(!inScanWindow()||scannerRunning)return;
 
-  // Re-fetch data for current top10 with rate limiting
-  for(const t of top10){
-    await fetch1(t);
-    await new Promise(r=>setTimeout(r,4000));// respect rate limit
-  }
+  // Batch-refresh quotes for top10 via Tradier (1 call)
+  if(!top10.length)return;
+  const quoteMap=await fetchAllQuotes(top10);
+  top10.forEach(t=>{
+    const q=quoteMap[t];
+    if(!q||!sd[t])return;
+    sd[t].price=q.price;
+    sd[t].change=q.change;
+    sd[t].changePct=q.changePct;
+    sd[t].volume=q.volume;
+    sd[t].avgVolume=q.avgVolume;
+    // Re-score with updated price/volume
+    if(sd[t].dataSource==='live'&&sd[t].rsi14!==null){
+      const conf=calcConfidence(q.price,sd[t].ema8,sd[t].ema21,sd[t].rsi14,q.volume,q.avgVolume,q.changePct);
+      sd[t].confidence=conf.score;
+      sd[t].direction=conf.direction;
+      sd[t].signal=conf.direction;
+      sd[t].reason=`Confidence ${conf.score}/100 — ${conf.direction==='CALLS'?'Bullish':'Bearish'} setup`;
+      // Update day move teaser
+      const teasers=sd[t].teasers;
+      if(teasers&&teasers.length>=3){
+        teasers[2]={label:'Day Move',value:(q.changePct>=0?'+':'')+q.changePct.toFixed(2)+'%',note:Math.abs(q.changePct)>3?'Big move today':'Quiet session today'};
+      }
+    } else {
+      sd[t].confidence=calcPartialConfidence(q.price,q.changePct);
+    }
+  });
 
   buildTop10();
   rB();
+  updatePnL();
 }
 
 function startAutoRefresh(){
@@ -1340,51 +1444,114 @@ function sWL(){localStorage.setItem('wl',JSON.stringify(wl));}
 function sTR(){localStorage.setItem('trades',JSON.stringify(trades));}
 function sCT(){localStorage.setItem('closedTrades',JSON.stringify(closedTrades));}
 
-// ── DATA FETCH (Finnhub) ───────────────────────────────────────────────────
+// ── DATA FETCH (Tradier — primary for quotes/candles) ─────────────────────
+const TRADIER_KEY='fGwoecU4qA8ZTyaiAH9zs4puiuVu';
+const TRADIER='https://sandbox.tradier.com/v1';
+const TRADIER_HEADERS={'Authorization':'Bearer fGwoecU4qA8ZTyaiAH9zs4puiuVu','Accept':'application/json'};
+
+// Finnhub retained for earnings calendar + investor signal (fundamentals only)
 const FINNHUB_KEY='d74aqr1r01qno4q12vl0d74aqr1r01qno4q12vlg';
 const FH='https://finnhub.io/api/v1';
+
+// ── PHASE 1: Batch quote sweep (single API call for all tickers) ──────────
+async function fetchAllQuotes(symbols){
+  try{
+    const r=await fetch(`${TRADIER}/markets/quotes`,{
+      method:'POST',
+      headers:{...TRADIER_HEADERS,'Content-Type':'application/x-www-form-urlencoded'},
+      body:'symbols='+symbols.join(',')+'&greeks=false'
+    });
+    if(!r.ok){console.warn('Tradier batch quote HTTP '+r.status);return{};}
+    const data=await r.json();
+    const quotes=data.quotes;
+    if(!quotes)return{};
+    // Tradier returns {quote:[...]} for multiple, {quote:{}} for single, or {unmatched_symbols:{symbol:[...]}}
+    let arr=[];
+    if(quotes.quote){
+      arr=Array.isArray(quotes.quote)?quotes.quote:[quotes.quote];
+    }
+    const map={};
+    arr.forEach(q=>{
+      if(!q||!q.symbol||(!q.last&&!q.prevclose))return;
+      map[q.symbol]={
+        price:q.last||q.prevclose||0,
+        prevClose:q.prevclose||0,
+        change:q.change||0,
+        changePct:q.change_percentage||0,
+        volume:q.volume||0,
+        avgVolume:q.average_volume||0,
+        high52w:q.week_52_high||0,
+        low52w:q.week_52_low||0,
+        description:q.description||''
+      };
+    });
+    return map;
+  }catch(e){
+    console.warn('fetchAllQuotes error:',e.message);
+    return{};
+  }
+}
+
+// ── PHASE 2: History fetch for individual ticker (candle data for EMA/RSI) ─
+async function fetchHistory(ticker){
+  try{
+    // 120 calendar days back for enough trading days
+    const end=new Date();
+    const start=new Date(end);
+    start.setDate(start.getDate()-120);
+    const fmt=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    const r=await fetch(`${TRADIER}/markets/history?symbol=${ticker}&interval=daily&start=${fmt(start)}&end=${fmt(end)}`,{
+      headers:TRADIER_HEADERS
+    });
+    if(!r.ok){console.warn(`${ticker}: history HTTP ${r.status}`);return[];}
+    const data=await r.json();
+    const hist=data.history;
+    if(!hist||!hist.day)return[];
+    const days=Array.isArray(hist.day)?hist.day:[hist.day];
+    return days.map(d=>d.close).filter(c=>c!==null&&c!==undefined);
+  }catch(e){
+    console.warn(`${ticker}: fetchHistory error — ${e.message}`);
+    return[];
+  }
+}
 
 async function fetch1(ticker){
   sd[ticker]={loading:true};rB();
   try{
-    const qr=await fetch(`${FH}/quote?symbol=${ticker}&token=${FINNHUB_KEY}`);
+    // Quote via Tradier
+    const qr=await fetch(`${TRADIER}/markets/quotes?symbols=${ticker}&greeks=false`,{headers:TRADIER_HEADERS});
     if(!qr.ok){console.warn(`${ticker}: quote HTTP ${qr.status}`);throw new Error('Quote HTTP '+qr.status);}
-    const q=await qr.json();
-    if(!q.c||q.c===0)throw new Error('No price data');
-    const price=parseFloat(q.c.toFixed(2));
-    const prevClose=parseFloat(q.pc.toFixed(2));
-    const change=parseFloat((price-prevClose).toFixed(2));
-    const changePct=parseFloat(((change/prevClose)*100).toFixed(2));
+    const qdata=await qr.json();
+    const quotes=qdata.quotes;
+    const q=quotes&&quotes.quote?(Array.isArray(quotes.quote)?quotes.quote[0]:quotes.quote):null;
+    if(!q||(!q.last&&!q.prevclose))throw new Error('No price data');
+    const price=parseFloat((q.last||q.prevclose).toFixed(2));
+    const prevClose=parseFloat((q.prevclose||0).toFixed(2));
+    const change=parseFloat((q.change||0).toFixed(2));
+    const changePct=parseFloat((q.change_percentage||0).toFixed(2));
+    const volume=q.volume||0;
+    const avgVolume=q.average_volume||0;
 
-    // Try candles — 120 days to get enough trading days
-    const to=Math.floor(Date.now()/1000);
-    const from=to-(120*24*60*60);
+    // Candles via Tradier history
     let closes=[];
     let dataSource='estimated';
     try{
-      const cr=await fetch(`${FH}/stock/candle?symbol=${ticker}&resolution=D&from=${from}&to=${to}&token=${FINNHUB_KEY}`);
-      if(!cr.ok){console.warn(`${ticker}: candle HTTP ${cr.status}`);throw new Error('Candle HTTP '+cr.status);}
-      const candles=await cr.json();
-      if(candles.s==='ok'&&candles.c&&candles.c.length>=22){
-        closes=candles.c;dataSource='live';
-      } else {
-        console.warn(`${ticker}: candle status=${candles.s}, points=${candles.c?candles.c.length:0}`);
-      }
-    }catch(e){console.warn(`${ticker}: candle fetch error — ${e.message}`);}
+      closes=await fetchHistory(ticker);
+      if(closes.length>=22)dataSource='live';
+      else{console.warn(`${ticker}: history points=${closes.length}`);closes=[];}
+    }catch(e){console.warn(`${ticker}: history error — ${e.message}`);}
 
     if(!closes.length){
-      // No candle data — show as LIMITED with partial confidence score
-      // Score based on available data: day momentum + budget affordability only
       const partialScore=calcPartialConfidence(price,changePct);
-      sd[ticker]={ticker,price,change,changePct,rsi14:null,ema8:null,ema21:null,earningsDate:null,
+      sd[ticker]={ticker,price,change,changePct,volume,avgVolume,rsi14:null,ema8:null,ema21:null,earningsDate:null,
         signal:'—',reason:'Limited data — price and momentum only',confidence:partialScore,direction:'—',
         teasers:[
-          {label:'RSI 14',value:'—',note:'No candle data from Finnhub'},
+          {label:'RSI 14',value:'—',note:'No candle data available'},
           {label:'Trend',value:'—',note:'Needs candle history for EMA analysis'},
           {label:'Day Move',value:(changePct>=0?'+':'')+changePct.toFixed(2)+'%',note:Math.abs(changePct)>3?'Big move today':'Quiet session today'}
         ],
         closes:[],trend:{weakSignals:0,trending:false},dataSource:'limited'};
-      // Still try to get earnings
+      // Earnings via Finnhub (secondary)
       let earningsDate2=earningsOverrides[ticker]||null;
       if(!earningsDate2){
         try{
@@ -1395,7 +1562,6 @@ async function fetch1(ticker){
         }catch(e){console.warn(`${ticker}: earnings fetch error — ${e.message}`);}
       }
       sd[ticker].earningsDate=earningsDate2;
-      // Investor signal deferred to post-scan for top 10 only
       rB();updatePnL();buildTop10();
       return;
     }
@@ -1405,7 +1571,7 @@ async function fetch1(ticker){
     const ema21=calcEMA(closes,parseInt(parts[1]));
     const rsi14=calcRSI(closes,14);
     const trend=trendStrength(closes,ema8,ema21,rsi14);
-    const conf=calcConfidence(price,ema8,ema21,rsi14,0,0,changePct);
+    const conf=calcConfidence(price,ema8,ema21,rsi14,volume,avgVolume,changePct);
     const ob=S('rsiOb'),os=S('rsiOs');
     const teasers=[
       {label:'RSI 14',value:rsi14.toFixed(1),note:rsi14<os?'Oversold — bounce potential':rsi14>ob?'Overbought — caution':'Healthy momentum range'},
@@ -1413,6 +1579,7 @@ async function fetch1(ticker){
       {label:'Day Move',value:(changePct>=0?'+':'')+changePct.toFixed(2)+'%',note:Math.abs(changePct)>3?'Big move today':'Quiet session today'}
     ];
 
+    // Earnings via Finnhub (secondary)
     let earningsDate=earningsOverrides[ticker]||null;
     if(!earningsDate){
       try{
@@ -1422,8 +1589,7 @@ async function fetch1(ticker){
         if(upcoming.length)earningsDate=upcoming[0].date;
       }catch(e){console.warn(`${ticker}: earnings fetch error — ${e.message}`);}
     }
-    sd[ticker]={ticker,price,change,changePct,rsi14,ema8,ema21,earningsDate,signal:conf.direction,reason:'Confidence '+conf.score+'/100 — '+(conf.direction==='CALLS'?'Bullish':'Bearish')+' setup',confidence:conf.score,direction:conf.direction,teasers,closes,trend,dataSource};
-    // Investor signal deferred to post-scan for top 10 only
+    sd[ticker]={ticker,price,change,changePct,volume,avgVolume,rsi14,ema8,ema21,earningsDate,signal:conf.direction,reason:'Confidence '+conf.score+'/100 — '+(conf.direction==='CALLS'?'Bullish':'Bearish')+' setup',confidence:conf.score,direction:conf.direction,teasers,closes,trend,dataSource};
   }catch(e){
     console.warn(`${ticker}: fetch1 error — ${e.message}`);
     sd[ticker]={error:true,msg:e.message};
@@ -2382,7 +2548,7 @@ go('briefing');
 getAll();
 </script>
 <!-- ╔══════════════════════════════════════════════════════════╗
-     ║  END TRADEBRIEF v4.2 — Scanner Fix Build                        ║
+     ║  END TRADEBRIEF v4.3 — Tradier API Swap Build                   ║
      ╚══════════════════════════════════════════════════════════╝ -->
 </body>
 </html>
