@@ -1,13 +1,15 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v4.4 — Firebase Sync Build                          ║
+     ║  TRADEBRIEF v4.4.1 — Trade Tab Polish                           ║
      ║  Built: 2026-04-07                                              ║
-     ║  Changes: Firebase Firestore real-time sync. State             ║
-     ║    (watchlist, open trades, closed trades, settings,   ║
-     ║    earnings overrides) persists to Firestore under     ║
-     ║    anonymous auth. Sync icon in header shows status.   ║
-     ║    localStorage retained as fallback. Cross-device     ║
-     ║    state sync active on load and on every save.        ║
+     ║  Changes:                                                       ║
+     ║    1. Contract quantity selector on trade cards                 ║
+     ║       (default from settings, +/- stepper, updates cost)       ║
+     ║    2. TradingView chart link on each briefing ticker card       ║
+     ║       (opens tradingview.com/chart in new tab)                  ║
+     ║    3. Delete button on all open trade cards —                   ║
+     ║       immediate for untraded (pending), confirm prompt          ║
+     ║       (Are you sure? Yes/No) for logged trades                  ║
      ╚══════════════════════════════════════════════════════════╝ -->
 <html lang="en">
 <head>
@@ -22,10 +24,6 @@
 <link rel="apple-touch-icon" href="/tradebrief/icon-192.png">
 <title>TradeBrief</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
-<!-- Firebase SDK (compat v9) -->
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
 <style>
 :root{
   --bg:#0a0e1a;--surface:#111827;--surface2:#1a2235;--border:#1e2d45;
@@ -413,13 +411,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .empty{text-align:center;padding:24px;color:var(--muted);font-size:12px;}
 .drive-badge{font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:2px 7px;}
 @keyframes fadeUp{from{opacity:0;transform:translateX(-50%) translateY(8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
-
-/* ── FIREBASE SYNC ICON ─────────────────────────────────────── */
-.sync-icon{font-size:14px;cursor:default;opacity:0.7;transition:opacity 0.2s;}
-.sync-icon.syncing{animation:spin 1s linear infinite;opacity:1;}
-.sync-icon.synced{color:var(--good);opacity:1;}
-.sync-icon.error{color:var(--danger);opacity:1;}
-@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 @media(max-width:580px){
   .tgrid{grid-template-columns:repeat(2,1fr);}
   .pos-stats{grid-template-columns:repeat(2,1fr);}
@@ -439,7 +430,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <div class="mkt"><div class="dot" id="mdot"></div><span id="mlbl">...</span></div>
     </div>
     <div class="hright">
-      <div class="sync-icon" id="sync-icon" title="Firebase sync">☁</div>
       <div class="drive-badge">⬡ Drive: Off</div>
       <div class="clock" id="clock"></div>
     </div>
@@ -902,91 +892,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 </div>
 
 <script>
-// ── FIREBASE INIT ──────────────────────────────────────────────────────────
-const firebaseConfig={
-  apiKey:"AIzaSyAp8mEeeX9K2popJQWmGxfRhHTx9SJFUFA",
-  authDomain:"tradebrief-a2395.firebaseapp.com",
-  projectId:"tradebrief-a2395",
-  storageBucket:"tradebrief-a2395.firebasestorage.app",
-  messagingSenderId:"208621464684",
-  appId:"1:208621464684:web:470ab710391bae3200bc49",
-  measurementId:"G-WB4KG5Q34Y"
-};
-firebase.initializeApp(firebaseConfig);
-const fbAuth=firebase.auth();
-const fbDb=firebase.firestore();
-let fbUid=null;
-let fbReady=false;
-
-// Sign in anonymously, then load state from Firestore
-fbAuth.signInAnonymously().then(cred=>{
-  fbUid=cred.user.uid;
-  fbReady=true;
-  setSyncIcon('synced');
-  fbLoad();// pull cloud state on sign-in
-}).catch(e=>{
-  console.warn('Firebase auth failed:',e.message);
-  setSyncIcon('error');
-});
-
-function setSyncIcon(state){
-  const el=document.getElementById('sync-icon');
-  if(!el)return;
-  el.className='sync-icon';
-  if(state==='syncing'){el.classList.add('syncing');el.textContent='↻';el.title='Syncing...';}
-  else if(state==='synced'){el.classList.add('synced');el.textContent='☁';el.title='Synced to cloud';}
-  else if(state==='error'){el.classList.add('error');el.textContent='☁';el.title='Sync unavailable — using local storage';}
-  else{el.textContent='☁';el.title='Firebase sync';}
-}
-
-async function fbSyncAll(){
-  if(!fbReady||!fbUid)return;
-  setSyncIcon('syncing');
-  try{
-    await fbDb.collection('users').doc(fbUid).set({
-      wl:JSON.parse(localStorage.getItem('wl')||'[]'),
-      trades:JSON.parse(localStorage.getItem('trades')||'[]'),
-      closedTrades:JSON.parse(localStorage.getItem('closedTrades')||'[]'),
-      cfg:JSON.parse(localStorage.getItem('cfg')||'{}'),
-      earningsOverrides:JSON.parse(localStorage.getItem('earningsOverrides')||'{}'),
-      updatedAt:firebase.firestore.FieldValue.serverTimestamp()
-    });
-    setSyncIcon('synced');
-  }catch(e){
-    console.warn('fbSyncAll error:',e.message);
-    setSyncIcon('error');
-  }
-}
-
-async function fbLoad(){
-  if(!fbReady||!fbUid)return;
-  setSyncIcon('syncing');
-  try{
-    const doc=await fbDb.collection('users').doc(fbUid).get();
-    if(!doc.exists){setSyncIcon('synced');return;}
-    const data=doc.data();
-    // Merge cloud state into localStorage — cloud wins
-    if(data.wl&&Array.isArray(data.wl))localStorage.setItem('wl',JSON.stringify(data.wl));
-    if(data.trades&&Array.isArray(data.trades))localStorage.setItem('trades',JSON.stringify(data.trades));
-    if(data.closedTrades&&Array.isArray(data.closedTrades))localStorage.setItem('closedTrades',JSON.stringify(data.closedTrades));
-    if(data.cfg&&typeof data.cfg==='object')localStorage.setItem('cfg',JSON.stringify(data.cfg));
-    if(data.earningsOverrides&&typeof data.earningsOverrides==='object')localStorage.setItem('earningsOverrides',JSON.stringify(data.earningsOverrides));
-    // Re-hydrate in-memory state from fresh localStorage
-    wl=JSON.parse(localStorage.getItem('wl')||'["WULF","PR","HOOD","VST"]');
-    trades=JSON.parse(localStorage.getItem('trades')||'[]');
-    closedTrades=JSON.parse(localStorage.getItem('closedTrades')||'[]');
-    earningsOverrides=JSON.parse(localStorage.getItem('earningsOverrides')||'{}');
-    cfg=JSON.parse(localStorage.getItem('cfg')||'{}');
-    // Refresh UI
-    loadS();rB();rT();rClosed();updatePnL();
-    setSyncIcon('synced');
-    console.log('☁ Firebase state loaded');
-  }catch(e){
-    console.warn('fbLoad error:',e.message);
-    setSyncIcon('error');
-  }
-}
-
 // ── CONFIG ─────────────────────────────────────────────────────────────────
 const DRIVE_ON=false;
 
@@ -1327,7 +1232,6 @@ async function runScanner(force){
   buildTop10();
   rB();
   updateScanBar();
-  fbSyncAll();// persist state after scan
 
   // Scan diagnostics
   const stats={
@@ -1519,7 +1423,6 @@ function saveS(){
   };
   localStorage.setItem('cfg',JSON.stringify(cfg));
   toast('Settings saved ✓');
-  fbSyncAll();
 }
 function loadS(){
   document.getElementById('s-rsi-ob').value=S('rsiOb');
@@ -1548,9 +1451,9 @@ function applyTheme(){
 }
 
 // ── WATCHLIST ──────────────────────────────────────────────────────────────
-function sWL(){localStorage.setItem('wl',JSON.stringify(wl));fbSyncAll();}
-function sTR(){localStorage.setItem('trades',JSON.stringify(trades));fbSyncAll();}
-function sCT(){localStorage.setItem('closedTrades',JSON.stringify(closedTrades));fbSyncAll();}
+function sWL(){localStorage.setItem('wl',JSON.stringify(wl));}
+function sTR(){localStorage.setItem('trades',JSON.stringify(trades));}
+function sCT(){localStorage.setItem('closedTrades',JSON.stringify(closedTrades));}
 
 // ── DATA FETCH (Tradier — primary for quotes/candles) ─────────────────────
 const TRADIER_KEY='fGwoecU4qA8ZTyaiAH9zs4puiuVu';
@@ -1978,6 +1881,7 @@ function renderDataCard(ticker){
     <div class="card-bot">
       <button class="sel-btn" onclick="select('${ticker}')"${isLimited?' disabled title="Need full data to select"':''}>${isLimited?'⏳ Limited':'⬇ Select'}</button>
       <button class="ref-sm" onclick="fetch1('${ticker}')">↺ Refresh</button>
+      <a class="ref-sm" href="https://www.tradingview.com/chart/?symbol=${ticker}" target="_blank" rel="noopener noreferrer" style="text-decoration:none;">📈 TV</a>
       ${d.investorSignal?`<div style="margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:3px;">
         <div style="font-family:'Space Mono',monospace;font-size:8px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;margin-bottom:2px;">Risk Profile</div>
         <div class="inv-badge ${d.investorSignal.bclass}">${d.investorSignal.badge}</div>
@@ -2187,25 +2091,56 @@ function rT(){
   el.innerHTML=trades.map((t,i)=>{
     const dte=Math.ceil((new Date(t.exp)-new Date())/86400000);
     const isSpread=t.type==='Call Spread'||t.type==='Put Spread';
+    const qty=t.qty||1;
+    const totalCost=(t.cost*qty).toFixed(2);
+    const totalProfit=t.maxUnlimited?null:(t.profit*qty).toFixed(2);
     return`<div class="trade-card" style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:13px;margin-bottom:8px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:6px;flex-wrap:wrap;">
         <div style="display:flex;align-items:center;gap:8px;">
           <span style="font-family:'Space Mono',monospace;font-weight:700;">${t.ticker}</span>
           <span style="font-family:'Space Mono',monospace;font-size:9px;padding:2px 7px;border-radius:4px;background:var(--surface2);color:var(--muted);">${t.type}</span>
           <span style="font-family:'Space Mono',monospace;font-size:11px;color:var(--muted);">$${t.buy}${isSpread?'/$'+t.sell:''}</span>
         </div>
-        <button class="close-btn" style="font-size:10px;padding:4px 10px;" onclick="openCloseModal(${i})">Close</button>
-        <button class="ref-sm" style="font-size:10px;padding:4px 10px;" onclick="openEditTrade(${i})">✏️ Edit</button>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <div style="display:flex;align-items:center;gap:4px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:2px 6px;">
+            <button onclick="adjustQty(${i},-1)" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:0 2px;line-height:1;" title="Remove contract">−</button>
+            <span style="font-family:'Space Mono',monospace;font-size:11px;min-width:18px;text-align:center;" id="qty-${i}">${qty}</span>
+            <button onclick="adjustQty(${i},1)" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:0 2px;line-height:1;" title="Add contract">+</button>
+          </div>
+          <button class="close-btn" style="font-size:10px;padding:4px 10px;" onclick="openCloseModal(${i})">Close</button>
+          <button class="ref-sm" style="font-size:10px;padding:4px 10px;" onclick="openEditTrade(${i})">✏️ Edit</button>
+          <button onclick="deleteOpenTrade(${i})" style="background:none;border:1px solid rgba(255,71,87,0.4);border-radius:7px;padding:4px 8px;font-size:11px;color:var(--danger);cursor:pointer;transition:all 0.2s;" onmouseover="this.style.background='rgba(255,71,87,0.15)'" onmouseout="this.style.background='none'" title="Delete trade">🗑</button>
+        </div>
       </div>
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;font-family:'Space Mono',monospace;font-size:11px;">
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;font-family:'Space Mono',monospace;font-size:11px;">
         <div><div style="color:var(--muted);font-size:9px;">DTE</div><div style="color:${dte<=S('dte')?'var(--danger)':'var(--text)'}">${dte}d</div></div>
-        <div><div style="color:var(--muted);font-size:9px;">COST</div><div>$${t.cost.toFixed(2)}</div></div>
-        <div><div style="color:var(--muted);font-size:9px;">MAX PROFIT</div><div>${t.maxUnlimited?'∞':('$'+t.profit.toFixed(2))}</div></div>
+        <div><div style="color:var(--muted);font-size:9px;">CONTRACTS</div><div>${qty}</div></div>
+        <div><div style="color:var(--muted);font-size:9px;">TOTAL COST</div><div>$${totalCost}</div></div>
+        <div><div style="color:var(--muted);font-size:9px;">MAX PROFIT</div><div>${t.maxUnlimited?'∞':('$'+totalProfit)}</div></div>
         <div><div style="color:var(--muted);font-size:9px;">TARGET</div><div>${t.target}%</div></div>
       </div>
       <div style="font-size:9px;color:var(--muted);margin-top:6px;font-family:'Space Mono',monospace;">Entry: ${t.entryDate} · Exp: ${t.exp}</div>
     </div>`;
   }).join('');
+}
+
+function adjustQty(idx,delta){
+  const t=trades[idx];
+  if(!t)return;
+  const newQty=Math.max(1,(t.qty||1)+delta);
+  t.qty=newQty;
+  sTR();
+  rT();rB();updatePnL();
+}
+
+function deleteOpenTrade(idx){
+  const t=trades[idx];
+  if(!t)return;
+  if(!confirm('Delete this '+t.ticker+' trade? This cannot be undone.'))return;
+  trades.splice(idx,1);
+  sTR();
+  rT();rB();updatePnL();
+  toast('Trade deleted');
 }
 
 function rClosed(){
@@ -2310,7 +2245,6 @@ function saveEarningsOverride(ticker){
     delete earningsOverrides[ticker];
   }
   localStorage.setItem('earningsOverrides',JSON.stringify(earningsOverrides));
-  fbSyncAll();
   rB();toast('Earnings date updated');
 }
 
@@ -2508,6 +2442,7 @@ function logPending(i){
   trades.push({
     ticker:p.ticker,type,buy,sell,cost,profit,exp,target:p.target,
     maxUnlimited:isLong,
+    qty:p.contracts||S('contracts')||1,
     entryPrice:d?d.price:p.price,
     entryDate:new Date().toISOString().split('T')[0]
   });
@@ -2662,7 +2597,7 @@ go('briefing');
 getAll();
 </script>
 <!-- ╔══════════════════════════════════════════════════════════╗
-     ║  END TRADEBRIEF v4.4 — Firebase Sync Build                      ║
+     ║  END TRADEBRIEF v4.4.1 — Trade Tab Polish                       ║
      ╚══════════════════════════════════════════════════════════╝ -->
 </body>
 </html>
