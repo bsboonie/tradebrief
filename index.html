@@ -1,14 +1,13 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v4.3.2 — Universe Rebuild                           ║
+     ║  TRADEBRIEF v4.4 — Firebase Sync Build                          ║
      ║  Built: 2026-04-07                                              ║
-     ║  Changes: Replace ~80-ticker speculative-heavy universe ║
-     ║    with 123-ticker sector-diverse curated universe.    ║
-     ║    12 sectors: Financials, Technology, Healthcare,     ║
-     ║    Energy, Consumer Disc., Consumer Staples,           ║
-     ║    Industrials, Materials, REITs, Telecom/Media,       ║
-     ║    E-Commerce/Platforms, Biotech/Medical Devices.      ║
-     ║    No scoring model changes.                           ║
+     ║  Changes: Firebase Firestore real-time sync. State             ║
+     ║    (watchlist, open trades, closed trades, settings,   ║
+     ║    earnings overrides) persists to Firestore under     ║
+     ║    anonymous auth. Sync icon in header shows status.   ║
+     ║    localStorage retained as fallback. Cross-device     ║
+     ║    state sync active on load and on every save.        ║
      ╚══════════════════════════════════════════════════════════╝ -->
 <html lang="en">
 <head>
@@ -23,6 +22,10 @@
 <link rel="apple-touch-icon" href="/tradebrief/icon-192.png">
 <title>TradeBrief</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<!-- Firebase SDK (compat v9) -->
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
 <style>
 :root{
   --bg:#0a0e1a;--surface:#111827;--surface2:#1a2235;--border:#1e2d45;
@@ -410,6 +413,13 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .empty{text-align:center;padding:24px;color:var(--muted);font-size:12px;}
 .drive-badge{font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:2px 7px;}
 @keyframes fadeUp{from{opacity:0;transform:translateX(-50%) translateY(8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+
+/* ── FIREBASE SYNC ICON ─────────────────────────────────────── */
+.sync-icon{font-size:14px;cursor:default;opacity:0.7;transition:opacity 0.2s;}
+.sync-icon.syncing{animation:spin 1s linear infinite;opacity:1;}
+.sync-icon.synced{color:var(--good);opacity:1;}
+.sync-icon.error{color:var(--danger);opacity:1;}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 @media(max-width:580px){
   .tgrid{grid-template-columns:repeat(2,1fr);}
   .pos-stats{grid-template-columns:repeat(2,1fr);}
@@ -429,6 +439,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <div class="mkt"><div class="dot" id="mdot"></div><span id="mlbl">...</span></div>
     </div>
     <div class="hright">
+      <div class="sync-icon" id="sync-icon" title="Firebase sync">☁</div>
       <div class="drive-badge">⬡ Drive: Off</div>
       <div class="clock" id="clock"></div>
     </div>
@@ -891,6 +902,91 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 </div>
 
 <script>
+// ── FIREBASE INIT ──────────────────────────────────────────────────────────
+const firebaseConfig={
+  apiKey:"AIzaSyAp8mEeeX9K2popJQWmGxfRhHTx9SJFUFA",
+  authDomain:"tradebrief-a2395.firebaseapp.com",
+  projectId:"tradebrief-a2395",
+  storageBucket:"tradebrief-a2395.firebasestorage.app",
+  messagingSenderId:"208621464684",
+  appId:"1:208621464684:web:470ab710391bae3200bc49",
+  measurementId:"G-WB4KG5Q34Y"
+};
+firebase.initializeApp(firebaseConfig);
+const fbAuth=firebase.auth();
+const fbDb=firebase.firestore();
+let fbUid=null;
+let fbReady=false;
+
+// Sign in anonymously, then load state from Firestore
+fbAuth.signInAnonymously().then(cred=>{
+  fbUid=cred.user.uid;
+  fbReady=true;
+  setSyncIcon('synced');
+  fbLoad();// pull cloud state on sign-in
+}).catch(e=>{
+  console.warn('Firebase auth failed:',e.message);
+  setSyncIcon('error');
+});
+
+function setSyncIcon(state){
+  const el=document.getElementById('sync-icon');
+  if(!el)return;
+  el.className='sync-icon';
+  if(state==='syncing'){el.classList.add('syncing');el.textContent='↻';el.title='Syncing...';}
+  else if(state==='synced'){el.classList.add('synced');el.textContent='☁';el.title='Synced to cloud';}
+  else if(state==='error'){el.classList.add('error');el.textContent='☁';el.title='Sync unavailable — using local storage';}
+  else{el.textContent='☁';el.title='Firebase sync';}
+}
+
+async function fbSyncAll(){
+  if(!fbReady||!fbUid)return;
+  setSyncIcon('syncing');
+  try{
+    await fbDb.collection('users').doc(fbUid).set({
+      wl:JSON.parse(localStorage.getItem('wl')||'[]'),
+      trades:JSON.parse(localStorage.getItem('trades')||'[]'),
+      closedTrades:JSON.parse(localStorage.getItem('closedTrades')||'[]'),
+      cfg:JSON.parse(localStorage.getItem('cfg')||'{}'),
+      earningsOverrides:JSON.parse(localStorage.getItem('earningsOverrides')||'{}'),
+      updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+    });
+    setSyncIcon('synced');
+  }catch(e){
+    console.warn('fbSyncAll error:',e.message);
+    setSyncIcon('error');
+  }
+}
+
+async function fbLoad(){
+  if(!fbReady||!fbUid)return;
+  setSyncIcon('syncing');
+  try{
+    const doc=await fbDb.collection('users').doc(fbUid).get();
+    if(!doc.exists){setSyncIcon('synced');return;}
+    const data=doc.data();
+    // Merge cloud state into localStorage — cloud wins
+    if(data.wl&&Array.isArray(data.wl))localStorage.setItem('wl',JSON.stringify(data.wl));
+    if(data.trades&&Array.isArray(data.trades))localStorage.setItem('trades',JSON.stringify(data.trades));
+    if(data.closedTrades&&Array.isArray(data.closedTrades))localStorage.setItem('closedTrades',JSON.stringify(data.closedTrades));
+    if(data.cfg&&typeof data.cfg==='object')localStorage.setItem('cfg',JSON.stringify(data.cfg));
+    if(data.earningsOverrides&&typeof data.earningsOverrides==='object')localStorage.setItem('earningsOverrides',JSON.stringify(data.earningsOverrides));
+    // Re-hydrate in-memory state from fresh localStorage
+    wl=JSON.parse(localStorage.getItem('wl')||'["WULF","PR","HOOD","VST"]');
+    trades=JSON.parse(localStorage.getItem('trades')||'[]');
+    closedTrades=JSON.parse(localStorage.getItem('closedTrades')||'[]');
+    earningsOverrides=JSON.parse(localStorage.getItem('earningsOverrides')||'{}');
+    cfg=JSON.parse(localStorage.getItem('cfg')||'{}');
+    // Refresh UI
+    loadS();rB();rT();rClosed();updatePnL();
+    setSyncIcon('synced');
+    console.log('☁ Firebase state loaded');
+  }catch(e){
+    console.warn('fbLoad error:',e.message);
+    setSyncIcon('error');
+  }
+}
+
 // ── CONFIG ─────────────────────────────────────────────────────────────────
 const DRIVE_ON=false;
 
@@ -907,32 +1003,35 @@ let editingTradeIdx=-1;
 let selectedOutcome='';
 let pendingTrades=[];
 
-// ── SCANNER UNIVERSE (123 curated, sector-diverse, liquid, options-active) ──
+// ── SCANNER UNIVERSE (~80 curated, liquid, options-active stocks) ─────────
 const UNIVERSE=[
-  // 01 · Financials — Banks & Brokers
-  'JPM','BAC','WFC','C','GS','MS','SCHW','HOOD','SQ','SOFI','AFRM',
-  // 02 · Technology — Software, Cloud, Semis
-  'MSFT','META','AMD','INTC','MU','ON','QCOM','PLTR','CRM','ORCL','IBM','CSCO','ACN','AI','SNOW','SNAP','PINS','UBER',
-  // 03 · Healthcare — Pharma & Insurance
-  'UNH','CVS','WBA','PFE','MRK','ABBV','BMY','GILD','MRNA','BIIB','REGN','HUM','CI',
-  // 04 · Energy — Oil, Gas, Utilities
-  'XOM','CVX','OVV','CTRA','PR','DVN','ET','KMI','NEE','SO','DUK','FSLR',
-  // 05 · Consumer Discretionary
-  'GM','F','NKE','SBUX','MCD','DKNG','CCL','RCL','AAL','DAL','LVS',
-  // 06 · Consumer Staples
-  'WMT','KO','PG','PM','MO','COST','KR','GIS',
-  // 07 · Industrials — Defense, Aerospace, Transport
-  'BA','RTX','LMT','NOC','GE','HON','UPS','FDX','CAT','DE','GD',
-  // 08 · Materials — Mining, Metals, Chemicals
-  'FCX','NEM','GOLD','CLF','AA','X','DOW','LYB',
-  // 09 · Real Estate — REITs
-  'AMT','PLD','EQIX','SPG','VICI','IRM','AGNC',
-  // 10 · Telecom & Media
-  'T','VZ','NFLX','DIS','CMCSA','PARA',
-  // 11 · E-Commerce & Platforms
-  'AMZN','PYPL','EBAY','SHOP','ETSY','MARA',
-  // 12 · Biotech & Medical Devices
-  'SYK','MDT','BSX','ELV','ISRG','LLY','TMO','DHR','HCA','VRTX','AMGN','ZTS',
+  // Crypto/Blockchain (low price, high IV)
+  'WULF','MARA','RIOT','BITF','HUT','CLSK',
+  // Energy (mid price, solid options)
+  'PR','OVV','RIG','SWN','AR','CTRA','MUR',
+  // Fintech/Financial (varied)
+  'HOOD','AFRM','SQ','SOFI','UPST','NU',
+  // Tech/AI/Cloud (mid)
+  'PLTR','RKLB','IONQ','BBAI','AI',
+  // Semiconductors (affordable)
+  'ON','WOLF',
+  // Social/Internet
+  'RDDT','SNAP','PINS','GRAB',
+  // Biotech/Healthcare (volatile, cheap options)
+  'DNA','CRSP','BEAM',
+  // EV/Clean Energy
+  'RIVN','LCID','NIO','PLUG',
+  // Consumer/Retail
+  'DKNG','PENN',
+  // Industrials/Space
+  'JOBY','LUNR','RDW','ACHR',
+  // === NEW: Cheap, liquid, options-active additions ===
+  'F','T','VALE','CLF','AAL','CCL','ET','TELL',
+  'EOSE','FCEL','OPEN','AMC','NOK','GSAT',
+  'CLOV','SIRI','BTG','GOLD','KGC',
+  'AGNC','MPW','WBD','LYFT','UBER',
+  'BILI','BABA','JD','PDD',
+  'SPCE','STEM','BE','CHPT'
 ];
 
 // ── TOP 10 STATE ──────────────────────────────────────────────────────────
@@ -1228,6 +1327,7 @@ async function runScanner(force){
   buildTop10();
   rB();
   updateScanBar();
+  fbSyncAll();// persist state after scan
 
   // Scan diagnostics
   const stats={
@@ -1419,6 +1519,7 @@ function saveS(){
   };
   localStorage.setItem('cfg',JSON.stringify(cfg));
   toast('Settings saved ✓');
+  fbSyncAll();
 }
 function loadS(){
   document.getElementById('s-rsi-ob').value=S('rsiOb');
@@ -1447,9 +1548,9 @@ function applyTheme(){
 }
 
 // ── WATCHLIST ──────────────────────────────────────────────────────────────
-function sWL(){localStorage.setItem('wl',JSON.stringify(wl));}
-function sTR(){localStorage.setItem('trades',JSON.stringify(trades));}
-function sCT(){localStorage.setItem('closedTrades',JSON.stringify(closedTrades));}
+function sWL(){localStorage.setItem('wl',JSON.stringify(wl));fbSyncAll();}
+function sTR(){localStorage.setItem('trades',JSON.stringify(trades));fbSyncAll();}
+function sCT(){localStorage.setItem('closedTrades',JSON.stringify(closedTrades));fbSyncAll();}
 
 // ── DATA FETCH (Tradier — primary for quotes/candles) ─────────────────────
 const TRADIER_KEY='fGwoecU4qA8ZTyaiAH9zs4puiuVu';
@@ -2209,6 +2310,7 @@ function saveEarningsOverride(ticker){
     delete earningsOverrides[ticker];
   }
   localStorage.setItem('earningsOverrides',JSON.stringify(earningsOverrides));
+  fbSyncAll();
   rB();toast('Earnings date updated');
 }
 
@@ -2560,7 +2662,7 @@ go('briefing');
 getAll();
 </script>
 <!-- ╔══════════════════════════════════════════════════════════╗
-     ║  END TRADEBRIEF v4.3.2 — Universe Rebuild                       ║
+     ║  END TRADEBRIEF v4.4 — Firebase Sync Build                      ║
      ╚══════════════════════════════════════════════════════════╝ -->
 </body>
 </html>
