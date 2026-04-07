@@ -1,15 +1,13 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v4.4.1 — Trade Tab Polish                           ║
+     ║  TRADEBRIEF v4.4.2 — Mobile Polish                              ║
      ║  Built: 2026-04-07                                              ║
      ║  Changes:                                                       ║
-     ║    1. Contract quantity selector on trade cards                 ║
-     ║       (default from settings, +/- stepper, updates cost)       ║
-     ║    2. TradingView chart link on each briefing ticker card       ║
-     ║       (opens tradingview.com/chart in new tab)                  ║
-     ║    3. Delete button on all open trade cards —                   ║
-     ║       immediate for untraded (pending), confirm prompt          ║
-     ║       (Are you sure? Yes/No) for logged trades                  ║
+     ║    1. Version stamp (v4.4.2) added bottom-left of app          ║
+     ║    2. P&L bar: removed overflow scroll, goes 2x2 grid          ║
+     ║       on mobile (<=580px) — static, no scrolling               ║
+     ║  Includes all v4.4.1 changes (TV link, qty selector,           ║
+     ║    trade delete)                                                ║
      ╚══════════════════════════════════════════════════════════╝ -->
 <html lang="en">
 <head>
@@ -50,8 +48,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .clock{font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);}
 
 /* ── P&L BAR ────────────────────────────────────────────────── */
-.pnl-bar{padding:10px 16px;background:var(--surface2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:0;overflow-x:auto;}
-.pnl-item{flex:1;min-width:100px;text-align:center;padding:0 12px;border-right:1px solid var(--border);}
+.pnl-bar{padding:10px 16px;background:var(--surface2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:0;}
+.pnl-item{flex:1;min-width:0;text-align:center;padding:0 12px;border-right:1px solid var(--border);}
 .pnl-item:last-child{border-right:none;}
 .pnl-label{font-family:'Space Mono',monospace;font-size:8px;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;margin-bottom:3px;}
 .pnl-val{font-family:'Space Mono',monospace;font-size:22px;font-weight:700;line-height:1;}
@@ -415,8 +413,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
   .tgrid{grid-template-columns:repeat(2,1fr);}
   .pos-stats{grid-template-columns:repeat(2,1fr);}
   .fgrid{grid-template-columns:repeat(2,1fr);}
-  .pnl-val{font-size:18px;}
-  .pnl-item{min-width:80px;padding:0 8px;}
+  .pnl-bar{flex-wrap:nowrap;padding:6px 8px;}
+  .pnl-item{flex:1;min-width:0;padding:0 4px;}
+  .pnl-val{font-size:14px;}
+  .pnl-label{font-size:7px;letter-spacing:0.5px;}
+  .pnl-sub{font-size:7px;}
 }
 </style>
 </head>
@@ -821,6 +822,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     </div>
   </div>
 </div>
+<div style="padding:10px 16px 18px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v4.4.2</div>
 
 <!-- ── EDIT CLOSED TRADE MODAL ───────────────────────────────── -->
 <div class="modal-overlay" id="edit-modal" style="display:none;">
@@ -2597,7 +2599,7 @@ go('briefing');
 getAll();
 </script>
 <!-- ╔══════════════════════════════════════════════════════════╗
-     ║  END TRADEBRIEF v4.4.1 — Trade Tab Polish                       ║
+     ║  END TRADEBRIEF v4.4.2 — Mobile Polish                         ║
      ╚══════════════════════════════════════════════════════════╝ -->
 </body>
 </html>
