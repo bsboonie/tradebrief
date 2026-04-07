@@ -1,12 +1,14 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v4.3.1 — Risk Profile + Tiebreaker Build            ║
-     ║  Built: 2026-04-02                                              ║
-     ║  Changes: Relabel investor badges to risk profile       ║
-     ║    (STABLE/MODERATE/VOLATILE/HIGH RISK), gap risk       ║
-     ║    framing, fundamentals tiebreaker in sort (within     ║
-     ║    3 pts), Risk Profile note on card, earnings          ║
-     ║    override input labeled. Tradier sandbox API.         ║
+     ║  TRADEBRIEF v4.3.2 — Universe Rebuild                           ║
+     ║  Built: 2026-04-07                                              ║
+     ║  Changes: Replace ~80-ticker speculative-heavy universe ║
+     ║    with 123-ticker sector-diverse curated universe.    ║
+     ║    12 sectors: Financials, Technology, Healthcare,     ║
+     ║    Energy, Consumer Disc., Consumer Staples,           ║
+     ║    Industrials, Materials, REITs, Telecom/Media,       ║
+     ║    E-Commerce/Platforms, Biotech/Medical Devices.      ║
+     ║    No scoring model changes.                           ║
      ╚══════════════════════════════════════════════════════════╝ -->
 <html lang="en">
 <head>
@@ -905,35 +907,32 @@ let editingTradeIdx=-1;
 let selectedOutcome='';
 let pendingTrades=[];
 
-// ── SCANNER UNIVERSE (~80 curated, liquid, options-active stocks) ─────────
+// ── SCANNER UNIVERSE (123 curated, sector-diverse, liquid, options-active) ──
 const UNIVERSE=[
-  // Crypto/Blockchain (low price, high IV)
-  'WULF','MARA','RIOT','BITF','HUT','CLSK',
-  // Energy (mid price, solid options)
-  'PR','OVV','RIG','SWN','AR','CTRA','MUR',
-  // Fintech/Financial (varied)
-  'HOOD','AFRM','SQ','SOFI','UPST','NU',
-  // Tech/AI/Cloud (mid)
-  'PLTR','RKLB','IONQ','BBAI','AI',
-  // Semiconductors (affordable)
-  'ON','WOLF',
-  // Social/Internet
-  'RDDT','SNAP','PINS','GRAB',
-  // Biotech/Healthcare (volatile, cheap options)
-  'DNA','CRSP','BEAM',
-  // EV/Clean Energy
-  'RIVN','LCID','NIO','PLUG',
-  // Consumer/Retail
-  'DKNG','PENN',
-  // Industrials/Space
-  'JOBY','LUNR','RDW','ACHR',
-  // === NEW: Cheap, liquid, options-active additions ===
-  'F','T','VALE','CLF','AAL','CCL','ET','TELL',
-  'EOSE','FCEL','OPEN','AMC','NOK','GSAT',
-  'CLOV','SIRI','BTG','GOLD','KGC',
-  'AGNC','MPW','WBD','LYFT','UBER',
-  'BILI','BABA','JD','PDD',
-  'SPCE','STEM','BE','CHPT'
+  // 01 · Financials — Banks & Brokers
+  'JPM','BAC','WFC','C','GS','MS','SCHW','HOOD','SQ','SOFI','AFRM',
+  // 02 · Technology — Software, Cloud, Semis
+  'MSFT','META','AMD','INTC','MU','ON','QCOM','PLTR','CRM','ORCL','IBM','CSCO','ACN','AI','SNOW','SNAP','PINS','UBER',
+  // 03 · Healthcare — Pharma & Insurance
+  'UNH','CVS','WBA','PFE','MRK','ABBV','BMY','GILD','MRNA','BIIB','REGN','HUM','CI',
+  // 04 · Energy — Oil, Gas, Utilities
+  'XOM','CVX','OVV','CTRA','PR','DVN','ET','KMI','NEE','SO','DUK','FSLR',
+  // 05 · Consumer Discretionary
+  'GM','F','NKE','SBUX','MCD','DKNG','CCL','RCL','AAL','DAL','LVS',
+  // 06 · Consumer Staples
+  'WMT','KO','PG','PM','MO','COST','KR','GIS',
+  // 07 · Industrials — Defense, Aerospace, Transport
+  'BA','RTX','LMT','NOC','GE','HON','UPS','FDX','CAT','DE','GD',
+  // 08 · Materials — Mining, Metals, Chemicals
+  'FCX','NEM','GOLD','CLF','AA','X','DOW','LYB',
+  // 09 · Real Estate — REITs
+  'AMT','PLD','EQIX','SPG','VICI','IRM','AGNC',
+  // 10 · Telecom & Media
+  'T','VZ','NFLX','DIS','CMCSA','PARA',
+  // 11 · E-Commerce & Platforms
+  'AMZN','PYPL','EBAY','SHOP','ETSY','MARA',
+  // 12 · Biotech & Medical Devices
+  'SYK','MDT','BSX','ELV','ISRG','LLY','TMO','DHR','HCA','VRTX','AMGN','ZTS',
 ];
 
 // ── TOP 10 STATE ──────────────────────────────────────────────────────────
@@ -2561,7 +2560,7 @@ go('briefing');
 getAll();
 </script>
 <!-- ╔══════════════════════════════════════════════════════════╗
-     ║  END TRADEBRIEF v4.3.1 — Risk Profile + Tiebreaker Build        ║
+     ║  END TRADEBRIEF v4.3.2 — Universe Rebuild                       ║
      ╚══════════════════════════════════════════════════════════╝ -->
 </body>
 </html>
