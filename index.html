@@ -1,16 +1,14 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v4.5 — Cosmetic + Sync Build                        ║
-     ║  Built: 2026-04-07                                              ║
+     ║  TRADEBRIEF v4.5.1 — Live P&L + Tab Persistence Build          ║
+     ║  Built: 2026-04-08                                              ║
      ║  Changes:                                                       ║
-     ║    1. Firebase Firestore sync via shared sync code              ║
-     ║    2. P&L bar: true 2x2 grid on mobile — FIXED                 ║
-     ║    3. Tab bar: no horizontal scroll on mobile                   ║
-     ║    4. Trade cards: live stock price as headline,                ║
-     ║       strike in data row left of DTE                            ║
-     ║    5. AI tab removed entirely                                   ║
-     ║    6. Manual trade entry via + Add Trade button                 ║
-     ║  Includes all v4.4.x changes                                    ║
+     ║    1. Removed trade position cards from Brief tab               ║
+     ║    2. Swapped Tradier sandbox API → production API              ║
+     ║    3. Page refresh now restores last active tab                 ║
+     ║    4. Trades tab: live P&L polling every 60s (quotes-only,      ║
+     ║       independent of scanner)                                   ║
+     ║  Includes all v4.5 changes                                      ║
      ╚══════════════════════════════════════════════════════════╝ -->
 <html lang="en">
 <head>
@@ -719,7 +717,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     <div id="alerts"></div>
     <div class="sec" id="brief-header">Top 10 by Confidence</div>
     <div id="blist"></div>
-    <div id="positions-section"></div>
   </div>
 
   <!-- ── TRADES ─────────────────────────────────────────────── -->
@@ -1421,6 +1418,7 @@ function go(n){
   document.getElementById('tab-'+n).classList.add('active');
   if(n==='trades'){rPending();rT();rClosed();}
   if(n==='settings')loadS();
+  sessionStorage.setItem('tbActiveTab',n);
 }
 
 function hwTab(n){
@@ -1487,9 +1485,9 @@ function sTR(){localStorage.setItem('trades',JSON.stringify(trades));fbSyncAll()
 function sCT(){localStorage.setItem('closedTrades',JSON.stringify(closedTrades));fbSyncAll();}
 
 // ── DATA FETCH (Tradier — primary for quotes/candles) ─────────────────────
-const TRADIER_KEY='fGwoecU4qA8ZTyaiAH9zs4puiuVu';
-const TRADIER='https://sandbox.tradier.com/v1';
-const TRADIER_HEADERS={'Authorization':'Bearer fGwoecU4qA8ZTyaiAH9zs4puiuVu','Accept':'application/json'};
+const TRADIER_KEY='N3CuY5LUJ6UMnI08TZiSpYKHsGAU';
+const TRADIER='https://api.tradier.com/v1';
+const TRADIER_HEADERS={'Authorization':'Bearer N3CuY5LUJ6UMnI08TZiSpYKHsGAU','Accept':'application/json'};
 
 // Finnhub retained for earnings calendar + investor signal (fundamentals only)
 const FINNHUB_KEY='d74aqr1r01qno4q12vl0d74aqr1r01qno4q12vlg';
@@ -1836,9 +1834,6 @@ function rB(){
     ?'<div class="empty">No actionable setups right now. Hit "Scan Now" to search for opportunities.</div>':'';
 
   el.innerHTML=top3Cards+nrCards+loadingCards+emptyMsg;
-
-  // Open positions dashboard
-  rPositions();
 }
 
 function renderDataCard(ticker){
@@ -1925,70 +1920,6 @@ function renderDataCard(ticker){
 }
 
 // ── POSITIONS DASHBOARD ────────────────────────────────────────────────────
-function rPositions(){
-  const el=document.getElementById('positions-section');
-  if(!trades.length){el.innerHTML='';return;}
-
-  const cards=trades.map((t,i)=>{
-    const d=sd[t.ticker];
-    const dte=Math.ceil((new Date(t.exp)-new Date())/86400000);
-    let currentPrice=null,val=null,plDol=null,plPct=null;
-
-    if(d&&!d.loading&&!d.error){
-      currentPrice=d.price;
-      val=estOptionVal(t,currentPrice);
-      plDol=val-t.cost;
-      plPct=(plDol/t.cost)*100;
-    }
-
-    const status=plPct!==null?positionStatus(t,currentPrice,plPct):{key:'inplay',label:'⏳ LOADING',note:'Fetching price...'};
-    const isSpread=t.type==='Call Spread'||t.type==='Put Spread';
-    const typeKey=t.type==='Long Call'?'lc':t.type==='Call Spread'?'cs':t.type==='Long Put'?'lp':'ps';
-    const strikeStr=isSpread?`$${t.buy}/$${t.sell}`:`$${t.buy}`;
-    const maxProfitStr=t.maxUnlimited?'Unlimited':'$'+t.profit.toFixed(2);
-
-    // Progress bar
-    const progressPct=plPct!==null?Math.min(140,Math.max(0,(plPct/S('profitAlert'))*100)):0;
-    const barClass=plPct>=S('profitAlert')*1.2?'over-target':plPct>=S('profitAlert')?'at-target':'';
-
-    const priceColor=currentPrice&&t.entryPrice?(currentPrice>t.entryPrice?'pos':'neg'):'neu';
-
-    return`<div class="pos-card ${status.key==='takeprofit'?'take-profit':status.key==='closenow'?'close-now':''}">
-      <div class="pos-top">
-        <div class="pos-left">
-          <div class="pos-ticker">${t.ticker}</div>
-          <div class="pos-type ${typeKey}">${t.type}</div>
-          <div class="pos-strikes">${strikeStr}</div>
-        </div>
-        <div class="pos-right">
-          <div class="status-badge ${status.key}">${status.label}</div>
-        </div>
-      </div>
-      <div class="pos-stats">
-        <div class="ps-item"><span class="ps-label">Stock Price</span><span class="ps-val ${currentPrice?priceColor:'neu'}">${currentPrice?'$'+currentPrice.toFixed(2):'—'}</span></div>
-        <div class="ps-item"><span class="ps-label">P/L $</span><span class="ps-val ${plDol!==null?(plDol>=0?'pos':'neg'):'neu'}">${plDol!==null?(plDol>=0?'+':'')+'$'+Math.abs(plDol).toFixed(0):'—'}</span></div>
-        <div class="ps-item"><span class="ps-label">P/L %</span><span class="ps-val ${plPct!==null?(plPct>=0?'pos':'neg'):'neu'}">${plPct!==null?(plPct>=0?'+':'')+plPct.toFixed(0)+'%':'—'}</span></div>
-        <div class="ps-item"><span class="ps-label">DTE</span><span class="ps-val ${dte<=S('dte')?'neg':dte<=10?'':'neu'}">${dte}d</span></div>
-      </div>
-      <div class="progress-wrap">
-        <div class="progress-bar ${barClass}" style="width:${progressPct}%"></div>
-      </div>
-      <div class="progress-labels">
-        <span>0%</span>
-        <span style="color:${plPct>=S('profitAlert')?'var(--good)':'var(--muted)'}">Target: ${S('profitAlert')}% ${plPct>=S('profitAlert')?'✓':''}</span>
-        <span>${status.note}</span>
-      </div>
-      <div class="pos-actions">
-        <button class="close-btn" onclick="openCloseModal(${i})">Close Trade</button>
-        <button class="ref-sm" onclick="openEditTrade(${i})">✏️ Edit</button>
-        <span style="font-size:10px;color:var(--muted);font-family:'Space Mono',monospace;margin-left:8px;">Cost: $${t.cost.toFixed(2)} · Max: ${maxProfitStr} · Target: ${t.target}%</span>
-      </div>
-    </div>`;
-  }).join('');
-
-  el.innerHTML=`<div class="sec">Open Positions</div>${cards}`;
-}
-
 // ── CLOSE TRADE MODAL ──────────────────────────────────────────────────────
 function openCloseModal(idx){
   closingTradeIdx=idx;
@@ -2687,6 +2618,39 @@ function elaborateStock(ticker){
   });
 }
 
+// ── LIVE P&L POLLING ───────────────────────────────────────────────────────
+// Fetches fresh quotes for open trade tickers every 60s, independent of scanner.
+// Updates sd[] prices and re-renders Trades tab + P&L bar if trades exist.
+async function pollTradePrices(){
+  if(!trades.length)return;
+  const tickers=[...new Set(trades.map(t=>t.ticker))];
+  try{
+    const url=`${TRADIER}/markets/quotes?symbols=${tickers.join(',')}&greeks=false`;
+    const res=await fetch(url,{headers:TRADIER_HEADERS});
+    const data=await res.json();
+    const quotes=data.quotes?.quote;
+    if(!quotes)return;
+    const arr=Array.isArray(quotes)?quotes:[quotes];
+    arr.forEach(q=>{
+      if(!q||!q.symbol)return;
+      const sym=q.symbol;
+      const price=parseFloat(q.last||q.close||0);
+      if(!price)return;
+      if(!sd[sym])sd[sym]={};
+      sd[sym].price=price;
+      sd[sym].loading=false;
+      sd[sym].error=false;
+    });
+    rT();
+    updatePnL();
+  }catch(e){
+    console.log('Live P&L poll error:',e);
+  }
+}
+// Poll immediately on load if trades exist, then every 60s
+pollTradePrices();
+setInterval(pollTradePrices,60000);
+
 // ── PWA SERVICE WORKER REGISTRATION ───────────────────────────────────────
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{
@@ -2709,12 +2673,12 @@ if(fbSyncKey){
 }
 // Expose fbLoad for the Firebase module
 window.fbLoad=fbLoad;
-// Auto-load data and start on briefing tab
-go('briefing');
+// Auto-load data and start on last active tab (or briefing if first visit)
+go(sessionStorage.getItem('tbActiveTab')||'briefing');
 getAll();
 </script>
 <!-- ╔══════════════════════════════════════════════════════════╗
-     ║  END TRADEBRIEF v4.5 — Cosmetic + Sync Build                   ║
+     ║  END TRADEBRIEF v4.5.1 — Live P&L + Tab Persistence Build      ║
      ╚══════════════════════════════════════════════════════════╝ -->
 </body>
 </html>
