@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v4.5.1 — Live P&L + Tab Persistence Build          ║
-     ║  Built: 2026-04-08                                              ║
+     ║  TRADEBRIEF v4.5.2 — ATR + Sticky Nav + Sync Polish Build      ║
+     ║  Built: 2026-04-09                                              ║
      ║  Changes:                                                       ║
-     ║    1. Removed trade position cards from Brief tab               ║
-     ║    2. Swapped Tradier sandbox API → production API              ║
-     ║    3. Page refresh now restores last active tab                 ║
-     ║    4. Trades tab: live P&L polling every 60s (quotes-only,      ║
-     ║       independent of scanner)                                   ║
-     ║  Includes all v4.5 changes                                      ║
+     ║    1. ATR(14) auto-calculated from Tradier candles, displayed   ║
+     ║       on each briefing card tile row (no button needed)         ║
+     ║    2. Tab bar now sticky — stays visible while scrolling        ║
+     ║    3. Sync code placeholder updated (removed brian2026 ref)     ║
+     ║    4. Visible version stamp updated to v4.5.2                   ║
+     ║  Includes all v4.5.1 changes                                    ║
      ╚══════════════════════════════════════════════════════════╝ -->
 <html lang="en">
 <head>
@@ -65,9 +65,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .sec:first-child{margin-top:0;}
 
 /* ── TABS ───────────────────────────────────────────────────── */
-.tabs{display:flex;gap:2px;margin-bottom:14px;background:var(--surface);padding:3px;border-radius:10px;border:1px solid var(--border);overflow-x:hidden;}
+.tabs{display:flex;gap:2px;background:var(--surface2);padding:6px 16px;border-top:1px solid var(--border);overflow-x:hidden;}
 .tab{flex:1;min-width:0;padding:7px 3px;text-align:center;border-radius:7px;font-size:10px;cursor:pointer;color:var(--muted);font-family:'Space Mono',monospace;transition:all 0.2s;white-space:nowrap;overflow:hidden;}
-.tab.active{background:var(--surface2);color:var(--accent);border:1px solid var(--border);}
+.tab.active{background:var(--surface);color:var(--accent);border:1px solid var(--border);}
 .tab-content{display:none;}
 .tab-content.active{display:block;}
 
@@ -441,15 +441,16 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <div class="pnl-sub" id="pnl-best-sub">no trades yet</div>
     </div>
   </div>
-</div>
-
-<div class="main">
+  <!-- Tab bar — sticky inside top-bar -->
   <div class="tabs">
     <div class="tab active" onclick="go('howto')">📖 How-To</div>
     <div class="tab" onclick="go('briefing')">📊 Brief</div>
     <div class="tab" onclick="go('trades')">💼 Trades</div>
     <div class="tab" onclick="go('settings')">⚙️ Settings</div>
   </div>
+</div>
+
+<div class="main">
 
   <!-- ── HOW-TO ─────────────────────────────────────────────── -->
   <div class="tab-content active" id="tab-howto">
@@ -781,9 +782,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     <div class="settings-section">
       <h3>FIREBASE SYNC</h3>
       <div class="setting-row">
-        <div class="setting-info"><div class="setting-label">Sync Code</div><div class="setting-desc">Enter the same code on every device to keep trades, watchlist &amp; settings in sync. Pick anything memorable — e.g. <em>brian2026</em></div></div>
+        <div class="setting-info"><div class="setting-label">Sync Code</div><div class="setting-desc">Enter the same code on every device to keep trades, watchlist &amp; settings in sync. Pick any word or phrase — keep it private.</div></div>
         <div class="setting-control" style="flex-direction:column;align-items:flex-end;gap:6px;">
-          <input class="num-input" id="s-synccode" type="text" placeholder="e.g. brian2026" style="width:130px;font-size:11px;text-transform:lowercase;" oninput="this.value=this.value.replace(/\s/g,'')">
+          <input class="num-input" id="s-synccode" type="text" placeholder="e.g. mycode2026" style="width:130px;font-size:11px;text-transform:lowercase;" oninput="this.value=this.value.replace(/\s/g,'')">
           <button class="action-btn success" style="font-size:10px;padding:5px 12px;width:130px;" onclick="saveSyncCode()">Save &amp; Sync</button>
         </div>
       </div>
@@ -791,7 +792,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     </div>
   </div>
 </div>
-<div style="padding:10px 16px 18px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v4.5</div>
+<div style="padding:10px 16px 18px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v4.5.2</div>
 
 <!-- ── EDIT CLOSED TRADE MODAL ───────────────────────────────── -->
 <div class="modal-overlay" id="edit-modal" style="display:none;">
@@ -1197,18 +1198,21 @@ async function runScanner(force){
   for(const ticker of historyTickers){
     const q=quoteMap[ticker];
     try{
-      const closes=await fetchHistory(ticker);
+      const hist=await fetchHistory(ticker);
+      const closes=hist.closes;
+      const candles=hist.candles;
       if(closes.length>=22){
         const parts=S('ema').split(',');
         const ema8=calcEMA(closes,parseInt(parts[0]));
         const ema21=calcEMA(closes,parseInt(parts[1]));
         const rsi14=calcRSI(closes,14);
+        const atr14=calcATR(candles,14);
         const trend=trendStrength(closes,ema8,ema21,rsi14);
         const conf=calcConfidence(q.price,ema8,ema21,rsi14,q.volume,q.avgVolume,q.changePct);
         const ob=S('rsiOb'),os=S('rsiOs');
         sd[ticker]={ticker,price:q.price,change:q.change,changePct:q.changePct,
           volume:q.volume,avgVolume:q.avgVolume,
-          rsi14,ema8,ema21,earningsDate:earningsOverrides[ticker]||null,
+          rsi14,ema8,ema21,atr14,earningsDate:earningsOverrides[ticker]||null,
           signal:conf.direction,reason:'Confidence '+conf.score+'/100 — '+(conf.direction==='CALLS'?'Bullish':'Bearish')+' setup',
           confidence:conf.score,direction:conf.direction,
           teasers:[
@@ -1532,7 +1536,7 @@ async function fetchAllQuotes(symbols){
   }
 }
 
-// ── PHASE 2: History fetch for individual ticker (candle data for EMA/RSI) ─
+// ── PHASE 2: History fetch for individual ticker (candle data for EMA/RSI/ATR) ─
 async function fetchHistory(ticker){
   try{
     // 120 calendar days back for enough trading days
@@ -1543,16 +1547,30 @@ async function fetchHistory(ticker){
     const r=await fetch(`${TRADIER}/markets/history?symbol=${ticker}&interval=daily&start=${fmt(start)}&end=${fmt(end)}`,{
       headers:TRADIER_HEADERS
     });
-    if(!r.ok){console.warn(`${ticker}: history HTTP ${r.status}`);return[];}
+    if(!r.ok){console.warn(`${ticker}: history HTTP ${r.status}`);return{closes:[],candles:[]};}
     const data=await r.json();
     const hist=data.history;
-    if(!hist||!hist.day)return[];
+    if(!hist||!hist.day)return{closes:[],candles:[]};
     const days=Array.isArray(hist.day)?hist.day:[hist.day];
-    return days.map(d=>d.close).filter(c=>c!==null&&c!==undefined);
+    const closes=days.map(d=>d.close).filter(c=>c!==null&&c!==undefined);
+    const candles=days.filter(d=>d.high&&d.low&&d.close);
+    return{closes,candles};
   }catch(e){
     console.warn(`${ticker}: fetchHistory error — ${e.message}`);
-    return[];
+    return{closes:[],candles:[]};
   }
+}
+
+// ── ATR(14) CALCULATION ────────────────────────────────────────────────────
+function calcATR(candles,period=14){
+  if(!candles||candles.length<period+1)return null;
+  const trs=[];
+  for(let i=1;i<candles.length;i++){
+    const H=parseFloat(candles[i].high),L=parseFloat(candles[i].low),C=parseFloat(candles[i-1].close);
+    trs.push(Math.max(H-L,Math.abs(H-C),Math.abs(L-C)));
+  }
+  if(trs.length<period)return null;
+  return parseFloat((trs.slice(-period).reduce((a,b)=>a+b,0)/period).toFixed(2));
 }
 
 async function fetch1(ticker){
@@ -1574,16 +1592,19 @@ async function fetch1(ticker){
 
     // Candles via Tradier history
     let closes=[];
+    let candles=[];
     let dataSource='estimated';
     try{
-      closes=await fetchHistory(ticker);
+      const hist=await fetchHistory(ticker);
+      closes=hist.closes;
+      candles=hist.candles;
       if(closes.length>=22)dataSource='live';
-      else{console.warn(`${ticker}: history points=${closes.length}`);closes=[];}
+      else{console.warn(`${ticker}: history points=${closes.length}`);closes=[];candles=[];}
     }catch(e){console.warn(`${ticker}: history error — ${e.message}`);}
 
     if(!closes.length){
       const partialScore=calcPartialConfidence(price,changePct);
-      sd[ticker]={ticker,price,change,changePct,volume,avgVolume,rsi14:null,ema8:null,ema21:null,earningsDate:null,
+      sd[ticker]={ticker,price,change,changePct,volume,avgVolume,rsi14:null,ema8:null,ema21:null,atr14:null,earningsDate:null,
         signal:'—',reason:'Limited data — price and momentum only',confidence:partialScore,direction:'—',
         teasers:[
           {label:'RSI 14',value:'—',note:'No candle data available'},
@@ -1610,6 +1631,7 @@ async function fetch1(ticker){
     const ema8=calcEMA(closes,parseInt(parts[0]));
     const ema21=calcEMA(closes,parseInt(parts[1]));
     const rsi14=calcRSI(closes,14);
+    const atr14=calcATR(candles,14);
     const trend=trendStrength(closes,ema8,ema21,rsi14);
     const conf=calcConfidence(price,ema8,ema21,rsi14,volume,avgVolume,changePct);
     const ob=S('rsiOb'),os=S('rsiOs');
@@ -1629,7 +1651,7 @@ async function fetch1(ticker){
         if(upcoming.length)earningsDate=upcoming[0].date;
       }catch(e){console.warn(`${ticker}: earnings fetch error — ${e.message}`);}
     }
-    sd[ticker]={ticker,price,change,changePct,volume,avgVolume,rsi14,ema8,ema21,earningsDate,signal:conf.direction,reason:'Confidence '+conf.score+'/100 — '+(conf.direction==='CALLS'?'Bullish':'Bearish')+' setup',confidence:conf.score,direction:conf.direction,teasers,closes,trend,dataSource};
+    sd[ticker]={ticker,price,change,changePct,volume,avgVolume,rsi14,ema8,ema21,atr14,earningsDate,signal:conf.direction,reason:'Confidence '+conf.score+'/100 — '+(conf.direction==='CALLS'?'Bullish':'Bearish')+' setup',confidence:conf.score,direction:conf.direction,teasers,closes,trend,dataSource};
   }catch(e){
     console.warn(`${ticker}: fetch1 error — ${e.message}`);
     sd[ticker]={error:true,msg:e.message};
@@ -1880,6 +1902,7 @@ function renderDataCard(ticker){
         <div class="ip"><span class="il">TREND</span><span class="iv" style="color:${trendColor};font-size:9px;">${trendVal}</span></div>
         <div class="ip"><span class="il">DAY</span><span class="iv" style="color:${dayColor};">${(d.changePct>=0?'+':'')+d.changePct.toFixed(1)}%</span></div>
         <div class="ip"><span class="il">EARN</span><span class="iv ${earnPillColor}">${earnPillText}</span></div>
+        ${d.atr14!==null&&d.atr14!==undefined?`<div class="ip"><span class="il">ATR 14</span><span class="iv mid">$${d.atr14.toFixed(2)}</span></div>`:''}
       </div>
       <div style="margin-left:auto;display:flex;align-items:center;gap:6px;">
         <div style="font-family:'Space Mono',monospace;font-size:18px;font-weight:700;color:${(d.confidence||0)>=70?'var(--good)':(d.confidence||0)>=45?'var(--accent)':'var(--warning)'}">${d.confidence||0}</div>
@@ -2678,7 +2701,7 @@ go(sessionStorage.getItem('tbActiveTab')||'briefing');
 getAll();
 </script>
 <!-- ╔══════════════════════════════════════════════════════════╗
-     ║  END TRADEBRIEF v4.5.1 — Live P&L + Tab Persistence Build      ║
+     ║  END TRADEBRIEF v4.5.2 — ATR + Sticky Nav + Sync Polish Build  ║
      ╚══════════════════════════════════════════════════════════╝ -->
 </body>
 </html>
