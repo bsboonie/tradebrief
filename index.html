@@ -1,24 +1,24 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TradingBrief V5.2 — Mobile Layout + TradeLog + Workflow        ║
+     ║  TradingBrief V5.3 — TradeHelp + Workflow + P&L Sync            ║
      ║  Built: 2026-04-11                                               ║
-     ║  Changes from V5.1:                                              ║
-     ║    1. TB header — TradeBrief mixed case, cyan+green colors       ║
-     ║    2. TB header — removed Drive Off and clock                    ║
-     ║    3. TB header — Settings icon moved to header right            ║
-     ║    4. TB tab bar — removed Brief tab, Scan Now in tab bar        ║
-     ║    5. TB tab bar — tighter padding on mobile                     ║
-     ║    6. TB P&L tiles — tighter padding on mobile                   ║
-     ║    7. TB cards — Risk Profile restacks above buttons on mobile   ║
-     ║    8. TB briefing — Top X by Confidence tighter to tab bar       ║
-     ║    9. TradeLog — styled Trade(cyan)Log(amber) header in TS       ║
-     ║   10. Version stamp — moved above footer nav, updated to v5.2   ║
-     ║   11. go() function — data-tab attribute based, not positional   ║
-     ║  Carries forward from V5.1:                                      ║
+     ║  Changes from V5.2:                                              ║
+     ║    1. TB market status dot/label fixed (decoupled from clock)    ║
+     ║    2. All Fidelity references replaced with Tradier              ║
+     ║    3. TradeHelp — 4th panel (Trade cyan + Help red)              ║
+     ║       Overview / Workflow / Glossary tabs                        ║
+     ║    4. How-To tab removed from TB tab bar                         ║
+     ║    5. Condensed P&L bar added to TJ and TS headers               ║
+     ║    6. P&L syncs from TB data to TJ/TS bars automatically         ║
+     ║    7. Workflow ticker flow: TB Select → TJ auto-loads ticker     ║
+     ║    8. TS pre-loads ticker from sessionStorage on arrival         ║
+     ║    9. Directional bias badge added to TS controls panel          ║
+     ║   10. Version stamp updated to v5.3                              ║
+     ║  Carries forward from V5.2:                                      ║
      ║    - 127-ticker sector-diverse UNIVERSE                          ║
      ║    - All three panel headers Space Mono 22px                     ║
-     ║    - TJ cyan+purple, TS cyan+amber headers                       ║
-     ║    - Firebase unified, Tradier sandbox keys                      ║
+     ║    - TJ cyan+purple, TS cyan+amber, TB cyan+green headers        ║
+     ║    - TradeLog in TS, scan unlocked on weekdays                   ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 <html lang="en">
 <head>
@@ -28,7 +28,7 @@
 <meta name="theme-color" content="#111827">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>TradingBrief V5.2</title>
+<title>TradingBrief V5.3</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -79,6 +79,8 @@
 .sw-btn.active.sw-brief  {border-top-color:#4ade80;}
 .sw-btn.active.sw-journal{border-top-color:#bf8cff;}
 .sw-btn.active.sw-sheet  {border-top-color:#ffa502;}
+.sw-word-help   {color:#ff4d4d;}
+.sw-btn.active.sw-help   {border-top-color:#ff4d4d;}
 
 /* Push content above switcher bar */
 body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
@@ -176,7 +178,7 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
       </div>
       <div class="hw-section">
         <h2 class="hw-h2">What TradeBrief Does NOT Do</h2>
-        <div class="hw-warn">⚠️ TradeBrief is a decision-support tool — not financial advice. It helps you organize information and apply your own rules consistently. Always do your own research and verify data on Fidelity before placing any trade.</div>
+        <div class="hw-warn">⚠️ TradeBrief is a decision-support tool — not financial advice. It helps you organize information and apply your own rules consistently. Always do your own research and verify data on Tradier before placing any trade.</div>
         <p class="hw-p">TradeBrief does not support naked calls, cash-secured puts, or any undefined-risk strategy. It is built exclusively for traders who want to know their maximum loss before entering.</p>
       </div>
       <div class="hw-section">
@@ -220,14 +222,14 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
           <div class="hw-step-num">3</div>
           <div class="hw-step-body">
             <div class="hw-step-title">Expand a Card to Dig Deeper</div>
-            <p class="hw-p">Tap the ∨ chevron on any card to expand it. You'll see the TradingView live chart and three key stat blocks with explanations. Use this to confirm the signal before going to Fidelity.</p>
+            <p class="hw-p">Tap the ∨ chevron on any card to expand it. You'll see the TradingView live chart and three key stat blocks with explanations. Use this to confirm the signal before going to Tradier.</p>
           </div>
         </div>
         <div class="hw-step">
           <div class="hw-step-num">4</div>
           <div class="hw-step-body">
-            <div class="hw-step-title">Pull the Option Chain from Fidelity</div>
-            <p class="hw-p">Open Fidelity, navigate to the option chain for your stock. Take screenshots of each expiration you want to analyze (aim for 21–35 days out). Come back to this chat, upload the screenshots, and type <b>cvsit</b>. Claude will extract the data as a CSV.</p>
+            <div class="hw-step-title">Pull the Option Chain from Tradier</div>
+            <p class="hw-p">Open Tradier, navigate to the option chain for your stock. Take screenshots of each expiration you want to analyze (aim for 21–35 days out). Come back to this chat, upload the screenshots, and type <b>cvsit</b>. Claude will extract the data as a CSV.</p>
           </div>
         </div>
         <div class="hw-step">
@@ -240,15 +242,15 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
         <div class="hw-step">
           <div class="hw-step-num">6</div>
           <div class="hw-step-body">
-            <div class="hw-step-title">Place the Trade on Fidelity</div>
-            <p class="hw-p">Review the GOOD-rated spreads. Look at R/R ratio (minimum 1.5x), cost vs your budget, and break-even vs expected move. Place your trade on Fidelity. Then come back and log it in TradeBrief's Trades tab.</p>
+            <div class="hw-step-title">Place the Trade on Tradier</div>
+            <p class="hw-p">Review the GOOD-rated spreads. Look at R/R ratio (minimum 1.5x), cost vs your budget, and break-even vs expected move. Place your trade on Tradier. Then come back and log it in TradeBrief's Trades tab.</p>
           </div>
         </div>
         <div class="hw-step">
           <div class="hw-step-num">7</div>
           <div class="hw-step-body">
             <div class="hw-step-title">Monitor with the Open Positions Dashboard</div>
-            <p class="hw-p">Your open trade appears in the Briefing tab below the stock cards. Watch the status badge. When it says 🎯 TAKE PROFIT or 🔥 CLOSE NOW — go to Fidelity and close the position. Then come back and log the close in the Trades tab.</p>
+            <p class="hw-p">Your open trade appears in the Briefing tab below the stock cards. Watch the status badge. When it says 🎯 TAKE PROFIT or 🔥 CLOSE NOW — go to Tradier and close the position. Then come back and log the close in the Trades tab.</p>
             <div class="hw-diagram">
               <div class="hw-diag-row"><span style="font-size:16px;">🔴</span><div class="hw-diag-text"><b>UNDERWATER</b> — Position is below your cost basis</div></div>
               <div class="hw-diag-row"><span style="font-size:16px;">🟡</span><div class="hw-diag-text"><b>IN PLAY</b> — In profit but below your target %</div></div>
@@ -592,6 +594,25 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
       <button class="theme-btn" onclick="window.TJ.toggleTheme()">&#9728; / &#9790;</button>
     </div>
   </div>
+  <!-- Condensed P&L bar -->
+  <div style="display:flex;align-items:center;background:var(--surface2);border-bottom:1px solid var(--border);padding:4px 0;">
+    <div style="flex:1;text-align:center;padding:4px 10px;border-right:1px solid var(--border);">
+      <div style="font-family:'Space Mono',monospace;font-size:7px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;">Realized</div>
+      <div style="font-family:'Space Mono',monospace;font-size:13px;font-weight:700;" id="tj-pnl-realized">$0</div>
+    </div>
+    <div style="flex:1;text-align:center;padding:4px 10px;border-right:1px solid var(--border);">
+      <div style="font-family:'Space Mono',monospace;font-size:7px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;">Unrealized</div>
+      <div style="font-family:'Space Mono',monospace;font-size:13px;font-weight:700;" id="tj-pnl-open">$0</div>
+    </div>
+    <div style="flex:1;text-align:center;padding:4px 10px;border-right:1px solid var(--border);">
+      <div style="font-family:'Space Mono',monospace;font-size:7px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;">Total</div>
+      <div style="font-family:'Space Mono',monospace;font-size:13px;font-weight:700;" id="tj-pnl-total">$0</div>
+    </div>
+    <div style="flex:1;text-align:center;padding:4px 10px;">
+      <div style="font-family:'Space Mono',monospace;font-size:7px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;">Best Trade</div>
+      <div style="font-family:'Space Mono',monospace;font-size:13px;font-weight:700;" id="tj-pnl-best">—</div>
+    </div>
+  </div>
   <div style="padding:0 16px;background:var(--surface2);border-bottom:1px solid var(--border);">
     <div class="tabs" style="border:none;background:transparent;padding:6px 0;">
       <div class="tab active" onclick="window.TJ.go('builder')" id="tab-builder">BUILDER</div>
@@ -814,6 +835,25 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
       <button class="theme-btn" onclick="ts_toggleTheme()">☀ / ☾</button>
     </div>
   </div>
+  <!-- Condensed P&L bar -->
+  <div style="display:flex;align-items:center;background:var(--surface2);border-bottom:1px solid var(--border);padding:4px 0;">
+    <div style="flex:1;text-align:center;padding:4px 10px;border-right:1px solid var(--border);">
+      <div style="font-family:'Space Mono',monospace;font-size:7px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;">Realized</div>
+      <div style="font-family:'Space Mono',monospace;font-size:13px;font-weight:700;" id="ts-pnl-realized">$0</div>
+    </div>
+    <div style="flex:1;text-align:center;padding:4px 10px;border-right:1px solid var(--border);">
+      <div style="font-family:'Space Mono',monospace;font-size:7px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;">Unrealized</div>
+      <div style="font-family:'Space Mono',monospace;font-size:13px;font-weight:700;" id="ts-pnl-open">$0</div>
+    </div>
+    <div style="flex:1;text-align:center;padding:4px 10px;border-right:1px solid var(--border);">
+      <div style="font-family:'Space Mono',monospace;font-size:7px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;">Total</div>
+      <div style="font-family:'Space Mono',monospace;font-size:13px;font-weight:700;" id="ts-pnl-total">$0</div>
+    </div>
+    <div style="flex:1;text-align:center;padding:4px 10px;">
+      <div style="font-family:'Space Mono',monospace;font-size:7px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;">Best Trade</div>
+      <div style="font-family:'Space Mono',monospace;font-size:13px;font-weight:700;" id="ts-pnl-best">—</div>
+    </div>
+  </div>
 </div>
 
 <!-- ── MAIN ─────────────────────────────────────────────────────────── -->
@@ -928,6 +968,9 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
           <div class="ctrl-title">⚙ CONTROLS</div>
         </div>
         <div class="ctrl-body">
+
+          <!-- DIRECTIONAL BIAS BADGE from TradeJournal -->
+          <div id="ts-direction-badge" style="display:none;font-family:'Space Mono',monospace;font-size:11px;font-weight:700;padding:5px 12px;border-radius:20px;text-align:center;border:1px solid var(--border);margin-bottom:4px;"></div>
 
           <!-- TRADE TYPE -->
           <div class="ctrl-row">
@@ -1173,9 +1216,165 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
 </div>
 </div><!-- /panel-sheet -->
 
+<!-- ══════════════════════════════════════════════════════════════════════
+     PANEL 4: TRADEHELP
+══════════════════════════════════════════════════════════════════════════ -->
+<div class="app-panel" id="panel-help">
+<style>
+#panel-help *{box-sizing:border-box;}
+#panel-help{background:var(--bg);min-height:100vh;font-family:'DM Sans',sans-serif;}
+#panel-help .th-header{position:sticky;top:0;z-index:200;background:var(--surface);border-bottom:1px solid var(--border);padding:10px 16px;display:flex;align-items:center;justify-content:space-between;}
+#panel-help .th-logo{font-family:'Space Mono',monospace;font-size:22px;font-weight:700;color:#22d3ee;}
+#panel-help .th-logo span{color:#ff4d4d;}
+#panel-help .th-main{padding:16px;max-width:860px;margin:0 auto;}
+#panel-help .th-tabs{display:flex;gap:4px;margin-bottom:20px;background:var(--surface2);padding:3px;border-radius:8px;border:1px solid var(--border);}
+#panel-help .th-tab{flex:1;padding:7px;text-align:center;border-radius:6px;font-size:11px;cursor:pointer;color:var(--muted);background:none;border:none;font-family:'Space Mono',monospace;transition:all 0.2s;}
+#panel-help .th-tab.active{background:var(--surface);color:#ff4d4d;border:1px solid var(--border);}
+#panel-help .th-content{display:none;}
+#panel-help .th-content.active{display:block;}
+#panel-help .th-hero{text-align:center;padding:24px 0 20px;border-bottom:1px solid var(--border);margin-bottom:20px;}
+#panel-help .th-title{font-family:'Space Mono',monospace;font-size:20px;font-weight:700;color:#ff4d4d;margin-bottom:8px;}
+#panel-help .th-subtitle{font-size:14px;color:var(--muted);max-width:500px;margin:0 auto;line-height:1.6;}
+#panel-help .th-h2{font-family:'Space Mono',monospace;font-size:11px;letter-spacing:2px;color:#ff4d4d;text-transform:uppercase;margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid var(--border);}
+#panel-help .th-p{font-size:13px;line-height:1.7;color:var(--text);margin-bottom:10px;}
+#panel-help .th-warn{background:rgba(255,165,2,0.1);border:1px solid rgba(255,165,2,0.3);border-radius:8px;padding:12px 14px;font-size:13px;color:var(--warning);margin-bottom:12px;line-height:1.6;}
+#panel-help .th-section{margin-bottom:24px;}
+#panel-help .th-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:10px;}
+#panel-help .th-card-title{font-family:'Space Mono',monospace;font-size:11px;font-weight:700;color:var(--text);margin-bottom:6px;}
+#panel-help .th-card-body{font-size:12px;color:var(--muted);line-height:1.6;}
+#panel-help .th-steps{display:flex;flex-direction:column;gap:14px;margin-bottom:24px;}
+#panel-help .th-step{display:flex;gap:14px;align-items:flex-start;}
+#panel-help .th-step-num{min-width:32px;height:32px;background:#ff4d4d;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Space Mono',monospace;font-weight:700;font-size:13px;flex-shrink:0;}
+#panel-help .th-step-body{flex:1;}
+#panel-help .th-step-title{font-family:'Space Mono',monospace;font-size:12px;font-weight:700;color:var(--text);margin-bottom:6px;}
+#panel-help .th-gterm{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:8px;}
+#panel-help .th-gterm-word{font-family:'Space Mono',monospace;font-size:13px;font-weight:700;color:#ff4d4d;margin-bottom:4px;}
+#panel-help .th-gterm-def{font-size:13px;color:var(--text);line-height:1.6;margin-bottom:6px;}
+#panel-help .th-gterm-why{font-size:12px;color:var(--muted);background:var(--surface2);padding:8px 10px;border-radius:6px;line-height:1.5;}
+#panel-help .th-panel-badge{display:inline-block;font-family:'Space Mono',monospace;font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;margin-right:6px;}
+#panel-help .th-badge-brief{background:rgba(74,222,128,0.15);color:#4ade80;border:1px solid rgba(74,222,128,0.3);}
+#panel-help .th-badge-journal{background:rgba(191,140,255,0.15);color:#bf8cff;border:1px solid rgba(191,140,255,0.3);}
+#panel-help .th-badge-sheet{background:rgba(255,165,2,0.15);color:#ffa502;border:1px solid rgba(255,165,2,0.3);}
+</style>
+
+<div class="th-header">
+  <div class="th-logo">Trade<span>Help</span></div>
+</div>
+
+<div class="th-main">
+  <div class="th-tabs">
+    <button class="th-tab active" onclick="thTab('overview')">📋 Overview</button>
+    <button class="th-tab" onclick="thTab('workflow')">🔄 Workflow</button>
+    <button class="th-tab" onclick="thTab('glossary')">📚 Glossary</button>
+  </div>
+
+  <!-- OVERVIEW -->
+  <div class="th-content active" id="th-overview">
+    <div class="th-hero">
+      <div style="font-size:36px;margin-bottom:8px;">📖</div>
+      <div class="th-title">Welcome to TradeBrief</div>
+      <div class="th-subtitle">Your personal options trading decision tool — built around your rules, your budget, and your workflow.</div>
+    </div>
+
+    <div class="th-section">
+      <div class="th-h2">What is TradeBrief?</div>
+      <p class="th-p">TradeBrief is a personal trading intelligence tool designed for retail options traders who buy <b>debit spreads</b>, <b>long calls</b>, and <b>long puts</b>. It gives you a clear picture of watchlist stocks — their trend direction, momentum, and whether conditions are right for a trade.</p>
+      <p class="th-p">Think of it as your pre-market routine, automated. Instead of opening multiple browser tabs and manually checking charts, TradeBrief pulls it all into one clean dashboard.</p>
+    </div>
+
+    <div class="th-section">
+      <div class="th-h2">Three Tools, One Workflow</div>
+      <div class="th-card">
+        <div class="th-card-title"><span class="th-panel-badge th-badge-brief">TradeBrief</span> Gate 1 — Scanner</div>
+        <div class="th-card-body">Scans 127 liquid, optionable stocks across 12 sectors. Ranks by confidence score. Shows the top candidates worth investigating.</div>
+      </div>
+      <div class="th-card">
+        <div class="th-card-title"><span class="th-panel-badge th-badge-journal">TradeJournal</span> Gate 2 — Thesis Builder</div>
+        <div class="th-card-body">Build your trade thesis with AI coaching. Ticker flows in from TradeBrief automatically. News, ATR, and directional bias all feed in to help you decide BULLISH or BEARISH.</div>
+      </div>
+      <div class="th-card">
+        <div class="th-card-title"><span class="th-panel-badge th-badge-sheet">TradeSheet</span> Gate 3 — Option Analyzer</div>
+        <div class="th-card-body">Analyze spreads and long options. Ticker and directional bias flow in from TradeJournal. Auto-populates fields where possible. TradeLog lives here — log your trade after placing it in Tradier.</div>
+      </div>
+    </div>
+
+    <div class="th-section">
+      <div class="th-h2">What TradeBrief Does NOT Do</div>
+      <div class="th-warn">⚠️ TradeBrief is a decision-support tool — not financial advice. It helps you organize information and apply your own rules consistently. Always do your own research and verify data on Tradier before placing any trade.</div>
+      <p class="th-p">TradeBrief does not support naked calls, cash-secured puts, or any undefined-risk strategy. It is built exclusively for traders who want to know their maximum loss before entering.</p>
+    </div>
+  </div>
+
+  <!-- WORKFLOW -->
+  <div class="th-content" id="th-workflow">
+    <div class="th-section">
+      <div class="th-h2">The Three-Gate Workflow</div>
+      <p class="th-p">TradeBrief is designed around a simple morning routine. Each panel is a gate — but none of them lock you out. You can access any panel directly at any time. The gates are guides, not guards.</p>
+    </div>
+
+    <div class="th-steps">
+      <div class="th-step">
+        <div class="th-step-num">1</div>
+        <div class="th-step-body">
+          <div class="th-step-title">Open TradeBrief — Scan the Universe</div>
+          <p class="th-p">Hit Scan Now. TradeBrief pulls quotes and history for 127 stocks across 12 sectors. Top candidates are ranked by confidence score (0–100). Review the top results. When you find one worth investigating, hit Select.</p>
+        </div>
+      </div>
+      <div class="th-step">
+        <div class="th-step-num">2</div>
+        <div class="th-step-body">
+          <div class="th-step-title">TradeJournal — Build Your Thesis</div>
+          <p class="th-p">The selected ticker flows into TradeJournal automatically. News auto-fetches. ATR auto-calculates. Work through the four thesis questions with AI coaching. Resolve to BULLISH or BEARISH. When your thesis score is solid, move to TradeSheet.</p>
+        </div>
+      </div>
+      <div class="th-step">
+        <div class="th-step-num">3</div>
+        <div class="th-step-body">
+          <div class="th-step-title">TradeSheet — Analyze the Option</div>
+          <p class="th-p">Ticker pre-loads. Directional bias badge reminds you what the thesis said. Review the top spreads or long options. Check R/R, cost vs budget, break-even vs expected move. When you're ready, place the trade on Tradier.</p>
+        </div>
+      </div>
+      <div class="th-step">
+        <div class="th-step-num">4</div>
+        <div class="th-step-body">
+          <div class="th-step-title">Log the Trade in TradeLog</div>
+          <p class="th-p">After placing in Tradier, come back to TradeSheet and hit Log This Trade. Fill in the details. TradeLog tracks your open and closed positions and calculates your running P&L.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="th-section">
+      <div class="th-h2">Tips</div>
+      <div class="th-card"><div class="th-card-body">✅ Run TradeBrief every morning before market open (9:00–9:25 AM ET) for the freshest data.</div></div>
+      <div class="th-card"><div class="th-card-body">✅ If you placed an order after hours, review it pre-market before it executes at open.</div></div>
+      <div class="th-card"><div class="th-card-body">✅ Target 3–4 weeks minimum on expiration for long options. Theta eats cheap short-dated contracts fast.</div></div>
+      <div class="th-card"><div class="th-card-body">✅ The confidence score is a filter, not a guarantee. 52–55% directional accuracy is the professional ceiling for technical scanning.</div></div>
+    </div>
+  </div>
+
+  <!-- GLOSSARY -->
+  <div class="th-content" id="th-glossary">
+    <div class="th-section">
+      <div class="th-h2">Options Glossary</div>
+      <div class="th-gterm"><div class="th-gterm-word">Call Spread (Debit Spread)</div><div class="th-gterm-def">Buying a call at one strike AND selling a call at a higher strike. Caps your max profit but significantly reduces your cost.</div><div class="th-gterm-why">💡 Better R/R ratio than a long call. Cheaper entry means you can be wrong and still survive.</div></div>
+      <div class="th-gterm"><div class="th-gterm-word">DTE (Days To Expiration)</div><div class="th-gterm-def">The number of days until the option contract expires. TradeBrief targets 21–35 DTE for the best balance of cost and time.</div><div class="th-gterm-why">💡 Options lose value as expiration approaches (theta decay). Too short = too expensive per day.</div></div>
+      <div class="th-gterm"><div class="th-gterm-word">Break-Even</div><div class="th-gterm-def">The stock price at which your trade makes exactly $0 profit. For a call spread: Buy Strike + Net Cost per share.</div><div class="th-gterm-why">💡 Your break-even must be within the stock's expected move range for the trade to have a realistic shot.</div></div>
+      <div class="th-gterm"><div class="th-gterm-word">R/R (Reward-to-Risk)</div><div class="th-gterm-def">Max Profit divided by Max Loss. A 2.0 R/R means you could make $200 for every $100 risked.</div><div class="th-gterm-why">💡 TradeBrief requires a minimum 1.5 R/R. Trades below this aren't worth the risk mathematically.</div></div>
+      <div class="th-gterm"><div class="th-gterm-word">Delta</div><div class="th-gterm-def">How much the option price moves for every $1 move in the stock. A delta of 0.40 means the option gains $0.40 when the stock gains $1.</div><div class="th-gterm-why">💡 Delta is also a rough probability estimate. TradeBrief targets 0.15–0.70 delta for balanced trades.</div></div>
+      <div class="th-gterm"><div class="th-gterm-word">IV (Implied Volatility)</div><div class="th-gterm-def">The market's expectation of how much a stock will move. High IV = expensive options. Low IV = cheap options.</div><div class="th-gterm-why">💡 Buying options when IV is very high means you're overpaying. TradeBrief warns you when IV rank is elevated.</div></div>
+      <div class="th-gterm"><div class="th-gterm-word">IV Crush</div><div class="th-gterm-def">After a major event (like earnings), IV drops sharply — causing option prices to collapse even if the stock moved your way.</div><div class="th-gterm-why">💡 This is why TradeBrief flags any trade where earnings falls before expiration as RISKY.</div></div>
+      <div class="th-gterm"><div class="th-gterm-word">ATR (Average True Range)</div><div class="th-gterm-def">A measure of how much a stock typically moves in a day. ATR × 14 gives you an approximate expected move over two weeks.</div><div class="th-gterm-why">💡 Used to check if your break-even is realistic given the stock's typical movement.</div></div>
+      <div class="th-gterm"><div class="th-gterm-word">RSI (Relative Strength Index)</div><div class="th-gterm-def">A momentum indicator from 0–100. Above 70 = overbought. Below 30 = oversold. Sweet spot for entries: 40–60.</div><div class="th-gterm-why">💡 RSI tells you if a stock is extended. Buying calls on an RSI of 80 is buying at the top.</div></div>
+      <div class="th-gterm"><div class="th-gterm-word">EMA Crossover</div><div class="th-gterm-def">When the fast EMA (8) crosses above or below the slow EMA (21). A bullish crossover signals upward momentum.</div><div class="th-gterm-why">💡 TradeBrief uses EMA alignment to confirm trend before signaling CALLS or PUTS.</div></div>
+    </div>
+  </div>
+
+</div><!-- /th-main -->
+</div><!-- /panel-help -->
+
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v5.2</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v5.3</div>
 
 <!-- ══ APP SWITCHER NAV ════════════════════════════════════════════════════ -->
 <div id="app-switcher">
@@ -1187,6 +1386,9 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
   </button>
   <button class="sw-btn sw-sheet"          onclick="swApp('sheet')"   id="sw-btn-sheet">
     <span class="sw-word-trade">Trade</span><span class="sw-word-sheet">Sheet</span>
+  </button>
+  <button class="sw-btn sw-help"           onclick="swApp('help')"    id="sw-btn-help">
+    <span class="sw-word-trade">Trade</span><span class="sw-word-help">Help</span>
   </button>
 </div>
 
@@ -1303,25 +1505,15 @@ let firstScanDone=false;
 // ── SCAN WINDOW CHECK (9:00 AM - 4:00 PM ET) ───────────────────────────
 function inScanWindow(){
   const et=new Date(new Date().toLocaleString('en-US',{timeZone:'America/New_York'}));
-  const h=et.getHours(),m=et.getMinutes(),d=et.getDay();
-  return d>=1&&d<=5&&h>=9&&h<16;
+  const d=et.getDay();
+  return d>=1&&d<=5;// Allow scanning any time on weekdays; weekends still blocked
 }
 function getCountdown(){
   const et=new Date(new Date().toLocaleString('en-US',{timeZone:'America/New_York'}));
   const h=et.getHours(),m=et.getMinutes(),s=et.getSeconds(),d=et.getDay();
   // If weekend
   if(d===0||d===6)return{text:'Market closed — scan resumes Monday 9:00 AM',seconds:null};
-  // If before 9:00 AM
-  if(h<9){
-    const totalSecs=(9-h-1)*3600+(60-m-1)*60+(60-s);
-    const hh=Math.floor(totalSecs/3600);
-    const mm=Math.floor((totalSecs%3600)/60);
-    const ss=totalSecs%60;
-    return{text:`Scan unlocks in`,time:`${hh}:${String(mm).padStart(2,'0')}:${String(ss).padStart(2,'0')}`,seconds:totalSecs};
-  }
-  // If after 4:00 PM
-  if(h>=16)return{text:'Market closed — scan resumes 9:00 AM',seconds:null};
-  return null;// in scan window
+  return null;// Allow scanning any time on weekdays
 }
 
 // ── CONFIDENCE SCORE (0-100) ─────────────────────────────────────────────
@@ -1633,7 +1825,7 @@ function updateScanBar(){
 
   el.innerHTML=`<div class="scan-bar">
     <div class="scan-status">${statusText}</div>
-    <button class="scan-btn" onclick="runScanner(true)" ${scannerRunning||(!canScan&&firstScanDone)?'disabled':''}>${scannerRunning?'Scanning...':countdown&&firstScanDone?'🔒 Locked':'🔍 Scan Now'}</button>
+    <button class="scan-btn" onclick="runScanner(true)" ${scannerRunning?'disabled':''}>${scannerRunning?'Scanning...':'🔍 Scan Now'}</button>
   </div>
   ${scannerRunning?`<div class="scan-progress"><div class="scan-progress-bar" style="width:${progressPct}%"></div></div>`:''}`;
 }
@@ -1671,7 +1863,7 @@ function reSignalAll(){
 
 // ── AUTO-REFRESH ──────────────────────────────────────────────────────────
 async function autoRefresh(){
-  if(!inScanWindow()||scannerRunning)return;
+  if(scannerRunning)return;
 
   // Batch-refresh quotes for top10 via Tradier (1 call)
   if(!top10.length)return;
@@ -1726,7 +1918,6 @@ function isOpen(){
 }
 function clk(){
   const et=new Date(new Date().toLocaleString('en-US',{timeZone:'America/New_York'}));
-  document.getElementById('tb-clock').textContent=et.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit'})+' ET';
   const h=et.getHours(),m=et.getMinutes(),d=et.getDay();
   const wk=d>=1&&d<=5,open=isOpen(),pre2=wk&&h>=4&&(h<9||(h===9&&m<30));
   const dot=document.getElementById('mdot'),lbl=document.getElementById('mlbl');
@@ -2102,6 +2293,21 @@ function updatePnL(){
     document.getElementById('pnl-best').className='pnl-val pos';
     document.getElementById('pnl-best-sub').textContent=bestTrade.ticker+' '+bestTrade.type;
   }
+  // Sync condensed P&L bars on TJ and TS
+  const syncPnlBar=(prefix)=>{
+    const r=document.getElementById(prefix+'-pnl-realized');
+    const o=document.getElementById(prefix+'-pnl-open');
+    const t=document.getElementById(prefix+'-pnl-total');
+    const b=document.getElementById(prefix+'-pnl-best');
+    if(!r)return;
+    const cc=v=>v>0?'var(--good)':v<0?'var(--danger)':'var(--muted)';
+    r.textContent=fmtPL(realized);r.style.color=cc(realized);
+    o.textContent=fmtPL(unrealized);o.style.color=cc(unrealized);
+    t.textContent=fmtPL(total);t.style.color=cc(total);
+    b.textContent=bestTrade?fmtPL(bestTrade.actualPL):'—';
+    if(bestTrade)b.style.color='var(--good)';
+  };
+  syncPnlBar('tj');syncPnlBar('ts');
   checkNotifications();
 }
 
@@ -2714,9 +2920,27 @@ function select(ticker){
     profit:'',
     controlsOpen:false
   });
-  go('trades');
+  go('briefing');
   rPending();
-  tb_toast('⬇ '+ticker+' added to pending trades');
+  tb_toast('⬇ '+ticker+' selected — opening TradeJournal');
+  // Flow ticker into TJ and TS
+  setTimeout(()=>{
+    swApp('journal');
+    // Set ticker in TJ if available
+    const tjTicker=document.getElementById('b-ticker');
+    if(tjTicker){
+      tjTicker.value=ticker;
+      if(window.TJ&&window.TJ.loadTicker)window.TJ.loadTicker(ticker);
+      else if(window.TJ&&window.TJ.init){
+        window.TJ._booted=true;
+        window.TJ.init();
+        setTimeout(()=>{const t=document.getElementById('b-ticker');if(t){t.value=ticker;}},300);
+      }
+    }
+    // Store ticker for TS to pick up
+    sessionStorage.setItem('tbSelectedTicker',ticker);
+    sessionStorage.setItem('tbSelectedDirection',d.signal==='CALLS'?'BULLISH':d.signal==='PUTS'?'BEARISH':'');
+  },50);
 }
 
 function rPending(){
@@ -4848,6 +5072,14 @@ return {
 <!-- ══ SWITCHER JS ════════════════════════════════════════════════════ -->
 <script>
 
+// ══ TRADEHELP TABS ══════════════════════════════════════════════════════════
+function thTab(name){
+  document.querySelectorAll('#panel-help .th-tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('#panel-help .th-content').forEach(c=>c.classList.remove('active'));
+  document.getElementById('th-'+name).classList.add('active');
+  event.target.classList.add('active');
+}
+
 // ══ APP SWITCHER ════════════════════════════════════════════════════════════
 function swApp(name){
   // Hide all panels, deactivate all buttons
@@ -4862,6 +5094,23 @@ function swApp(name){
   if(name==='brief'   && window.TB && !window.TB._booted){window.TB.boot(); window.TB._booted=true;}
   if(name==='journal' && window.TJ && !window.TJ._booted){window.TJ.init();  window.TJ._booted=true;}
   if(name==='sheet'   && window.TS && !window.TS._booted){window.TS.boot();  window.TS._booted=true;}
+  // Pre-load ticker into TS from workflow state
+  if(name==='sheet' && window.TS){
+    const t=sessionStorage.getItem('tbSelectedTicker');
+    const dir=sessionStorage.getItem('tbSelectedDirection');
+    if(t){
+      setTimeout(()=>{
+        window.TS.fetchTicker(t);
+        // Show directional bias badge if direction known
+        const badge=document.getElementById('ts-direction-badge');
+        if(badge&&dir){
+          badge.textContent=dir==='BULLISH'?'▲ BULLISH':'▼ BEARISH';
+          badge.style.color=dir==='BULLISH'?'var(--good)':'var(--danger)';
+          badge.style.display='inline-flex';
+        }
+      },100);
+    }
+  }
 }
 // Restore last active app on page load
 (function(){
@@ -4875,7 +5124,7 @@ function swApp(name){
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradingBrief V5.2 — Mobile Layout + TradeLog + Workflow | 2026-04-11           ║
+     ║  END TradingBrief V5.3 — TradeHelp + Workflow + P&L Sync | 2026-04-11           ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 </body>
 </html>
