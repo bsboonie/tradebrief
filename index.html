@@ -1,20 +1,18 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TradingBrief V5.3 — TradeHelp + Workflow + P&L Sync            ║
-     ║  Built: 2026-04-11                                               ║
-     ║  Changes from V5.2:                                              ║
-     ║    1. TB market status dot/label fixed (decoupled from clock)    ║
-     ║    2. All Fidelity references replaced with Tradier              ║
-     ║    3. TradeHelp — 4th panel (Trade cyan + Help red)              ║
-     ║       Overview / Workflow / Glossary tabs                        ║
-     ║    4. How-To tab removed from TB tab bar                         ║
-     ║    5. Condensed P&L bar added to TJ and TS headers               ║
-     ║    6. P&L syncs from TB data to TJ/TS bars automatically         ║
-     ║    7. Workflow ticker flow: TB Select → TJ auto-loads ticker     ║
-     ║    8. TS pre-loads ticker from sessionStorage on arrival         ║
-     ║    9. Directional bias badge added to TS controls panel          ║
-     ║   10. Version stamp updated to v5.3                              ║
-     ║  Carries forward from V5.2:                                      ║
+     ║  TradingBrief V5.4 — Google Auth + Signal Freeze                ║
+     ║  Built: 2026-04-12                                               ║
+     ║  Changes from V5.3:                                              ║
+     ║    1. Google Auth replaces anonymous auth + sync code            ║
+     ║       - Sign in with Google popup on load                        ║
+     ║       - UID stable across devices and browsers                   ║
+     ║       - TB data stored under users/{uid}/state/main              ║
+     ║       - TJ data stored under users/{uid}/tradejournal/entries    ║
+     ║       - Settings panel: sync code UI → Google account display    ║
+     ║       - TJ header: SYNC button replaced by account/sign-out      ║
+     ║    2. Signal freeze — confidence score, direction, signal lock   ║
+     ║       at scan time; autoRefresh no longer overwrites these       ║
+     ║  Carries forward from V5.3:                                      ║
      ║    - 127-ticker sector-diverse UNIVERSE                          ║
      ║    - All three panel headers Space Mono 22px                     ║
      ║    - TJ cyan+purple, TS cyan+amber, TB cyan+green headers        ║
@@ -466,15 +464,18 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
     </div>
     <div class="sec">Cross-Device Sync</div>
     <div class="settings-section">
-      <h3>FIREBASE SYNC</h3>
+      <h3>GOOGLE ACCOUNT</h3>
       <div class="setting-row">
-        <div class="setting-info"><div class="setting-label">Sync Code</div><div class="setting-desc">Enter the same code on every device to keep trades, watchlist &amp; settings in sync. Pick any word or phrase — keep it private.</div></div>
+        <div class="setting-info">
+          <div class="setting-label">Signed In As</div>
+          <div class="setting-desc" id="auth-user-name">Not signed in</div>
+        </div>
         <div class="setting-control" style="flex-direction:column;align-items:flex-end;gap:6px;">
-          <input class="num-input" id="s-synccode" type="text" placeholder="e.g. mycode2026" style="width:130px;font-size:11px;text-transform:lowercase;" oninput="this.value=this.value.replace(/\s/g,'')">
-          <button class="action-btn success" style="font-size:10px;padding:5px 12px;width:130px;" onclick="saveSyncCode()">Save &amp; Sync</button>
+          <button class="action-btn success" id="auth-signin-btn" onclick="tbSignIn()" style="font-size:10px;padding:5px 12px;">Sign in with Google</button>
+          <button class="action-btn danger" id="auth-signout-btn" onclick="tbSignOut()" style="font-size:10px;padding:5px 12px;display:none;">Sign Out</button>
         </div>
       </div>
-      <div style="padding:4px 12px 10px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);">Status: <span id="sync-status-txt" style="color:var(--accent);">not configured</span></div>
+      <div style="padding:4px 12px 10px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);">Sync: <span id="sync-status-txt" style="color:var(--accent);">not signed in</span></div>
     </div>
   </div>
 </div>
@@ -1399,6 +1400,8 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
 import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import{getFirestore,doc,setDoc,getDoc,collection,addDoc,getDocs,updateDoc,deleteDoc,query,orderBy}
   from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import{getAuth,GoogleAuthProvider,signInWithPopup,signOut,onAuthStateChanged}
+  from'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 
 const _FC={
   apiKey:"AIzaSyAp8mEeeX9K2popJQWmGxfRhHTx9SJFUFA",
@@ -1411,6 +1414,8 @@ const _FC={
 
 const _app=initializeApp(_FC);
 const _db=getFirestore(_app);
+const _auth=getAuth(_app);
+const _provider=new GoogleAuthProvider();
 
 // TB interface (set/get doc)
 window._fbDb=_db;
@@ -1420,26 +1425,46 @@ window._fbDoc=doc;
 
 // TS interface (collection-level ops)
 window._fb={db:_db,collection,addDoc,getDocs,doc,updateDoc,deleteDoc,query,orderBy};
-window._fbReady=true;
 
-// TJ compat shim — TJ uses firebase.firestore() compat pattern
-// Provide a minimal shim so TJ's existing code works unchanged
-window._tjDb={
-  collection:(name)=>({
-    add:(data)=>addDoc(collection(_db,name),data),
-    get:()=>getDocs(query(collection(_db,name),orderBy('createdAt','desc'))),
-    doc:(id)=>({
-      set:(data,opts)=>setDoc(doc(_db,name,id),data,opts||{}),
-      update:(data)=>updateDoc(doc(_db,name,id),data),
-      delete:()=>deleteDoc(doc(_db,name,id)),
-      get:()=>getDoc(doc(_db,name,id)),
+// Auth interface
+window._fbSignIn=()=>signInWithPopup(_auth,_provider);
+window._fbSignOut=()=>signOut(_auth);
+window._fbUid=null;
+window._fbUser=null;
+window._fbReady=false;
+
+// TJ compat shim — UID-aware, resolves after auth
+function _makeTjDb(uid){
+  return {
+    collection:(name)=>({
+      add:(data)=>addDoc(collection(_db,name),data),
+      get:()=>getDocs(query(collection(_db,name),orderBy('createdAt','desc'))),
+      doc:(id)=>({
+        set:(data,opts)=>setDoc(doc(_db,'users',uid,name,id),data,opts||{}),
+        update:(data)=>updateDoc(doc(_db,'users',uid,name,id),data),
+        delete:()=>deleteDoc(doc(_db,'users',uid,name,id)),
+        get:()=>getDoc(doc(_db,'users',uid,name,id)),
+      })
     })
-  })
-};
+  };
+}
 
-// TB sync key auto-load
-const _sc=localStorage.getItem('syncCode');
-if(_sc){window.addEventListener('load',()=>{if(window.fbLoad)window.fbLoad(_sc);});}
+// Auth state observer — fires on every page load and sign-in/out
+onAuthStateChanged(_auth, user=>{
+  if(user){
+    window._fbUid=user.uid;
+    window._fbUser=user;
+    window._fbReady=true;
+    window._tjDb=_makeTjDb(user.uid);
+    window.dispatchEvent(new CustomEvent('fb-authed',{detail:{user}}));
+  } else {
+    window._fbUid=null;
+    window._fbUser=null;
+    window._fbReady=false;
+    window._tjDb=null;
+    window.dispatchEvent(new Event('fb-signedout'));
+  }
+});
 
 window.dispatchEvent(new Event('fb-ready'));
 
@@ -1462,7 +1487,7 @@ let closingTradeIdx=-1;
 let editingTradeIdx=-1;
 let selectedOutcome='';
 let pendingTrades=[];
-let fbSyncKey=localStorage.getItem('syncCode')||'';
+// Auth handled via Google — no sync code needed
 
 // ── SCANNER UNIVERSE (~80 curated, liquid, options-active stocks) ─────────
 const UNIVERSE=[
@@ -1876,20 +1901,14 @@ async function autoRefresh(){
     sd[t].changePct=q.changePct;
     sd[t].volume=q.volume;
     sd[t].avgVolume=q.avgVolume;
-    // Re-score with updated price/volume
+    // Signal freeze — confidence, direction, signal locked at scan time.
+    // autoRefresh updates live price/volume/move only, never overwrites score or direction.
     if(sd[t].dataSource==='live'&&sd[t].rsi14!==null){
-      const conf=calcConfidence(q.price,sd[t].ema8,sd[t].ema21,sd[t].rsi14,q.volume,q.avgVolume,q.changePct);
-      sd[t].confidence=conf.score;
-      sd[t].direction=conf.direction;
-      sd[t].signal=conf.direction;
-      sd[t].reason=`Confidence ${conf.score}/100 — ${conf.direction==='CALLS'?'Bullish':'Bearish'} setup`;
-      // Update day move teaser
+      // Update day move teaser only
       const teasers=sd[t].teasers;
       if(teasers&&teasers.length>=3){
         teasers[2]={label:'Day Move',value:(q.changePct>=0?'+':'')+q.changePct.toFixed(2)+'%',note:Math.abs(q.changePct)>3?'Big move today':'Quiet session today'};
       }
-    } else {
-      sd[t].confidence=calcPartialConfidence(q.price,q.changePct);
     }
   });
 
@@ -2770,10 +2789,11 @@ function saveEarningsOverride(ticker){
 
 // ── FIREBASE SYNC ─────────────────────────────────────────────────────────
 async function fbSyncAll(){
-  if(!fbSyncKey)return;
+  const uid=window._fbUid;
+  if(!uid)return;
   try{
     const db=window._fbDb;if(!db)return;
-    const ref=window._fbDoc(db,'users',fbSyncKey);
+    const ref=window._fbDoc(db,'users',uid,'state','main');
     await window._fbSetDoc(ref,{
       wl:JSON.stringify(wl),
       trades:JSON.stringify(trades),
@@ -2786,10 +2806,11 @@ async function fbSyncAll(){
   }catch(e){setSyncStatus('⚠ sync error');}
 }
 
-async function fbLoad(key){
+async function fbLoad(){
+  const uid=window._fbUid;
   try{
-    const db=window._fbDb;if(!db){setTimeout(()=>fbLoad(key),500);return;}
-    const ref=window._fbDoc(db,'users',key);
+    const db=window._fbDb;if(!db||!uid){setTimeout(fbLoad,500);return;}
+    const ref=window._fbDoc(db,'users',uid,'state','main');
     const snap=await window._fbGetDoc(ref);
     if(snap.exists()){
       const d=snap.data();
@@ -2800,9 +2821,8 @@ async function fbLoad(key){
       if(d.cfg){cfg=JSON.parse(d.cfg);localStorage.setItem('cfg',d.cfg);}
       rB();rT();rClosed();updatePnL();loadS();
       setSyncStatus('✓ loaded '+new Date().toLocaleTimeString());
-      tb_toast('☁ Sync loaded from cloud');
+      tb_toast('☁ Synced from cloud');
     }else{
-      // No data yet — push current local state up
       await fbSyncAll();
       setSyncStatus('✓ initialized');
     }
@@ -2814,21 +2834,44 @@ function setSyncStatus(msg){
   if(el)el.textContent=msg;
 }
 
-function saveSyncCode(){
-  const input=document.getElementById('s-synccode');
-  const val=(input.value||'').trim().toLowerCase();
-  if(!val){tb_toast('Enter a sync code first');return;}
-  fbSyncKey=val;
-  localStorage.setItem('syncCode',val);
-  window.fbLoad=fbLoad;
-  fbLoad(val);
-  tb_toast('☁ Sync code saved — loading...');
+function forceFbSync(){
+  if(!window._fbUid){tb_toast('Sign in with Google first');return;}
+  fbLoad();
+  tb_toast('☁ Syncing...');
 }
 
-function forceFbSync(){
-  if(!fbSyncKey){tb_toast('Set a sync code first');return;}
-  fbLoad(fbSyncKey);
-  tb_toast('☁ Syncing...');
+// Listen for auth state — load data when Google sign-in completes
+window.addEventListener('fb-authed',function(e){
+  const user=e.detail.user;
+  updateAuthUI(user);
+  fbLoad();
+});
+window.addEventListener('fb-signedout',function(){
+  updateAuthUI(null);
+  setSyncStatus('signed out');
+});
+
+function updateAuthUI(user){
+  const nameEl=document.getElementById('auth-user-name');
+  const signInBtn=document.getElementById('auth-signin-btn');
+  const signOutBtn=document.getElementById('auth-signout-btn');
+  if(!nameEl)return;
+  if(user){
+    nameEl.textContent=user.displayName||user.email||'Signed in';
+    if(signInBtn)signInBtn.style.display='none';
+    if(signOutBtn)signOutBtn.style.display='inline-block';
+  }else{
+    nameEl.textContent='Not signed in';
+    if(signInBtn)signInBtn.style.display='inline-block';
+    if(signOutBtn)signOutBtn.style.display='none';
+  }
+}
+
+function tbSignIn(){
+  window._fbSignIn().catch(e=>tb_toast('Sign-in failed: '+e.message));
+}
+function tbSignOut(){
+  window._fbSignOut().then(()=>tb_toast('Signed out')).catch(e=>tb_toast('Error: '+e.message));
 }
 
 // ── MANUAL TRADE ENTRY ─────────────────────────────────────────────────────
@@ -3239,14 +3282,8 @@ window.TB.boot = function(){
   loadS(); tb_applyTheme();
   rB(); rT(); rClosed();
   updatePnL(); updateScanBar();
-  // Restore sync code input if set
-  const _sc2 = localStorage.getItem('syncCode');
-  if(_sc2){
-    const el=document.getElementById('s-synccode');
-    if(el) el.value=_sc2;
-    setSyncStatus('configured — tap Sync Now to refresh');
-  }
-  window.fbLoad = fbLoad;
+  // Update auth UI if already signed in
+  if(window._fbUser) updateAuthUI(window._fbUser);
   go(sessionStorage.getItem('tbActiveTab')||'briefing');
   getAll();
 };
@@ -3261,7 +3298,7 @@ window.TB.go = go;
 // ══════════════════════════════════════════════════════════════════
 //  TRADEJOURNAL v1.3
 //  Namespace : window.TJ
-//  Storage   : Firebase Firestore (tradejournal/brian2026) + localStorage fallback
+//  Storage   : Firebase Firestore (users/{uid}/tradejournal/{uid}) + localStorage fallback
 //  LS prefix : tj_
 //  Contract  : getEntries(), getEntry(id), createEntry(obj)
 // ══════════════════════════════════════════════════════════════════
@@ -3278,29 +3315,26 @@ window.TJ = (function(){
   const LS_PREFIX   = 'tj_';
 
   // ── FIREBASE ───────────────────────────────────────────────────
-  const FB_CONFIG = {
-    apiKey:            'AIzaSyAp8mEeeX9K2popJQWmGxfRhHTx9SJFUFA',
-    authDomain:        'tradebrief-a2395.firebaseapp.com',
-    projectId:         'tradebrief-a2395',
-    storageBucket:     'tradebrief-a2395.firebasestorage.app',
-    messagingSenderId: '208621464684',
-    appId:             '1:208621464684:web:470ab710391bae3200bc49',
-    measurementId:     'G-WB4KG5Q34Y'
-  };
+  // DB and UID come from shared Firebase init block via window._tjDb / window._fbUid
   const FB_COLLECTION = 'tradejournal';
-  const FB_DOC_ID     = 'brian2026';
 
   let db      = null;
   let fbReady = false;
 
   function initFirebase(){
     try {
-      const db = window._tjDb;
-      fbReady = true;
+      db = window._tjDb;
+      fbReady = !!db;
     } catch(e){
       console.warn('TJ: Firebase init failed, localStorage only.', e);
     }
   }
+
+  // Re-init when auth completes (Google sign-in fires after TJ boot)
+  window.addEventListener('fb-authed', function(){
+    db = window._tjDb;
+    fbReady = !!db;
+  });
 
   // ── STATE ──────────────────────────────────────────────────────
   let currentTicker = '';
@@ -3391,10 +3425,10 @@ window.TJ = (function(){
 
   // ── FIREBASE SYNC ──────────────────────────────────────────────
   async function syncNow(){
-    if(!fbReady){ toast('Firebase unavailable \u2014 using local storage'); return; }
+    if(!fbReady||!window._fbUid){ toast('Sign in with Google to sync'); return; }
     setSyncStatus('syncing','\u21C5 SYNCING\u2026');
     try {
-      const ref  = db.collection(FB_COLLECTION).doc(FB_DOC_ID);
+      const ref  = db.collection(FB_COLLECTION).doc(window._fbUid);
       const snap = await ref.get();
       const cloudEntries = snap.exists ? (snap.data().entries||[]) : [];
       const localIds = new Set(entries.map(e=>e.id));
@@ -3426,7 +3460,8 @@ window.TJ = (function(){
   async function persistEntries(){
     persistLocal();
     if(!fbReady||!db) return;
-    try { await db.collection(FB_COLLECTION).doc(FB_DOC_ID).set({ entries, updatedAt:new Date().toISOString() }); }
+    if(!window._fbUid) return;
+    try { await db.collection(FB_COLLECTION).doc(window._fbUid).set({ entries, updatedAt:new Date().toISOString() }); }
     catch(e){ console.warn('TJ: background Firebase write failed',e); }
   }
 
@@ -5124,7 +5159,7 @@ function swApp(name){
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradingBrief V5.3 — TradeHelp + Workflow + P&L Sync | 2026-04-11           ║
+     ║  END TradingBrief V5.4 — Google Auth + Signal Freeze | 2026-04-12               ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 </body>
 </html>
