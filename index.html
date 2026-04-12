@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TradingBrief V5.6.1 — Bug Fixes                                 ║
+     ║  TradingBrief V5.6.2 — Scan Now Fix                              ║
      ║  Built: 2026-04-12                                               ║
-     ║  Changes from V5.6:                                              ║
-     ║    1. Fixed orphaned comment tag rendering as visible text        ║
+     ║  Changes from V5.6.1:                                            ║
+     ║    1. Scan Now button now calls TB scanner correctly             ║
+     ║       (TS panel was overwriting window.runScanner)               ║
      ║    2. Scan Now fully unlocked — no day/hour restrictions         ║
      ║    3. Run Curation Now works without visiting TB panel first     ║
      ║    4. TradeData nav moved before TradeHelp                       ║
@@ -18,7 +19,7 @@
 <meta name="theme-color" content="#111827">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>TradingBrief V5.6.1</title>
+<title>TradingBrief V5.6.2</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -94,7 +95,7 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
       <div class="mkt"><div class="dot" id="mdot"></div><span id="mlbl">...</span></div>
     </div>
     <div class="hright">
-      <button class="scan-btn" id="header-scan-btn-top" onclick="go('briefing');runScanner(true);" style="padding:5px 14px;font-size:11px;border-radius:7px;white-space:nowrap;">🔍 Scan Now</button>
+      <button class="scan-btn" id="header-scan-btn-top" onclick="go('briefing');window.TB.runScanner(true);" style="padding:5px 14px;font-size:11px;border-radius:7px;white-space:nowrap;">🔍 Scan Now</button>
       <button onclick="go('settings')" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 9px;cursor:pointer;color:var(--muted);font-size:14px;line-height:1;transition:all 0.2s;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">⚙️</button>
     </div>
   </div>
@@ -1501,7 +1502,7 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
 
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v5.6.1</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v5.6.2</div>
 
 <!-- ══ APP SWITCHER NAV ════════════════════════════════════════════════════ -->
 <div id="app-switcher">
@@ -3462,6 +3463,7 @@ window.TB.boot = function(){
 
 // Expose key TB functions globally for HTML onclick handlers
 window.TB.go = go;
+window.TB.runScanner = runScanner;
 
 </script>
 
@@ -5996,7 +5998,7 @@ function swApp(name){
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradingBrief V5.6.1 — Bug Fixes | 2026-04-12  ║
+     ║  END TradingBrief V5.6.2 — Scan Now Fix | 2026-04-12  ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 </body>
 </html>
