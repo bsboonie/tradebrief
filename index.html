@@ -5012,7 +5012,9 @@ document.addEventListener('keydown', e => {
 
 // Close modal on overlay click
 ['log-modal','edit-modal'].forEach(id => {
-  document.getElementById(id).addEventListener('click', function(e) {
+  const el = document.getElementById(id);
+  if(!el) return;
+  el.addEventListener('click', function(e) {
     if (e.target === this) {
       closeLogModal(); closeEditModal();
     }
