@@ -1,21 +1,14 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TradingBrief V5.6 — TradeData Panel + UI Cleanup                ║
+     ║  TradingBrief V5.6.1 — Bug Fixes                                 ║
      ║  Built: 2026-04-12                                               ║
-     ║  Changes from V5.5:                                              ║
-     ║    1. TradeData panel (#panel-data, window.TD, #FF6EFF)          ║
-     ║       - 4th app: Universe Health, Tier Breakdown, Top Performers ║
-     ║       - Rising Stocks, Curation Queue, Weak Performers,          ║
-     ║         Manual Controls                                           ║
-     ║    2. Scan Now unlocked — no market hours/day restrictions       ║
-     ║    3. Scan Now button moved to header (left of gear icon)        ║
-     ║    4. How-To tab removed from tab bar                            ║
-     ║    5. Market status/expiry warning box removed from briefing     ║
-     ║    6. Expiry warnings moved inline to trade cards                ║
-     ║    7. Version stamp corrected (was showing v5.4.2)               ║
-     ║  Carries forward from V5.5:                                      ║
-     ║    - Stock Intelligence Engine, tier system, accuracy badges     ║
-     ║    - Google Auth, signal freeze, Netlify proxy routing           ║
+     ║  Changes from V5.6:                                              ║
+     ║    1. Fixed orphaned comment tag rendering as visible text        ║
+     ║    2. Scan Now fully unlocked — no day/hour restrictions         ║
+     ║    3. Run Curation Now works without visiting TB panel first     ║
+     ║    4. TradeData nav moved before TradeHelp                       ║
+     ║  Carries forward from V5.6:                                      ║
+     ║    - TradeData panel, UI cleanup, expiry warnings on trade cards ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 <html lang="en">
 <head>
@@ -25,7 +18,7 @@
 <meta name="theme-color" content="#111827">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>TradingBrief V5.6</title>
+<title>TradingBrief V5.6.1</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -1349,6 +1342,9 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
 
 </div>
 </div><!-- /panel-data -->
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     PANEL 6: TRADEHELP
 ══════════════════════════════════════════════════════════════════════════ -->
 <div class="app-panel" id="panel-help">
 <style>
@@ -1505,7 +1501,7 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
 
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v5.6</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v5.6.1</div>
 
 <!-- ══ APP SWITCHER NAV ════════════════════════════════════════════════════ -->
 <div id="app-switcher">
@@ -1518,11 +1514,11 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
   <button class="sw-btn sw-sheet"          onclick="swApp('sheet')"   id="sw-btn-sheet">
     <span class="sw-word-trade">Trade</span><span class="sw-word-sheet">Sheet</span>
   </button>
-  <button class="sw-btn sw-help"           onclick="swApp('help')"    id="sw-btn-help">
-    <span class="sw-word-trade">Trade</span><span class="sw-word-help">Help</span>
-  </button>
   <button class="sw-btn sw-data"           onclick="swApp('data')"    id="sw-btn-data">
     <span class="sw-word-trade">Trade</span><span class="sw-word-data">Data</span>
+  </button>
+  <button class="sw-btn sw-help"           onclick="swApp('help')"    id="sw-btn-help">
+    <span class="sw-word-trade">Trade</span><span class="sw-word-help">Help</span>
   </button>
 </div>
 
@@ -1672,16 +1668,10 @@ let spyRegime=null;// 'BULLISH' | 'BEARISH' | null — current SPY regime
 
 // ── SCAN WINDOW CHECK (9:00 AM - 4:00 PM ET) ───────────────────────────
 function inScanWindow(){
-  const et=new Date(new Date().toLocaleString('en-US',{timeZone:'America/New_York'}));
-  const d=et.getDay();
-  return d>=1&&d<=5;// Allow scanning any time on weekdays; weekends still blocked
+  return true;// Scan always available
 }
 function getCountdown(){
-  const et=new Date(new Date().toLocaleString('en-US',{timeZone:'America/New_York'}));
-  const h=et.getHours(),m=et.getMinutes(),s=et.getSeconds(),d=et.getDay();
-  // If weekend
-  if(d===0||d===6)return{text:'Market closed — scan resumes Monday 9:00 AM',seconds:null};
-  return null;// Allow scanning any time on weekdays
+  return null;// No restrictions
 }
 
 // ── CONFIDENCE SCORE (0-100) ─────────────────────────────────────────────
@@ -5905,14 +5895,35 @@ window.TD = (function(){
 
   // ── Run curation ─────────────────────────────────────────────────────────
   function runCuration(){
+    // Try SI engine first (available if TB panel has been visited)
     if(window.SI&&window.SI.runCurationBatch){
       window.SI.runCurationBatch();
       const queueEl=document.getElementById('td-queue');
-      if(queueEl)queueEl.innerHTML='<div class="td-queue-row"><span class="td-queue-sym" style="color:var(--accent);">Starting curation batch...</span></div>';
-      setTimeout(refreshDisplay,3000);
-    } else {
-      alert('Stock Intelligence engine not available. Ensure TradeBrief has loaded first.');
+      if(queueEl)queueEl.innerHTML='<div class="td-queue-row"><span class="td-queue-sym" style="color:var(--accent);">Curation batch started — check back in a moment...</span></div>';
+      setTimeout(refreshDisplay,4000);
+      return;
     }
+    // SI not ready yet — boot TB silently in background then retry
+    if(window.TB&&!window.TB._booted){
+      const queueEl=document.getElementById('td-queue');
+      if(queueEl)queueEl.innerHTML='<div class="td-queue-row"><span class="td-queue-sym" style="color:var(--warning);">Loading TradeBrief engine...</span></div>';
+      window.TB.boot();
+      window.TB._booted=true;
+      setTimeout(()=>{
+        if(window.SI&&window.SI.runCurationBatch){
+          window.SI.runCurationBatch();
+          const queueEl2=document.getElementById('td-queue');
+          if(queueEl2)queueEl2.innerHTML='<div class="td-queue-row"><span class="td-queue-sym" style="color:var(--accent);">Curation batch started...</span></div>';
+          setTimeout(refreshDisplay,4000);
+        } else {
+          const queueEl2=document.getElementById('td-queue');
+          if(queueEl2)queueEl2.innerHTML='<div class="td-queue-row"><span class="td-queue-sym" style="color:var(--danger);">Could not start curation — visit TradeBrief panel first</span></div>';
+        }
+      },2500);
+      return;
+    }
+    const queueEl=document.getElementById('td-queue');
+    if(queueEl)queueEl.innerHTML='<div class="td-queue-row"><span class="td-queue-sym" style="color:var(--danger);">Could not start curation — visit TradeBrief panel first</span></div>';
   }
 
   // ── Reset individual record ───────────────────────────────────────────────
@@ -5985,7 +5996,7 @@ function swApp(name){
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradingBrief V5.6 — TradeData Panel + UI Cleanup | 2026-04-12  ║
+     ║  END TradingBrief V5.6.1 — Bug Fixes | 2026-04-12  ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 </body>
 </html>
