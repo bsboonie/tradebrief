@@ -1,31 +1,21 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TradingBrief V5.5 — Stock Intelligence Engine                   ║
+     ║  TradingBrief V5.6 — TradeData Panel + UI Cleanup                ║
      ║  Built: 2026-04-12                                               ║
-     ║  Changes from V5.4.2:                                            ║
-     ║    1. Stock Intelligence Engine — background curation engine     ║
-     ║       - Runs ~10 tickers/session; 60-sample baseline on first    ║
-     ║         run, 8-10 incremental samples on subsequent updates      ║
-     ║       - SPY regime check per sample (EMA 8/21 on sample date)    ║
-     ║       - Regime-split accuracy stored (withRegimeCorrect/Total)   ║
-     ║    2. Firestore stockIntelligence/{symbol} collection (global)   ║
-     ║       - symbol, totalSamples, correctSamples, accuracy,          ║
-     ║         lastCandleDate, firstTestedDate, tier, lastUpdated,      ║
-     ║         withRegimeCorrect, withRegimeTotal                       ║
-     ║    3. Tier system — Promoted / Standard / Shadow                 ║
-     ║       - Promoted: 60+ samples AND 65%+ accuracy                 ║
-     ║       - Standard: 40+ samples AND 53-64% accuracy               ║
-     ║       - Shadow: below threshold (keeps accumulating)            ║
-     ║    4. Accuracy badge on briefing cards                           ║
-     ║       - "74% · 47 samples" with color coding                    ║
-     ║       - Hidden below 40 samples; "early data" flag 20-39        ║
-     ║    5. Regime filter at card surfacing                            ║
-     ║       - BULLISH only in bullish SPY regime                       ║
-     ║       - BEARISH only in bearish SPY regime                       ║
-     ║    6. Bootstrap mode — 30-40 tickers on first launch to seed    ║
-     ║  Carries forward from V5.4.2:                                    ║
+     ║  Changes from V5.5:                                              ║
+     ║    1. TradeData panel (#panel-data, window.TD, #FF6EFF)          ║
+     ║       - 4th app: Universe Health, Tier Breakdown, Top Performers ║
+     ║       - Rising Stocks, Curation Queue, Weak Performers,          ║
+     ║         Manual Controls                                           ║
+     ║    2. Scan Now unlocked — no market hours/day restrictions       ║
+     ║    3. Scan Now button moved to header (left of gear icon)        ║
+     ║    4. How-To tab removed from tab bar                            ║
+     ║    5. Market status/expiry warning box removed from briefing     ║
+     ║    6. Expiry warnings moved inline to trade cards                ║
+     ║    7. Version stamp corrected (was showing v5.4.2)               ║
+     ║  Carries forward from V5.5:                                      ║
+     ║    - Stock Intelligence Engine, tier system, accuracy badges     ║
      ║    - Google Auth, signal freeze, Netlify proxy routing           ║
-     ║    - 127-ticker universe, all three panels                       ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 <html lang="en">
 <head>
@@ -35,7 +25,7 @@
 <meta name="theme-color" content="#111827">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>TradingBrief V5.5</title>
+<title>TradingBrief V5.6</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -88,6 +78,8 @@
 .sw-btn.active.sw-sheet  {border-top-color:#ffa502;}
 .sw-word-help   {color:#ff4d4d;}
 .sw-btn.active.sw-help   {border-top-color:#ff4d4d;}
+.sw-word-data   {color:#FF6EFF;}
+.sw-btn.active.sw-data   {border-top-color:#FF6EFF;}
 
 /* Push content above switcher bar */
 body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
@@ -109,6 +101,7 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
       <div class="mkt"><div class="dot" id="mdot"></div><span id="mlbl">...</span></div>
     </div>
     <div class="hright">
+      <button class="scan-btn" id="header-scan-btn-top" onclick="go('briefing');runScanner(true);" style="padding:5px 14px;font-size:11px;border-radius:7px;white-space:nowrap;">🔍 Scan Now</button>
       <button onclick="go('settings')" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 9px;cursor:pointer;color:var(--muted);font-size:14px;line-height:1;transition:all 0.2s;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">⚙️</button>
     </div>
   </div>
@@ -137,9 +130,7 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
   </div>
   <!-- Tab bar — sticky inside top-bar -->
   <div class="tabs" style="padding:4px 16px;align-items:center;">
-    <div class="tab active" data-tab="howto" onclick="go('howto')">📖 How-To</div>
     <div class="tab" data-tab="settings" id="tab-settings-btn" style="display:none;">⚙️ Settings</div>
-    <button class="scan-btn" id="header-scan-btn" onclick="go('briefing');runScanner(true);" style="margin-left:auto;padding:5px 14px;font-size:11px;border-radius:7px;white-space:nowrap;">🔍 Scan Now</button>
   </div>
 </div>
 
@@ -1227,7 +1218,137 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
 </div><!-- /panel-sheet -->
 
 <!-- ══════════════════════════════════════════════════════════════════════
-     PANEL 4: TRADEHELP
+     PANEL 5: TRADEDATA
+══════════════════════════════════════════════════════════════════════════ -->
+<div class="app-panel" id="panel-data">
+<style>
+#panel-data *{box-sizing:border-box;}
+#panel-data{background:var(--bg);min-height:100vh;font-family:'DM Sans',sans-serif;}
+#panel-data .td-header{position:sticky;top:0;z-index:200;background:var(--surface);border-bottom:1px solid var(--border);padding:10px 16px;display:flex;align-items:center;justify-content:space-between;}
+#panel-data .td-logo{font-family:'Space Mono',monospace;font-size:22px;font-weight:700;color:#22d3ee;}
+#panel-data .td-logo span{color:#FF6EFF;}
+#panel-data .td-main{padding:16px;max-width:860px;margin:0 auto;}
+#panel-data .td-sec{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin:20px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--border);}
+#panel-data .td-sec:first-child{margin-top:0;}
+#panel-data .td-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px;}
+#panel-data .td-stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:0;}
+#panel-data .td-stat{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;}
+#panel-data .td-stat-label{font-family:'Space Mono',monospace;font-size:8px;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;margin-bottom:4px;}
+#panel-data .td-stat-val{font-family:'Space Mono',monospace;font-size:20px;font-weight:700;color:#FF6EFF;}
+#panel-data .td-stat-sub{font-size:10px;color:var(--muted);margin-top:2px;}
+#panel-data .td-tier-bar{display:flex;height:8px;border-radius:4px;overflow:hidden;gap:2px;margin-top:10px;}
+#panel-data .td-tier-seg{border-radius:4px;transition:width 0.5s;}
+#panel-data .td-tier-legend{display:flex;gap:14px;margin-top:7px;flex-wrap:wrap;}
+#panel-data .td-tier-dot{display:flex;align-items:center;gap:5px;font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);}
+#panel-data .td-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+#panel-data .td-ticker-row{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-bottom:1px solid var(--border);font-family:'Space Mono',monospace;font-size:11px;}
+#panel-data .td-ticker-row:last-child{border-bottom:none;}
+#panel-data .td-ticker-row:hover{background:var(--surface2);}
+#panel-data .td-ticker-sym{font-weight:700;font-size:13px;min-width:60px;}
+#panel-data .td-acc-badge{padding:2px 9px;border-radius:12px;font-size:10px;font-weight:700;}
+#panel-data .td-acc-badge.promoted{background:rgba(0,255,157,0.15);color:var(--good);border:1px solid rgba(0,255,157,0.3);}
+#panel-data .td-acc-badge.standard{background:rgba(0,212,255,0.1);color:var(--accent);border:1px solid rgba(0,212,255,0.2);}
+#panel-data .td-acc-badge.shadow{background:rgba(107,122,153,0.1);color:var(--muted);border:1px solid rgba(107,122,153,0.2);}
+#panel-data .td-samples{color:var(--muted);font-size:10px;}
+#panel-data .td-updated{color:var(--muted);font-size:9px;}
+#panel-data .td-empty{text-align:center;padding:24px;color:var(--muted);font-size:12px;font-family:'Space Mono',monospace;}
+#panel-data .td-queue-row{display:flex;align-items:center;justify-content:space-between;padding:7px 10px;border-bottom:1px solid var(--border);font-size:11px;}
+#panel-data .td-queue-row:last-child{border-bottom:none;}
+#panel-data .td-queue-sym{font-family:'Space Mono',monospace;font-weight:700;}
+#panel-data .td-queue-status{font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);}
+#panel-data .td-queue-status.running{color:var(--accent);}
+#panel-data .td-queue-status.done{color:var(--good);}
+#panel-data .td-ctrl-btn{background:none;border:1px solid #FF6EFF;border-radius:7px;padding:6px 14px;font-size:11px;font-family:'Space Mono',monospace;color:#FF6EFF;cursor:pointer;transition:all 0.2s;margin-right:8px;}
+#panel-data .td-ctrl-btn:hover{background:#FF6EFF;color:#000;}
+#panel-data .td-ctrl-btn.danger{border-color:var(--danger);color:var(--danger);}
+#panel-data .td-ctrl-btn.danger:hover{background:var(--danger);color:#fff;}
+#panel-data .td-reset-row{display:flex;align-items:center;gap:8px;margin-top:10px;}
+#panel-data .td-reset-input{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-family:'Space Mono',monospace;font-size:11px;outline:none;width:100px;text-transform:uppercase;}
+#panel-data .td-reset-input:focus{border-color:#FF6EFF;}
+@media(max-width:580px){#panel-data .td-stat-grid{grid-template-columns:repeat(2,1fr);}}
+</style>
+
+<div class="td-header">
+  <div class="td-logo">Trade<span>Data</span></div>
+  <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);" id="td-last-run">Last curation: —</div>
+</div>
+
+<div class="td-main">
+
+  <!-- 1. Universe Health -->
+  <div class="td-sec">Universe Health</div>
+  <div class="td-card">
+    <div class="td-stat-grid" id="td-health-grid">
+      <div class="td-stat"><div class="td-stat-label">Total Tickers</div><div class="td-stat-val" id="td-total">—</div><div class="td-stat-sub">in candidate pool</div></div>
+      <div class="td-stat"><div class="td-stat-label">With Records</div><div class="td-stat-val" id="td-with-records">—</div><div class="td-stat-sub">tested at least once</div></div>
+      <div class="td-stat"><div class="td-stat-label">Total Samples</div><div class="td-stat-val" id="td-samples">—</div><div class="td-stat-sub">accumulated</div></div>
+      <div class="td-stat"><div class="td-stat-label">Avg Accuracy</div><div class="td-stat-val" id="td-avg-acc">—</div><div class="td-stat-sub">across all records</div></div>
+    </div>
+  </div>
+
+  <!-- 2. Tier Breakdown -->
+  <div class="td-sec">Tier Breakdown</div>
+  <div class="td-card">
+    <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+      <span style="font-family:'Space Mono',monospace;font-size:11px;color:var(--good);">Promoted <span id="td-promoted-ct" style="font-weight:700;">0</span></span>
+      <span style="font-family:'Space Mono',monospace;font-size:11px;color:var(--accent);">Standard <span id="td-standard-ct" style="font-weight:700;">0</span></span>
+      <span style="font-family:'Space Mono',monospace;font-size:11px;color:var(--muted);">Shadow <span id="td-shadow-ct" style="font-weight:700;">0</span></span>
+      <span style="font-family:'Space Mono',monospace;font-size:11px;color:var(--muted);">Untested <span id="td-untested-ct" style="font-weight:700;">0</span></span>
+    </div>
+    <div class="td-tier-bar" id="td-tier-bar">
+      <div class="td-tier-seg" id="td-bar-promoted" style="background:var(--good);width:0%"></div>
+      <div class="td-tier-seg" id="td-bar-standard" style="background:var(--accent);width:0%"></div>
+      <div class="td-tier-seg" id="td-bar-shadow"   style="background:var(--muted);width:0%"></div>
+      <div class="td-tier-seg" id="td-bar-untested" style="background:var(--border);width:0%"></div>
+    </div>
+    <div class="td-tier-legend">
+      <div class="td-tier-dot"><div class="td-dot" style="background:var(--good)"></div>Promoted: 60+ samples, ≥65% accuracy</div>
+      <div class="td-tier-dot"><div class="td-dot" style="background:var(--accent)"></div>Standard: 40+ samples, 53–64%</div>
+      <div class="td-tier-dot"><div class="td-dot" style="background:var(--muted)"></div>Shadow: below threshold</div>
+    </div>
+  </div>
+
+  <!-- 3. Top Performers -->
+  <div class="td-sec">Top Performers</div>
+  <div class="td-card" style="padding:0;overflow:hidden;">
+    <div id="td-top-performers"><div class="td-empty">No promoted stocks yet — curation in progress</div></div>
+  </div>
+
+  <!-- 4. Rising Stocks -->
+  <div class="td-sec">Rising Stocks</div>
+  <div class="td-card" style="padding:0;overflow:hidden;">
+    <div id="td-rising"><div class="td-empty">No recent tier promotions yet</div></div>
+  </div>
+
+  <!-- 5. Curation Queue -->
+  <div class="td-sec">Curation Queue</div>
+  <div class="td-card" style="padding:0;overflow:hidden;">
+    <div id="td-queue"><div class="td-empty">No curation running</div></div>
+  </div>
+
+  <!-- 6. Weak Performers -->
+  <div class="td-sec">Weak Performers</div>
+  <div class="td-card" style="padding:0;overflow:hidden;">
+    <div id="td-weak"><div class="td-empty">No shadow-tier records yet</div></div>
+  </div>
+
+  <!-- 7. Manual Controls -->
+  <div class="td-sec">Manual Controls</div>
+  <div class="td-card">
+    <div style="margin-bottom:14px;">
+      <button class="td-ctrl-btn" onclick="window.TD&&window.TD.runCuration()">▶ Run Curation Now</button>
+      <button class="td-ctrl-btn" onclick="window.TD&&window.TD.refreshDisplay()">↺ Refresh Display</button>
+    </div>
+    <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);margin-bottom:8px;letter-spacing:1px;text-transform:uppercase;">Reset Individual Record</div>
+    <div class="td-reset-row">
+      <input class="td-reset-input" id="td-reset-ticker" type="text" placeholder="TICKER" maxlength="6">
+      <button class="td-ctrl-btn danger" onclick="window.TD&&window.TD.resetRecord()">Reset Record</button>
+    </div>
+    <div style="font-size:11px;color:var(--muted);margin-top:8px;">Clears all accumulated samples for that ticker. Cannot be undone.</div>
+  </div>
+
+</div>
+</div><!-- /panel-data -->
 ══════════════════════════════════════════════════════════════════════════ -->
 <div class="app-panel" id="panel-help">
 <style>
@@ -1384,7 +1505,7 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
 
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v5.4.2</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v5.6</div>
 
 <!-- ══ APP SWITCHER NAV ════════════════════════════════════════════════════ -->
 <div id="app-switcher">
@@ -1399,6 +1520,9 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
   </button>
   <button class="sw-btn sw-help"           onclick="swApp('help')"    id="sw-btn-help">
     <span class="sw-word-trade">Trade</span><span class="sw-word-help">Help</span>
+  </button>
+  <button class="sw-btn sw-data"           onclick="swApp('data')"    id="sw-btn-data">
+    <span class="sw-word-trade">Trade</span><span class="sw-word-data">Data</span>
   </button>
 </div>
 
@@ -1900,7 +2024,6 @@ function updateScanBar(){
 
   el.innerHTML=`<div class="scan-bar">
     <div class="scan-status">${statusText}</div>
-    <button class="scan-btn" onclick="runScanner(true)" ${scannerRunning?'disabled':''}>${scannerRunning?'Scanning...':'🔍 Scan Now'}</button>
   </div>
   ${scannerRunning?`<div class="scan-progress"><div class="scan-progress-bar" style="width:${progressPct}%"></div></div>`:''}`;
 }
@@ -2376,19 +2499,8 @@ function rB(){
 
   if(!wl.length&&!Object.keys(sd).length){el.innerHTML='<div class="empty">Add tickers or run the scanner to get started</div>';return;}
 
-  // DTE + profit alerts
-  trades.forEach(tr=>{
-    const dte=Math.ceil((new Date(tr.exp)-new Date())/86400000);
-    if(dte<=S('dte')&&dte>0)al.innerHTML+=`<div class="alert">⚠️&nbsp;<b>${tr.ticker}</b> expires in <b>${dte}d</b> — review position!</div>`;
-    const d=sd[tr.ticker];
-    if(d&&!d.loading&&!d.error){
-      const val=estOptionVal(tr,d.price);
-      const plPct=((val-tr.cost)/tr.cost)*100;
-      const status=positionStatus(tr,d.price,plPct);
-      if(status.key==='takeprofit')al.innerHTML+=`<div class="alert tgt">🎯&nbsp;<b>${tr.ticker}</b> ${status.note} — consider closing!</div>`;
-      if(status.key==='closenow')al.innerHTML+=`<div class="alert" style="border-color:rgba(255,71,87,0.5);">🔥&nbsp;<b>${tr.ticker}</b> ${status.note}</div>`;
-    }
-  });
+  // Clear alerts area (expiry warnings now shown on trade cards)
+  al.innerHTML='';
 
   // Update header
   const headerEl=document.getElementById('brief-header');
@@ -2710,6 +2822,23 @@ function rT(){
         <div><div style="color:var(--muted);font-size:9px;">TARGET</div><div>${t.target}%</div></div>
       </div>
       <div style="font-size:9px;color:var(--muted);margin-top:6px;font-family:'Space Mono',monospace;">Entry: ${t.entryDate} · Exp: ${t.exp}</div>
+      ${(()=>{
+        const liveD2=sd[t.ticker];
+        let warn='';
+        if(dte<=S('dte')&&dte>0){
+          if(liveD2&&!liveD2.loading&&!liveD2.error){
+            const val2=estOptionVal(t,liveD2.price);
+            const plPct2=((val2-t.cost)/t.cost)*100;
+            const st=positionStatus(t,liveD2.price,plPct2);
+            if(st.key==='closenow')warn=`<div style="margin-top:8px;padding:7px 10px;border-radius:7px;background:rgba(255,71,87,0.12);border:1px solid rgba(255,71,87,0.4);font-family:'Space Mono',monospace;font-size:11px;color:var(--danger);">🔥 ${st.note}</div>`;
+            else if(st.key==='takeprofit')warn=`<div style="margin-top:8px;padding:7px 10px;border-radius:7px;background:rgba(0,255,157,0.1);border:1px solid rgba(0,255,157,0.4);font-family:'Space Mono',monospace;font-size:11px;color:var(--good);">🎯 ${st.note}</div>`;
+            else warn=`<div style="margin-top:8px;padding:7px 10px;border-radius:7px;background:rgba(255,165,2,0.1);border:1px solid rgba(255,165,2,0.4);font-family:'Space Mono',monospace;font-size:11px;color:var(--warning);">⚠️ Expires in ${dte}d — review position</div>`;
+          } else {
+            warn=`<div style="margin-top:8px;padding:7px 10px;border-radius:7px;background:rgba(255,165,2,0.1);border:1px solid rgba(255,165,2,0.4);font-family:'Space Mono',monospace;font-size:11px;color:var(--warning);">⚠️ Expires in ${dte}d — review position</div>`;
+          }
+        }
+        return warn;
+      })()}
     </div>`;
   }).join('');
 }
@@ -5634,7 +5763,184 @@ function thTab(name){
   event.target.classList.add('active');
 }
 
-// ══ APP SWITCHER ════════════════════════════════════════════════════════════
+// ══ TRADEDATA (window.TD) ════════════════════════════════════════════════════
+window.TD = (function(){
+  const ACCENT = '#FF6EFF';
+  let _booted = false;
+
+  // ── Helpers ──────────────────────────────────────────────────────────────
+  function fmtDate(ts){
+    if(!ts)return'—';
+    try{
+      const d=ts.toDate?ts.toDate():new Date(ts);
+      return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'2-digit'});
+    }catch(e){return'—';}
+  }
+
+  function tierOf(r){
+    if(!r||r.totalSamples===undefined)return'untested';
+    if(r.totalSamples>=60&&r.accuracy>=65)return'promoted';
+    if(r.totalSamples>=40&&r.accuracy>=53)return'standard';
+    return'shadow';
+  }
+
+  // ── Load all SI records from Firestore ───────────────────────────────────
+  async function loadRecords(){
+    if(!window._fbSI)return[];
+    try{
+      const snap=await window._fbSI.getDocs();
+      const recs=[];
+      snap.forEach(d=>recs.push({symbol:d.id,...d.data()}));
+      return recs;
+    }catch(e){console.warn('TD: loadRecords error',e);return[];}
+  }
+
+  // ── Render display ───────────────────────────────────────────────────────
+  async function refreshDisplay(){
+    const records=await loadRecords();
+    const universe=window.SI?window.SI.UNIVERSE||[]:[];
+    const total=universe.length||records.length;
+    const withRec=records.length;
+    const totalSamples=records.reduce((s,r)=>s+(r.totalSamples||0),0);
+    const avgAcc=withRec>0?(records.reduce((s,r)=>s+(r.accuracy||0),0)/withRec).toFixed(1)+'%':'—';
+
+    // Universe health
+    document.getElementById('td-total').textContent=total||'—';
+    document.getElementById('td-with-records').textContent=withRec;
+    document.getElementById('td-samples').textContent=totalSamples.toLocaleString();
+    document.getElementById('td-avg-acc').textContent=avgAcc;
+
+    // Tiers
+    const promoted=records.filter(r=>tierOf(r)==='promoted');
+    const standard=records.filter(r=>tierOf(r)==='standard');
+    const shadow=records.filter(r=>tierOf(r)==='shadow');
+    const untested=Math.max(0,total-withRec);
+    const tot=total||1;
+
+    document.getElementById('td-promoted-ct').textContent=promoted.length;
+    document.getElementById('td-standard-ct').textContent=standard.length;
+    document.getElementById('td-shadow-ct').textContent=shadow.length;
+    document.getElementById('td-untested-ct').textContent=untested;
+
+    document.getElementById('td-bar-promoted').style.width=((promoted.length/tot)*100)+'%';
+    document.getElementById('td-bar-standard').style.width=((standard.length/tot)*100)+'%';
+    document.getElementById('td-bar-shadow').style.width=((shadow.length/tot)*100)+'%';
+    document.getElementById('td-bar-untested').style.width=((untested/tot)*100)+'%';
+
+    // Top performers — sorted by accuracy desc
+    const topEl=document.getElementById('td-top-performers');
+    if(promoted.length===0){
+      topEl.innerHTML='<div class="td-empty">No promoted stocks yet — curation in progress</div>';
+    } else {
+      const sorted=[...promoted].sort((a,b)=>(b.accuracy||0)-(a.accuracy||0));
+      topEl.innerHTML=sorted.map(r=>`
+        <div class="td-ticker-row">
+          <span class="td-ticker-sym">${r.symbol}</span>
+          <span class="td-acc-badge promoted">${(r.accuracy||0).toFixed(1)}%</span>
+          <span class="td-samples">${r.totalSamples||0} samples</span>
+          <span class="td-updated">${fmtDate(r.lastUpdated)}</span>
+        </div>`).join('');
+    }
+
+    // Rising — recently promoted/moved up (lastUpdated within 30 days)
+    const risingEl=document.getElementById('td-rising');
+    const cutoff=Date.now()-30*86400000;
+    const rising=records.filter(r=>{
+      try{
+        const t=r.lastUpdated?.toDate?r.lastUpdated.toDate():new Date(r.lastUpdated);
+        return t.getTime()>cutoff&&tierOf(r)!=='untested'&&tierOf(r)!=='shadow';
+      }catch(e){return false;}
+    }).sort((a,b)=>(b.accuracy||0)-(a.accuracy||0));
+
+    if(rising.length===0){
+      risingEl.innerHTML='<div class="td-empty">No recent tier promotions in the last 30 days</div>';
+    } else {
+      risingEl.innerHTML=rising.map(r=>`
+        <div class="td-ticker-row">
+          <span class="td-ticker-sym">${r.symbol}</span>
+          <span class="td-acc-badge ${tierOf(r)}">${tierOf(r).charAt(0).toUpperCase()+tierOf(r).slice(1)}</span>
+          <span class="td-samples">${(r.accuracy||0).toFixed(1)}% · ${r.totalSamples||0} samples</span>
+          <span class="td-updated">${fmtDate(r.lastUpdated)}</span>
+        </div>`).join('');
+    }
+
+    // Curation queue — from SI engine if available
+    const queueEl=document.getElementById('td-queue');
+    const queue=window.SI?window.SI.getQueue?window.SI.getQueue():[]:[]; 
+    if(!queue.length){
+      queueEl.innerHTML='<div class="td-empty">No curation running — use "Run Curation Now" to start</div>';
+    } else {
+      queueEl.innerHTML=queue.map(item=>`
+        <div class="td-queue-row">
+          <span class="td-queue-sym">${item.symbol||item}</span>
+          <span class="td-queue-status ${item.status||''}">${item.label||'Pending'}</span>
+        </div>`).join('');
+    }
+
+    // Weak performers — shadow tier, sorted by accuracy
+    const weakEl=document.getElementById('td-weak');
+    if(shadow.length===0){
+      weakEl.innerHTML='<div class="td-empty">No shadow-tier records yet</div>';
+    } else {
+      const sorted=[...shadow].sort((a,b)=>(b.totalSamples||0)-(a.totalSamples||0)).slice(0,20);
+      weakEl.innerHTML=sorted.map(r=>`
+        <div class="td-ticker-row">
+          <span class="td-ticker-sym">${r.symbol}</span>
+          <span class="td-acc-badge shadow">Shadow</span>
+          <span class="td-samples">${(r.accuracy||0).toFixed(1)}% · ${r.totalSamples||0} samples</span>
+          <span class="td-updated">${fmtDate(r.lastUpdated)}</span>
+        </div>`).join('');
+    }
+
+    // Last run timestamp
+    const allDates=records.map(r=>{
+      try{return r.lastUpdated?.toDate?r.lastUpdated.toDate().getTime():new Date(r.lastUpdated).getTime();}
+      catch(e){return 0;}
+    }).filter(t=>t>0);
+    if(allDates.length){
+      const latest=new Date(Math.max(...allDates));
+      document.getElementById('td-last-run').textContent='Last curation: '+latest.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+    }
+  }
+
+  // ── Run curation ─────────────────────────────────────────────────────────
+  function runCuration(){
+    if(window.SI&&window.SI.runCurationBatch){
+      window.SI.runCurationBatch();
+      const queueEl=document.getElementById('td-queue');
+      if(queueEl)queueEl.innerHTML='<div class="td-queue-row"><span class="td-queue-sym" style="color:var(--accent);">Starting curation batch...</span></div>';
+      setTimeout(refreshDisplay,3000);
+    } else {
+      alert('Stock Intelligence engine not available. Ensure TradeBrief has loaded first.');
+    }
+  }
+
+  // ── Reset individual record ───────────────────────────────────────────────
+  async function resetRecord(){
+    const input=document.getElementById('td-reset-ticker');
+    const sym=input?input.value.trim().toUpperCase():'';
+    if(!sym){alert('Enter a ticker symbol to reset.');return;}
+    if(!confirm(`Reset all SI data for ${sym}? This cannot be undone.`))return;
+    try{
+      if(window._fbSI)await window._fbSI.setDoc(sym,{symbol:sym,totalSamples:0,correctSamples:0,accuracy:0,tier:'shadow',lastUpdated:new Date()});
+      if(window.SI&&window.SI.clearRecord)window.SI.clearRecord(sym);
+      if(input)input.value='';
+      alert(`${sym} record reset.`);
+      await refreshDisplay();
+    }catch(e){alert('Reset failed: '+e.message);}
+  }
+
+  // ── Boot ─────────────────────────────────────────────────────────────────
+  function boot(){
+    if(_booted)return;
+    _booted=true;
+    refreshDisplay();
+  }
+
+  return{boot, refreshDisplay, runCuration, resetRecord, _booted:false};
+})();
+
+
 function swApp(name){
   // Hide all panels, deactivate all buttons
   document.querySelectorAll('.app-panel').forEach(p=>p.classList.remove('active'));
@@ -5648,6 +5954,7 @@ function swApp(name){
   if(name==='brief'   && window.TB && !window.TB._booted){window.TB.boot(); window.TB._booted=true;}
   if(name==='journal' && window.TJ && !window.TJ._booted){window.TJ.init();  window.TJ._booted=true;}
   if(name==='sheet'   && window.TS && !window.TS._booted){window.TS.boot();  window.TS._booted=true;}
+  if(name==='data'    && window.TD && !window.TD._booted){window.TD.boot();  window.TD._booted=true;}
   // Pre-load ticker into TS from workflow state
   if(name==='sheet' && window.TS){
     const t=sessionStorage.getItem('tbSelectedTicker');
@@ -5678,7 +5985,7 @@ function swApp(name){
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradingBrief V5.5 — Stock Intelligence Engine | 2026-04-12  ║
+     ║  END TradingBrief V5.6 — TradeData Panel + UI Cleanup | 2026-04-12  ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 </body>
 </html>
