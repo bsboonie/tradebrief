@@ -87,9 +87,9 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
   /* Hide Scan Now from header on mobile */
   #header-scan-btn-top { display:none !important; }
 
-  /* Mobile Scan Now button — sits just above the nav bar */
+  /* Show mobile scan btn wrap */
   #mobile-scan-btn-wrap {
-    display:flex;
+    display:flex !important;
     position:fixed;
     bottom:calc(40px + env(safe-area-inset-bottom,0px));
     left:0;right:0;
@@ -121,23 +121,18 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
   }
 
   /* Push content up to clear mobile scan btn + nav */
-  body { padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px)) !important; }
+  body { padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px)) !important; }
 
   /* Hide desktop version stamp on mobile */
-  #app-version-stamp { display:none; }
+  #app-version-stamp { display:none !important; }
 
-  /* Shortened nav labels on mobile */
-  .sw-word-trade { display:none; }
-  #sw-btn-brief   .sw-word-brief::before   { content:'Brief'; }
-  #sw-btn-journal .sw-word-journal::before { content:'Journal'; }
-  #sw-btn-sheet   .sw-word-sheet::before   { content:'Sheet'; }
-  #sw-btn-data    .sw-word-data::before    { content:'Data'; }
-  #sw-btn-help    .sw-word-help::before    { content:'Help'; }
-  #sw-btn-brief   .sw-word-brief,
-  #sw-btn-journal .sw-word-journal,
-  #sw-btn-sheet   .sw-word-sheet,
-  #sw-btn-data    .sw-word-data,
-  #sw-btn-help    .sw-word-help    { font-size:0; }
+  /* Shortened nav labels — hide Trade prefix, replace label text */
+  .sw-word-trade { display:none !important; }
+  #sw-btn-brief   .sw-word-brief   { font-size:11px !important; }
+  #sw-btn-journal .sw-word-journal { font-size:11px !important; }
+  #sw-btn-sheet   .sw-word-sheet   { font-size:11px !important; }
+  #sw-btn-data    .sw-word-data    { font-size:11px !important; }
+  #sw-btn-help    .sw-word-help    { font-size:11px !important; }
   .sw-btn { font-size:11px; padding:0 2px; }
 }
 </style>
