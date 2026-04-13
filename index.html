@@ -1,10 +1,12 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TradingBrief V5.6.2 — Scan Now Fix                              ║
+     ║  TradingBrief V5.6.3 — Mobile UI Polish                          ║
      ║  Built: 2026-04-12                                               ║
-     ║  Changes from V5.6.1:                                            ║
-     ║    1. Scan Now button now calls TB scanner correctly             ║
-     ║       (TS panel was overwriting window.runScanner)               ║
+     ║  Changes from V5.6.2:                                            ║
+     ║    1. Mobile: Scan Now moved above bottom nav                    ║
+     ║    2. Mobile: Version stamp moved next to Scan Now button        ║
+     ║    3. Mobile: Nav labels shortened to Brief/Journal/Sheet etc    ║
+     ║    4. Desktop: completely unchanged                              ║
      ║    2. Scan Now fully unlocked — no day/hour restrictions         ║
      ║    3. Run Curation Now works without visiting TB panel first     ║
      ║    4. TradeData nav moved before TradeHelp                       ║
@@ -19,7 +21,7 @@
 <meta name="theme-color" content="#111827">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>TradingBrief V5.6.2</title>
+<title>TradingBrief V5.6.3</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -79,6 +81,65 @@
 body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
 /* Global: push content above switcher bar */
 body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
+
+/* ── MOBILE OVERRIDES (≤580px) ─────────────────────────────────────── */
+@media(max-width:580px){
+  /* Hide Scan Now from header on mobile */
+  #header-scan-btn-top { display:none !important; }
+
+  /* Mobile Scan Now button — sits just above the nav bar */
+  #mobile-scan-btn-wrap {
+    display:flex;
+    position:fixed;
+    bottom:calc(40px + env(safe-area-inset-bottom,0px));
+    left:0;right:0;
+    padding:6px 16px 4px;
+    background:linear-gradient(to top, #0d1117 60%, transparent);
+    z-index:9999;
+    align-items:center;
+    justify-content:space-between;
+  }
+  #mobile-scan-btn-wrap .mscan-btn {
+    flex:1;
+    background:var(--accent);
+    border:none;
+    border-radius:8px;
+    padding:8px 0;
+    font-family:'Space Mono',monospace;
+    font-size:12px;
+    font-weight:700;
+    color:#000;
+    cursor:pointer;
+  }
+  #mobile-scan-btn-wrap .mversion {
+    font-family:'Space Mono',monospace;
+    font-size:9px;
+    color:var(--muted);
+    opacity:0.5;
+    margin-left:12px;
+    white-space:nowrap;
+  }
+
+  /* Push content up to clear mobile scan btn + nav */
+  body { padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px)) !important; }
+
+  /* Hide desktop version stamp on mobile */
+  #app-version-stamp { display:none; }
+
+  /* Shortened nav labels on mobile */
+  .sw-word-trade { display:none; }
+  #sw-btn-brief   .sw-word-brief::before   { content:'Brief'; }
+  #sw-btn-journal .sw-word-journal::before { content:'Journal'; }
+  #sw-btn-sheet   .sw-word-sheet::before   { content:'Sheet'; }
+  #sw-btn-data    .sw-word-data::before    { content:'Data'; }
+  #sw-btn-help    .sw-word-help::before    { content:'Help'; }
+  #sw-btn-brief   .sw-word-brief,
+  #sw-btn-journal .sw-word-journal,
+  #sw-btn-sheet   .sw-word-sheet,
+  #sw-btn-data    .sw-word-data,
+  #sw-btn-help    .sw-word-help    { font-size:0; }
+  .sw-btn { font-size:11px; padding:0 2px; }
+}
 </style>
 </head>
 <body>
@@ -1502,7 +1563,13 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
 
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v5.6.2</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v5.6.3</div>
+
+<!-- ══ MOBILE SCAN BTN (mobile only, shown via CSS) ══════════════════════ -->
+<div id="mobile-scan-btn-wrap" style="display:none;">
+  <button class="mscan-btn" onclick="go('briefing');window.TB.runScanner(true);">🔍 Scan Now</button>
+  <span class="mversion">v5.6.3</span>
+</div>
 
 <!-- ══ APP SWITCHER NAV ════════════════════════════════════════════════════ -->
 <div id="app-switcher">
@@ -5998,7 +6065,7 @@ function swApp(name){
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradingBrief V5.6.2 — Scan Now Fix | 2026-04-12  ║
+     ║  END TradingBrief V5.6.3 — Mobile UI Polish | 2026-04-12  ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 </body>
 </html>
