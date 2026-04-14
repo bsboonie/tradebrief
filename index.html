@@ -1,18 +1,11 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v6.0 — Card Cleanup + Autonomous Thesis Agent       ║
+     ║  TRADEBRIEF v6.1 — Card Layout Fix + Thesis Polish              ║
      ║  Date: 2026-04-13                                                ║
-     ║  Changes from v5.9:                                              ║
-     ║    1. Removed orphaned empty tab bar below P&L strip             ║
-     ║    2. Detail pills: 4-across single row (RSI|TREND|DAY|EARN)    ║
-     ║    3. Select + TV buttons moved to card header                   ║
-     ║    4. Refresh button removed                                     ║
-     ║    5. Earnings Date Override moved to bottom-right of detail     ║
-     ║    6. Old card-bot row removed                                   ║
-     ║    7. Thesis: auto-generates on card open, no textarea           ║
-     ║    8. Thesis agent: independent skeptic with 4-section output    ║
-     ║    9. Thesis: STRONG/MARGINAL/SKIP verdict + score → conviction  ║
-     ║   10. Thesis: Get News button fetches Finnhub headlines          ║
+     ║  Changes from v6.0:                                              ║
+     ║    1. Select + TV moved to bottom-left of card detail section    ║
+     ║    2. "Ask AI to elaborate" button removed                       ║
+     ║    3. elaborateStock() function removed                          ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 <html lang="en">
 <head>
@@ -22,7 +15,7 @@
 <meta name="theme-color" content="#111827">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>TradingBrief V6.0</title>
+<title>TradingBrief V6.1</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -1336,12 +1329,12 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
 
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v6.0</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v6.1</div>
 
 <!-- ══ MOBILE SCAN BTN (mobile only, shown via CSS) ══════════════════════ -->
 <div id="mobile-scan-btn-wrap" style="display:none;">
   <button class="mscan-btn" onclick="go('briefing');window.TB.runScanner(true);">🔍 Scan Now</button>
-  <span class="mversion">v6.0</span>
+  <span class="mversion">v6.1</span>
 </div>
 
 <!-- ══ APP SWITCHER NAV ════════════════════════════════════════════════════ -->
@@ -2466,8 +2459,6 @@ function renderDataCard(ticker){
       </div>
       <div style="margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
         <div style="display:flex;align-items:center;gap:6px;">
-          <button class="sel-btn" onclick="select('${ticker}')"${isLimited?' disabled title="Need full data to select"':''}>${isLimited?'⏳':'⬇ Select'}</button>
-          <a class="ref-sm" href="https://www.tradingview.com/chart/?symbol=${ticker}" target="_blank" rel="noopener noreferrer" style="text-decoration:none;">📈 TV</a>
           <div style="font-family:'Space Mono',monospace;font-size:18px;font-weight:700;color:${scoreColor};cursor:help;" ${scoreTooltip}>${displayScore}</div>
           <div class="sbadge ${sig}">${sig}</div>
         </div>
@@ -2484,7 +2475,11 @@ function renderDataCard(ticker){
           <div class="tnote">${earnDTE!==null?(earnDTE<=0?'Today / Past':earnDTE+'d away — '+(earnRisky?'⚠️ RISKY':'✅ Safe')):'No data'}</div>
         </div>
       </div>
-      <div style="display:flex;justify-content:flex-end;margin-top:8px;">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-top:10px;gap:8px;">
+        <div style="display:flex;align-items:center;gap:6px;">
+          <button class="sel-btn" onclick="select('${ticker}')"${isLimited?' disabled title="Need full data to select"':''}>${isLimited?'⏳':'⬇ Select'}</button>
+          <a class="ref-sm" href="https://www.tradingview.com/chart/?symbol=${ticker}" target="_blank" rel="noopener noreferrer" style="text-decoration:none;">📈 TV</a>
+        </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
           <div style="font-family:'Space Mono',monospace;font-size:9px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;">Earnings Date Override</div>
           <div style="display:flex;align-items:center;gap:6px;">
@@ -2498,7 +2493,6 @@ function renderDataCard(ticker){
         <div class="inv-badge ${d.investorSignal.bclass}">${d.investorSignal.badge}</div>
         <div class="inv-thesis">${d.investorSignal.thesis}</div>
         <div style="font-size:9px;color:var(--muted);font-style:italic;margin-top:2px;">Overnight gap risk — not factored into confidence score.</div>
-        <button class="inv-elaborate" onclick="elaborateStock('${ticker}')">Ask AI to elaborate →</button>
       </div>`:''}
     </div>
     <div class="thesis-row" onclick="toggleThesis('${ticker}')">
@@ -3266,18 +3260,6 @@ async function fetchInvestorSignal(ticker){
 
     return{badge,bclass,thesis,score,pe,roe,revenueGrowth,netMargin};
   }catch(e){return null;}
-}
-
-function elaborateStock(ticker){
-  const d=sd[ticker];
-  if(!d)return;
-  const inv=d.investorSignal;
-  const msg=`${ticker} — ${inv?inv.badge:''}: ${inv?inv.thesis:''} | Signal: ${d.signal} RSI: ${d.rsi14} Price: $${d.price}`;
-  navigator.clipboard.writeText('Tell me more about '+ticker+' as a trading candidate. Context: '+msg).then(()=>{
-    tb_toast('Analysis copied — paste into Claude.ai');
-  }).catch(()=>{
-    tb_toast(ticker+' analysis: open Claude.ai for details');
-  });
 }
 
 // ── THESIS BUILDER ─────────────────────────────────────────────────────────
@@ -5563,7 +5545,7 @@ function swApp(name){
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradingBrief V6.0 — Card Cleanup + Autonomous Thesis Agent | 2026-04-13  ║
+     ║  END TradingBrief V6.1 — Card Cleanup + Autonomous Thesis Agent | 2026-04-13  ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 </body>
 </html>
