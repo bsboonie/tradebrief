@@ -3279,9 +3279,12 @@ function toggleThesis(ticker){
   }
 }
 
+const _thesisInFlight={};
 async function analyzeThesis(ticker){
   const d=sd[ticker];
   if(!d)return;
+  if(_thesisInFlight[ticker])return;// prevent concurrent calls
+  _thesisInFlight[ticker]=true;
   const loadEl=document.getElementById('thesis-loading-'+ticker);
   const resultEl=document.getElementById('thesis-result-'+ticker);
 
@@ -3421,6 +3424,7 @@ ${siStr}`;
     tb_toast('Analysis failed — check console');
   }finally{
     if(loadEl)loadEl.style.display='none';
+    delete _thesisInFlight[ticker];
   }
 }
 
