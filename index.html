@@ -3382,9 +3382,11 @@ ${siStr}`;
     d.thesisVerdict=verdict;
     d.thesisBreakdown=breakdown;
 
-    // Update result panel
-    if(resultEl){
-      resultEl.innerHTML=`
+    // Re-query DOM fresh in case of re-render during async call
+    const freshResult=document.getElementById('thesis-result-'+ticker);
+    const freshLoad=document.getElementById('thesis-loading-'+ticker);
+    if(freshResult){
+      freshResult.innerHTML=`
         <div class="thesis-score-row">
           <span class="thesis-score-big" style="color:${verdictColor};">${verdict}</span>
           <div class="thesis-conviction">
@@ -3396,8 +3398,9 @@ ${siStr}`;
           <button class="thesis-analyze-btn" onclick="fetchThesisNews('${ticker}')" id="thesis-news-btn-${ticker}">📰 Get News</button>
           <div id="thesis-news-${ticker}" style="margin-top:8px;"></div>
         </div>`;
-      resultEl.classList.add('active');
+      freshResult.classList.add('active');
     }
+    if(freshLoad)freshLoad.style.display='none';
 
     // Update thesis row pill
     const pillParent=document.querySelector('#thesis-chev-'+ticker)?.closest('.thesis-row')?.querySelector('.thesis-row-left');
@@ -3420,10 +3423,12 @@ ${siStr}`;
 
   }catch(e){
     console.error('Thesis analysis error:',e);
-    if(resultEl){resultEl.innerHTML=`<div style="font-size:11px;color:var(--danger);padding:8px 0;">Analysis failed. Check your connection and try again.</div>`;resultEl.classList.add('active');}
+    const errEl=document.getElementById('thesis-result-'+ticker);
+    if(errEl){errEl.innerHTML=`<div style="font-size:11px;color:var(--danger);padding:8px 0;">Analysis failed. Check your connection and try again.</div>`;errEl.classList.add('active');}
     tb_toast('Analysis failed — check console');
   }finally{
-    if(loadEl)loadEl.style.display='none';
+    const fl=document.getElementById('thesis-loading-'+ticker);
+    if(fl)fl.style.display='none';
     delete _thesisInFlight[ticker];
   }
 }
