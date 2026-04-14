@@ -3439,9 +3439,10 @@ async function fetchThesisNews(ticker){
   if(!newsEl)return;
   if(btn){btn.disabled=true;btn.textContent='Loading...';}
   try{
-    const to=Math.floor(Date.now()/1000);
-    const from=to-(7*24*60*60);// 7 days back
-    const url=`${PROXY}/finnhub?type=news&symbol=${encodeURIComponent(ticker)}&from=${from}&to=${to}`;
+    const toDate=new Date();
+    const fromDate=new Date(toDate.getTime()-(7*24*60*60*1000));
+    const fmt=d=>d.toISOString().split('T')[0];// YYYY-MM-DD
+    const url=`${PROXY}/finnhub?type=news&symbol=${encodeURIComponent(ticker)}&from=${fmt(fromDate)}&to=${fmt(toDate)}`;
     const res=await fetch(url);
     const data=await res.json();
     const articles=Array.isArray(data)?data.slice(0,5):[];
