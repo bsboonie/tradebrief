@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v6.1 — Card Layout Fix + Thesis Polish              ║
-     ║  Date: 2026-04-13                                                ║
-     ║  Changes from v6.0:                                              ║
-     ║    1. Select + TV moved to bottom-left of card detail section    ║
-     ║    2. "Ask AI to elaborate" button removed                       ║
-     ║    3. elaborateStock() function removed                          ║
+     ║  TRADEBRIEF v6.3 — Regime Clarity + Final Polish                 ║
+     ║  Date: 2026-04-14                                                ║
+     ║  Changes from v6.2:                                              ║
+     ║    1. Regime subtitle under score when fighting SPY trend        ║
+     ║    2. Full conviction breakdown line in thesis panel             ║
+     ║    3. VOL pill relabeled to show self-explanatory ratio text     ║
+     ║    4. Stronger regime reason text on card                        ║
+     ║    5. First-use onboarding hint on score tap                     ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 <html lang="en">
 <head>
@@ -50,8 +52,8 @@
 #panel-brief .thesis-result.active{display:block;}
 #panel-brief .thesis-score-row{display:flex;align-items:center;gap:10px;margin-bottom:6px;flex-wrap:wrap;}
 #panel-brief .thesis-score-big{font-family:'Space Mono',monospace;font-size:20px;font-weight:700;color:#bf8cff;}
-#panel-brief .thesis-conviction{font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);line-height:1.6;}
-#panel-brief .thesis-conviction span{color:var(--accent);}
+#panel-brief .thesis-conviction{font-family:'Space Mono',monospace;font-size:11px;color:var(--muted);line-height:1.8;background:var(--surface2);border-radius:6px;padding:6px 9px;margin-top:4px;}
+#panel-brief .thesis-conviction span{color:var(--accent);font-weight:700;}
 #panel-brief .thesis-rationale{font-size:11px;color:var(--text);line-height:1.6;padding:8px 10px;background:var(--surface2);border-radius:6px;border-left:3px solid #bf8cff;}
 /* ── PENDING TRADES ─────────────────────────────────────────── */#panel-brief .pending-card{background:var(--surface);border:1px solid var(--accent);border-radius:12px;padding:14px;margin-bottom:9px;position:relative;}#panel-brief .pending-card .pending-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}#panel-brief .pending-card .pending-ticker{font-family:'Space Mono',monospace;font-size:16px;font-weight:700;}#panel-brief .pending-card .pending-signal{font-family:'Space Mono',monospace;font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;}#panel-brief .pending-card .pending-signal.CALLS{background:rgba(0,255,157,0.15);color:var(--good);border:1px solid rgba(0,255,157,0.3);}#panel-brief .pending-card .pending-signal.PUTS{background:rgba(255,71,87,0.15);color:var(--danger);border:1px solid rgba(255,71,87,0.3);}#panel-brief .pending-card .pending-signal.WAIT{background:rgba(255,165,2,0.15);color:var(--warning);border:1px solid rgba(255,165,2,0.3);}#panel-brief .pending-dismiss{position:absolute;top:8px;right:10px;background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer;padding:4px;line-height:1;}#panel-brief .pending-dismiss:hover{color:var(--danger);}#panel-brief .pending-auto{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:6px;margin-bottom:10px;}#panel-brief .pending-auto-item{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:6px 9px;}#panel-brief .pending-auto-label{font-size:8px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:2px;}#panel-brief .pending-auto-val{font-family:'Space Mono',monospace;font-size:12px;font-weight:700;color:var(--accent);}#panel-brief .pending-manual{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;margin-bottom:10px;}#panel-brief .pending-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}#panel-brief .controls-btn{background:none;border:1px solid var(--accent);border-radius:7px;padding:6px 12px;font-size:11px;font-family:'Space Mono',monospace;color:var(--accent);cursor:pointer;transition:all 0.2s;}#panel-brief .controls-btn:hover{background:var(--accent);color:#000;}#panel-brief .controls-panel{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;margin-top:10px;display:none;}#panel-brief .controls-panel.open{display:block;}#panel-brief .controls-section-title{font-family:'Space Mono',monospace;font-size:11px;font-weight:700;color:var(--accent);margin:10px 0 6px;padding-bottom:4px;border-bottom:1px solid var(--border);}#panel-brief .controls-section-title:first-child{margin-top:0;}#panel-brief .controls-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px;}#panel-brief .controls-row{display:flex;justify-content:space-between;align-items:center;padding:5px 8px;border-radius:4px;font-family:'Space Mono',monospace;font-size:11px;}#panel-brief .controls-row:nth-child(odd){background:rgba(0,212,255,0.03);}#panel-brief .controls-row .cl{color:var(--muted);font-size:10px;}#panel-brief .controls-row .cv{color:var(--text);font-weight:700;}#panel-brief .controls-row .cv.manual{color:var(--warning);font-style:italic;font-weight:400;}#panel-brief .controls-row .cv.auto{color:var(--accent);}/* ── CONFIDENCE SCORE ──────────────────────────────────────── */#panel-brief .conf-badge{font-family:'Space Mono',monospace;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;white-space:nowrap;}#panel-brief .conf-badge.high{background:rgba(0,255,157,0.15);color:var(--good);border:1px solid rgba(0,255,157,0.3);}#panel-brief .conf-badge.mid{background:rgba(0,212,255,0.15);color:var(--accent);border:1px solid rgba(0,212,255,0.3);}#panel-brief .conf-badge.low{background:rgba(255,165,2,0.15);color:var(--warning);border:1px solid rgba(255,165,2,0.3);}#panel-brief .conf-badge.poor{background:rgba(255,71,87,0.15);color:var(--danger);border:1px solid rgba(255,71,87,0.3);}#panel-brief .limited-badge{font-family:'Space Mono',monospace;font-size:9px;font-weight:700;padding:2px 8px;border-radius:12px;background:rgba(107,122,153,0.15);color:var(--muted);border:1px solid rgba(107,122,153,0.3);}#panel-brief .conf-bar-wrap{height:4px;background:var(--surface2);border-radius:2px;overflow:hidden;margin-top:4px;width:60px;}#panel-brief .conf-bar-fill{height:100%;border-radius:2px;transition:width 0.5s;}#panel-brief .countdown-display{font-family:'Space Mono',monospace;font-size:10px;color:var(--warning);display:flex;align-items:center;gap:5px;}#panel-brief .countdown-display .cd-time{font-weight:700;color:var(--accent);}/* ── SCANNER STATUS ─────────────────────────────────────────── */#panel-brief .scan-bar{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:8px;}#panel-brief .scan-status{font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);}#panel-brief .scan-status .active{color:var(--accent);}#panel-brief .scan-btn{background:var(--accent);border:none;border-radius:7px;padding:5px 12px;font-size:10px;font-family:'Space Mono',monospace;color:#000;cursor:pointer;font-weight:700;}#panel-brief .scan-progress{height:3px;background:var(--surface);border-radius:2px;overflow:hidden;margin-top:6px;}#panel-brief .scan-progress-bar{height:100%;background:var(--accent);border-radius:2px;transition:width 0.3s;}#panel-brief .not-ready-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;margin-bottom:9px;overflow:hidden;position:relative;opacity:0.6;}#panel-brief .not-ready-card .nr-badge{position:absolute;top:10px;right:10px;font-family:'Space Mono',monospace;font-size:9px;padding:3px 8px;border-radius:12px;background:rgba(255,165,2,0.15);color:var(--warning);border:1px solid rgba(255,165,2,0.3);}#panel-brief .top3-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}#panel-brief .top3-count{font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);}#panel-brief .empty{text-align:center;padding:24px;color:var(--muted);font-size:12px;}#panel-brief .drive-badge{font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:2px 7px;}@keyframes fadeUp{from{opacity:0;transform:translateX(-50%) translateY(8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}@media(max-width:580px){#panel-brief .tgrid{grid-template-columns:repeat(2,1fr);}#panel-brief .pos-stats{grid-template-columns:repeat(2,1fr);}#panel-brief .fgrid{grid-template-columns:repeat(2,1fr);}#panel-brief .pnl-bar{display:grid!important;grid-template-columns:1fr 1fr;padding:0;}#panel-brief .pnl-item{flex:none;padding:8px 10px;border-right:none!important;border-bottom:1px solid var(--border);}#panel-brief .pnl-item:nth-child(odd){border-right:1px solid var(--border)!important;}#panel-brief .pnl-item:nth-child(3),#panel-brief .pnl-item:nth-child(4){border-bottom:none;}#panel-brief .pnl-val{font-size:16px;}#panel-brief .pnl-label{font-size:7px;letter-spacing:0.5px;}#panel-brief .pnl-sub{font-size:7px;}#panel-brief .tab{font-size:9px;}#panel-brief .pnl-item{padding:5px 8px;}#panel-brief .pnl-bar{padding:0;}#panel-brief .card-bot{flex-direction:column;align-items:flex-start;}#panel-brief .card-bot .inv-section{order:-1;width:100%;margin-bottom:6px;}}
 /* ══ TRADESHEET (scoped to #panel-sheet) ══════════════════════ */
@@ -1329,12 +1331,12 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
 
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v6.1</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v6.3</div>
 
 <!-- ══ MOBILE SCAN BTN (mobile only, shown via CSS) ══════════════════════ -->
 <div id="mobile-scan-btn-wrap" style="display:none;">
   <button class="mscan-btn" onclick="go('briefing');window.TB.runScanner(true);">🔍 Scan Now</button>
-  <span class="mversion">v6.1</span>
+  <span class="mversion">v6.3</span>
 </div>
 
 <!-- ══ APP SWITCHER NAV ════════════════════════════════════════════════════ -->
@@ -1748,7 +1750,7 @@ async function runScanner(force){
         sd[ticker]={ticker,price:q.price,change:q.change,changePct:q.changePct,
           volume:q.volume,avgVolume:q.avgVolume,
           rsi14,ema8,ema21,atr14,earningsDate:earningsOverrides[ticker]||null,
-          signal:conf.direction,reason:'Confidence '+conf.score+'/100 — '+(conf.direction==='CALLS'?'Bullish':'Bearish')+' setup'+(conf.againstRegime?' · vs regime':''),
+          signal:conf.direction,reason:'Confidence '+conf.score+'/100 — '+(conf.direction==='CALLS'?'Bullish':'Bearish')+' setup'+(conf.againstRegime?' — fighting broader SPY trend. Elevated risk, consider smaller size.':''),
           confidence:conf.score,rawScore:conf.rawScore,againstRegime:conf.againstRegime,volRatio:conf.volRatio,direction:conf.direction,
           teasers:[
             {label:'RSI 14',value:rsi14.toFixed(1),note:rsi14<os?'Oversold — bounce potential':rsi14>ob?'Overbought — caution':'Healthy momentum range'},
@@ -1877,7 +1879,7 @@ function reSignalAll(){
     d.volRatio=conf.volRatio;
     d.direction=conf.direction;
     d.signal=conf.direction;
-    d.reason=`Confidence ${conf.score}/100 — ${conf.direction==='CALLS'?'Bullish':'Bearish'} setup`;
+    d.reason=`Confidence ${conf.score}/100 — ${conf.direction==='CALLS'?'Bullish':'Bearish'} setup${conf.againstRegime?' — fighting broader SPY trend. Elevated risk, consider smaller size.':''}`;
   });
   buildTop10();
   rB();
@@ -2454,13 +2456,70 @@ function renderDataCard(ticker){
         <div class="ip"><span class="il">TREND</span><span class="iv" style="color:${trendColor};font-size:9px;">${trendVal}</span></div>
         <div class="ip"><span class="il">DAY</span><span class="iv" style="color:${dayColor};">${(d.changePct>=0?'+':'')+d.changePct.toFixed(1)}%</span></div>
         <div class="ip"><span class="il">EARN</span><span class="iv ${earnPillColor}">${earnPillText}</span></div>
-        <div class="ip" title="Today's volume vs average volume"><span class="il">VOL</span><span class="iv" style="color:${volRatioColor};">${volRatioDisplay}</span></div>
+        <div class="ip" title="Today's volume vs 30-day average"><span class="il">VOL RATIO</span><span class="iv" style="color:${volRatioColor};">${volRatioDisplay}</span></div>
         ${d.atr14!==null&&d.atr14!==undefined?`<div class="ip"><span class="il">ATR 14</span><span class="iv mid">$${d.atr14.toFixed(2)}</span></div>`:''}
       </div>
-      <div style="margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+      <div style="margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
         <div style="display:flex;align-items:center;gap:6px;">
-          <div style="font-family:'Space Mono',monospace;font-size:18px;font-weight:700;color:${scoreColor};cursor:help;" ${scoreTooltip}>${displayScore}</div>
+          <!-- CHANGE 1 + CHANGE 5: Tappable score with onboarding hint -->
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:1px;">
+            <div style="font-family:'Space Mono',monospace;font-size:18px;font-weight:700;color:${scoreColor};cursor:pointer;position:relative;line-height:1;" onclick="toggleScoreBreakdown('${ticker}',event)" title="Tap to see score breakdown">${displayScore}<span style="font-size:9px;color:var(--muted);margin-left:2px;">▾</span></div>
+            ${d.againstRegime?`<div style="font-family:'Space Mono',monospace;font-size:8px;color:#ffa502;text-align:right;line-height:1.2;">⚠ capped · vs SPY trend</div>`:''}
+            ${!localStorage.getItem('tb_score_hint_seen')?`<div id="score-hint-${ticker}" style="font-family:'Space Mono',monospace;font-size:7px;color:var(--muted);text-align:right;line-height:1.2;max-width:90px;">tap score to see breakdown</div>`:''}
+          </div>
           <div class="sbadge ${sig}">${sig}</div>
+        </div>
+        <!-- CHANGE 1: Score breakdown popup with regime cap explanation -->
+        <div id="score-breakdown-${ticker}" style="display:none;position:absolute;right:14px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 12px;z-index:100;min-width:240px;box-shadow:0 4px 20px rgba(0,0,0,0.4);margin-top:2px;">
+          <div style="font-family:'Space Mono',monospace;font-size:8px;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;margin-bottom:6px;">Score Breakdown</div>
+          <!-- CHANGE 5: Onboarding hint at top of first open -->
+          <div style="font-size:10px;color:var(--muted);line-height:1.5;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--border);">Technical score = current setup strength. Historical Edge (SI %) = how often this setup worked on this ticker in past tests. Thesis adds conviction.</div>
+          ${(()=>{
+            const rows=[];
+            const hasData=d.ema8!==null&&d.ema8!==undefined;
+            if(hasData){
+              const emasStacked=(d.ema8>d.ema21&&d.price>d.ema8&&d.price>d.ema21)||(d.ema8<d.ema21&&d.price<d.ema8&&d.price<d.ema21);
+              const emaPts=emasStacked?25:(d.ema8!==d.ema21)?15:5;
+              rows.push(`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border);font-family:'Space Mono',monospace;font-size:10px;"><span style="color:var(--muted);">EMA Alignment</span><span style="color:${emaPts>=20?'var(--good)':emaPts>=12?'var(--accent)':'var(--warning)'};">+${emaPts}</span></div>`);
+              const rsi=d.rsi14;
+              let rsiPts=2;
+              if(rsi!==null){const emaBull=d.ema8>d.ema21;rsiPts=emaBull?(rsi>=40&&rsi<=65?20:rsi>50?16:rsi>65?12:rsi>70?6:8):(rsi>=35&&rsi<=60?20:rsi<50?16:rsi<35?12:rsi<30?6:8);}
+              rows.push(`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border);font-family:'Space Mono',monospace;font-size:10px;"><span style="color:var(--muted);">RSI Quality</span><span style="color:${rsiPts>=16?'var(--good)':rsiPts>=10?'var(--accent)':'var(--warning)'};">+${rsiPts}</span></div>`);
+              const sep=Math.abs((d.ema8-d.ema21)/d.ema21)*100;
+              const sepPts=sep>3?15:sep>1.5?10:sep>0.5?6:2;
+              rows.push(`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border);font-family:'Space Mono',monospace;font-size:10px;"><span style="color:var(--muted);">Trend Strength</span><span style="color:${sepPts>=12?'var(--good)':sepPts>=8?'var(--accent)':'var(--warning)'};">+${sepPts}</span></div>`);
+            }
+            const absPct=Math.abs(d.changePct);
+            const momPts=absPct>=2&&absPct<=6?15:absPct>=1?10:absPct>=0.3?5:2;
+            rows.push(`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border);font-family:'Space Mono',monospace;font-size:10px;"><span style="color:var(--muted);">Day Momentum</span><span style="color:${momPts>=12?'var(--good)':momPts>=8?'var(--accent)':'var(--warning)'};">+${momPts}</span></div>`);
+            if(spyRegime&&d.direction&&d.direction!=='—'){
+              const aligned=(d.direction==='CALLS'&&spyRegime==='BULLISH')||(d.direction==='PUTS'&&spyRegime==='BEARISH');
+              const regimePts=aligned?15:-10;
+              // CHANGE 1: Show raw→capped explanation when against regime
+              if(!aligned&&d.rawScore&&d.rawScore!==displayScore){
+                rows.push(`<div style="padding:4px 0 3px;border-bottom:1px solid var(--border);font-family:'Space Mono',monospace;font-size:10px;"><div style="display:flex;justify-content:space-between;"><span style="color:var(--muted);">SPY Regime</span><span style="color:var(--danger);">-10</span></div><div style="font-size:9px;color:#ffa502;margin-top:2px;">Raw: ${d.rawScore} → Capped at ${displayScore} (fighting SPY trend)</div></div>`);
+              } else {
+                rows.push(`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border);font-family:'Space Mono',monospace;font-size:10px;"><span style="color:var(--muted);">SPY Regime</span><span style="color:${aligned?'var(--good)':'var(--danger)'};">${aligned?'+15':'-10'}</span></div>`);
+              }
+            }
+            const siRec=window.SI?window.SI.getRecord(ticker):null;
+            if(siRec&&siRec.totalSamples>=window.SI.MIN_FULL_SAMPLES){
+              const siBonus=siRec.accuracy>=window.SI.PROMOTED_ACCURACY?15:siRec.accuracy>=window.SI.STANDARD_ACCURACY?8:-10;
+              rows.push(`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border);font-family:'Space Mono',monospace;font-size:10px;"><span style="color:var(--muted);">SI Edge Bonus</span><span style="color:${siBonus>0?'var(--good)':'var(--danger)'};">${siBonus>0?'+':''}${siBonus}</span></div>`);
+            }
+            if(d.thesisScore!=null){
+              rows.push(`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border);font-family:'Space Mono',monospace;font-size:10px;"><span style="color:var(--muted);">Thesis</span><span style="color:#bf8cff;">+${d.thesisScore}</span></div>`);
+            }
+            const convTotal=d.thesisScore!=null?Math.min(100,displayScore+d.thesisScore):displayScore;
+            const convColor=convTotal>=70?'var(--good)':convTotal>=45?'var(--accent)':'var(--warning)';
+            // CHANGE 2: Show full conviction line
+            if(d.thesisScore!=null){
+              rows.push(`<div style="padding:5px 0 0;font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);border-top:1px solid var(--border);margin-top:2px;">Technical + Regime: <span style="color:var(--accent);">${displayScore}</span> | Thesis +${d.thesisScore} → <span style="color:${convColor};font-weight:700;">Conviction: ${convTotal}</span></div>`);
+            } else {
+              rows.push(`<div style="display:flex;justify-content:space-between;padding:4px 0 0;font-family:'Space Mono',monospace;font-size:11px;font-weight:700;"><span style="color:var(--text);">Overall</span><span style="color:${convColor};">${convTotal}</span></div>`);
+            }
+            return rows.join('');
+          })()}
         </div>
         ${siBadge}${regimeNote}
       </div>
@@ -2514,7 +2573,7 @@ function renderDataCard(ticker){
         <div class="thesis-score-row">
           <span class="thesis-score-big" style="color:${d.thesisVerdict==='STRONG'?'var(--good)':d.thesisVerdict==='SKIP'?'var(--danger)':'var(--warning)'};">${d.thesisVerdict}</span>
           <div class="thesis-conviction">
-            Technical + Regime: <span>${d.score}</span> &nbsp;|&nbsp; Thesis (+${d.thesisScore}) → Conviction: <span>${Math.min(100, d.score + d.thesisScore)}</span>
+            Technical + Regime: <span>${d.score}</span> &nbsp;|&nbsp; Thesis <span style="color:#bf8cff;">+${d.thesisScore}</span> → Overall Conviction: <span style="color:${Math.min(100,d.score+d.thesisScore)>=70?'var(--good)':Math.min(100,d.score+d.thesisScore)>=45?'var(--accent)':'var(--warning)'};">${Math.min(100, d.score + d.thesisScore)}</span>
           </div>
         </div>
         <div class="thesis-breakdown" id="thesis-breakdown-${ticker}">${d.thesisBreakdown}</div>
@@ -3263,6 +3322,28 @@ async function fetchInvestorSignal(ticker){
 }
 
 // ── THESIS BUILDER ─────────────────────────────────────────────────────────
+// ── SCORE BREAKDOWN POPUP ─────────────────────────────────────────
+function toggleScoreBreakdown(ticker, e){
+  e.stopPropagation();
+  const el=document.getElementById('score-breakdown-'+ticker);
+  if(!el)return;
+  // Mark hint as seen on first tap
+  if(!localStorage.getItem('tb_score_hint_seen')){
+    localStorage.setItem('tb_score_hint_seen','1');
+    // Hide all "tap to see breakdown" hints
+    document.querySelectorAll('[id^="score-hint-"]').forEach(h=>h.style.display='none');
+  }
+  // Close any other open breakdowns
+  document.querySelectorAll('[id^="score-breakdown-"]').forEach(d=>{
+    if(d.id!=='score-breakdown-'+ticker)d.style.display='none';
+  });
+  el.style.display=el.style.display==='none'?'block':'none';
+}
+// Close score breakdowns on outside click
+document.addEventListener('click',function(){
+  document.querySelectorAll('[id^="score-breakdown-"]').forEach(d=>d.style.display='none');
+});
+
 function toggleThesis(ticker){
   const panel=document.getElementById('thesis-panel-'+ticker);
   const chev=document.getElementById('thesis-chev-'+ticker);
@@ -3390,7 +3471,7 @@ ${siStr}`;
         <div class="thesis-score-row">
           <span class="thesis-score-big" style="color:${verdictColor};">${verdict}</span>
           <div class="thesis-conviction">
-            Technical + Regime: <span>${d.score}</span> &nbsp;|&nbsp; Thesis (+${score}) → Conviction: <span>${conviction}</span>
+            Technical + Regime: <span>${d.score}</span> &nbsp;|&nbsp; Thesis <span style="color:#bf8cff;">+${score}</span> → Overall Conviction: <span style="color:${conviction>=70?'var(--good)':conviction>=45?'var(--accent)':'var(--warning)'};">${conviction}</span>
           </div>
         </div>
         ${breakdown}
@@ -3420,6 +3501,28 @@ ${siStr}`;
     }
 
     tb_toast(`✓ ${verdict} — Conviction: ${conviction}`);
+
+    // Update the headline score number in the card to show conviction total
+    const scoreEl=document.querySelector(`#score-breakdown-${ticker}`)?.parentElement?.querySelector('div[onclick^="toggleScoreBreakdown"]');
+    if(scoreEl){
+      const convColor=conviction>=70?'var(--good)':conviction>=45?'var(--accent)':'var(--warning)';
+      scoreEl.style.color=convColor;
+      // Update the text node (first child is the number text)
+      const textNode=scoreEl.childNodes[0];
+      if(textNode&&textNode.nodeType===3)textNode.textContent=conviction;
+    }
+    // Also rebuild the score breakdown popup with updated thesis row
+    const bdEl=document.getElementById('score-breakdown-'+ticker);
+    if(bdEl){
+      // Re-render will happen naturally on next rB() — force it
+      // For now just update the Overall line
+      const rows=bdEl.querySelectorAll('div');
+      const overallRow=rows[rows.length-1];
+      if(overallRow){
+        const span=overallRow.querySelector('span:last-child');
+        if(span){span.textContent=conviction;span.style.color=conviction>=70?'var(--good)':conviction>=45?'var(--accent)':'var(--warning)';}
+      }
+    }
 
   }catch(e){
     console.error('Thesis analysis error:',e);
@@ -5232,14 +5335,18 @@ window.SI = (function(){
     const pct      = rec.accuracy;
     const color    = pct >= PROMOTED_ACCURACY ? '#4ade80' :
                      pct >= STANDARD_ACCURACY ? '#ffa502' : '#6b7a99';
-    const label    = isEarly
-      ? `${pct}% · early data`
+    const statsLabel = isEarly
+      ? `${pct}% · ${rec.totalSamples} samples`
       : `${pct}% · ${rec.totalSamples} samples`;
-    const tierLabel = rec.tier==='promoted' ? 'Proven Edge on This Stock'
+    const tierLabel = rec.tier==='promoted' ? 'Proven Edge'
                     : rec.tier==='standard' ? 'Decent Track Record'
                     : 'Early Data – Watch Closely';
+    const fullTitle = rec.tier==='promoted' ? 'Proven Edge on This Stock'
+                    : rec.tier==='standard' ? 'Decent Track Record'
+                    : 'Early Data – Watch Closely';
+    const regimeSuffix = rec.withRegimeTotal>5?' · regime: '+(rec.withRegimeCorrect/rec.withRegimeTotal*100).toFixed(0)+'%':'';
 
-    return `<div style="display:inline-flex;align-items:center;gap:4px;font-family:'Space Mono',monospace;font-size:9px;font-weight:700;color:${color};background:${color}22;border:1px solid ${color}55;border-radius:10px;padding:2px 7px;margin-left:4px;" title="${tierLabel}${rec.withRegimeTotal>5?' · regime: '+(rec.withRegimeCorrect/rec.withRegimeTotal*100).toFixed(0)+'%':''}">${label}</div>`;
+    return `<div style="display:inline-flex;align-items:center;gap:4px;font-family:'Space Mono',monospace;font-size:9px;font-weight:700;color:${color};background:${color}22;border:1px solid ${color}55;border-radius:10px;padding:2px 7px;margin-left:4px;" title="${fullTitle}${regimeSuffix}"><span>${tierLabel}</span><span style="opacity:0.6;">·</span><span>${statsLabel}</span></div>`;
   }
 
   // ── RESET A TICKER RECORD (admin) ────────────────────────────
@@ -5555,7 +5662,7 @@ function swApp(name){
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradingBrief V6.1 — Card Cleanup + Autonomous Thesis Agent | 2026-04-13  ║
+     ║  END TradingBrief V6.3 — Regime Clarity + Final Polish | 2026-04-14  ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 </body>
 </html>
