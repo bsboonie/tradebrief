@@ -2500,16 +2500,16 @@ function renderDataCard(ticker){
         <span class="thesis-label-sm">Thesis</span>
         ${d.thesisScore!=null?`<span class="thesis-pill">${d.thesisVerdict||'—'} · +${d.thesisScore}/10</span>`:'<span style="font-family:\'Space Mono\',monospace;font-size:10px;color:var(--muted);">— not analyzed</span>'}
       </div>
-      <span class="thesis-chevron" id="thesis-chev-${ticker}">▾</span>
+      <span class="thesis-chevron${d.thesisScore!=null?' open':''}" id="thesis-chev-${ticker}">▾</span>
     </div>
-    <div class="thesis-panel" id="thesis-panel-${ticker}">
+    <div class="thesis-panel${d.thesisScore!=null?' open':''}" id="thesis-panel-${ticker}">
       <div class="thesis-loading" id="thesis-loading-${ticker}" style="display:none;align-items:center;gap:6px;padding:10px 0;">
         <span style="width:6px;height:6px;border-radius:50%;background:#bf8cff;display:inline-block;animation:blink 1.2s infinite;"></span>
         <span style="width:6px;height:6px;border-radius:50%;background:#bf8cff;display:inline-block;animation:blink 1.2s 0.2s infinite;"></span>
         <span style="width:6px;height:6px;border-radius:50%;background:#bf8cff;display:inline-block;animation:blink 1.2s 0.4s infinite;"></span>
         <span style="margin-left:4px;font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);">Analyzing setup...</span>
       </div>
-      <div class="thesis-result" id="thesis-result-${ticker}">
+      <div class="thesis-result${d.thesisScore!=null&&d.thesisBreakdown?' active':''}" id="thesis-result-${ticker}">
         ${d.thesisScore!=null&&d.thesisBreakdown?`
         <div class="thesis-score-row">
           <span class="thesis-score-big" style="color:${d.thesisVerdict==='STRONG'?'var(--good)':d.thesisVerdict==='SKIP'?'var(--danger)':'var(--warning)'};">${d.thesisVerdict}</span>
