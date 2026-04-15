@@ -1,13 +1,14 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v6.6 — TradeSheet Controls Improvements             ║
+     ║  TRADEBRIEF v6.7 — TradePlan                                     ║
      ║  Date: 2026-04-15                                                ║
-     ║  Changes from v6.5:                                              ║
-     ║    1. ATR field — directly editable, green flash confirms save   ║
-     ║    2. IVR field — directly editable, green flash confirms save   ║
-     ║    3. Delta Min input width fix — value now fully visible        ║
-     ║    4. Exit ITM field — auto-calc from spread + target %, override║
-     ║    5. Exit OTM field — auto-calc at 50% loss default, override   ║
+     ║  Changes from v6.6:                                              ║
+     ║    1. TradePlan block — left col, above CALL RESULTS             ║
+     ║    2. Auto-populates ticker, type, exp, entry, exits live        ║
+     ║    3. Exit ITM/OTM overridable inline without changing defaults  ║
+     ║    4. Notes free-text field                                      ║
+     ║    5. Send to TradeLog — enabled when plan complete              ║
+     ║    6. Removed CALL OVERALL / PUT OVERALL + LOG TRADE buttons     ║
      ║    2. Conviction number — persists thesisScore in sd[] on        ║
      ║       analysis so it survives re-renders                         ║
      ║    3. tb_toast — replaced with no-op (toast fully removed)       ║
@@ -61,6 +62,7 @@
 /* ── PENDING TRADES ─────────────────────────────────────────── */#panel-brief .pending-card{background:var(--surface);border:1px solid var(--accent);border-radius:12px;padding:14px;margin-bottom:9px;position:relative;}#panel-brief .pending-card .pending-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}#panel-brief .pending-card .pending-ticker{font-family:'Space Mono',monospace;font-size:16px;font-weight:700;}#panel-brief .pending-card .pending-signal{font-family:'Space Mono',monospace;font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;}#panel-brief .pending-card .pending-signal.CALLS{background:rgba(0,255,157,0.15);color:var(--good);border:1px solid rgba(0,255,157,0.3);}#panel-brief .pending-card .pending-signal.PUTS{background:rgba(255,71,87,0.15);color:var(--danger);border:1px solid rgba(255,71,87,0.3);}#panel-brief .pending-card .pending-signal.WAIT{background:rgba(255,165,2,0.15);color:var(--warning);border:1px solid rgba(255,165,2,0.3);}#panel-brief .pending-dismiss{position:absolute;top:8px;right:10px;background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer;padding:4px;line-height:1;}#panel-brief .pending-dismiss:hover{color:var(--danger);}#panel-brief .pending-auto{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:6px;margin-bottom:10px;}#panel-brief .pending-auto-item{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:6px 9px;}#panel-brief .pending-auto-label{font-size:8px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:2px;}#panel-brief .pending-auto-val{font-family:'Space Mono',monospace;font-size:12px;font-weight:700;color:var(--accent);}#panel-brief .pending-manual{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;margin-bottom:10px;}#panel-brief .pending-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}#panel-brief .controls-btn{background:none;border:1px solid var(--accent);border-radius:7px;padding:6px 12px;font-size:11px;font-family:'Space Mono',monospace;color:var(--accent);cursor:pointer;transition:all 0.2s;}#panel-brief .controls-btn:hover{background:var(--accent);color:#000;}#panel-brief .controls-panel{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;margin-top:10px;display:none;}#panel-brief .controls-panel.open{display:block;}#panel-brief .controls-section-title{font-family:'Space Mono',monospace;font-size:11px;font-weight:700;color:var(--accent);margin:10px 0 6px;padding-bottom:4px;border-bottom:1px solid var(--border);}#panel-brief .controls-section-title:first-child{margin-top:0;}#panel-brief .controls-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px;}#panel-brief .controls-row{display:flex;justify-content:space-between;align-items:center;padding:5px 8px;border-radius:4px;font-family:'Space Mono',monospace;font-size:11px;}#panel-brief .controls-row:nth-child(odd){background:rgba(0,212,255,0.03);}#panel-brief .controls-row .cl{color:var(--muted);font-size:10px;}#panel-brief .controls-row .cv{color:var(--text);font-weight:700;}#panel-brief .controls-row .cv.manual{color:var(--warning);font-style:italic;font-weight:400;}#panel-brief .controls-row .cv.auto{color:var(--accent);}/* ── CONFIDENCE SCORE ──────────────────────────────────────── */#panel-brief .conf-badge{font-family:'Space Mono',monospace;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;white-space:nowrap;}#panel-brief .conf-badge.high{background:rgba(0,255,157,0.15);color:var(--good);border:1px solid rgba(0,255,157,0.3);}#panel-brief .conf-badge.mid{background:rgba(0,212,255,0.15);color:var(--accent);border:1px solid rgba(0,212,255,0.3);}#panel-brief .conf-badge.low{background:rgba(255,165,2,0.15);color:var(--warning);border:1px solid rgba(255,165,2,0.3);}#panel-brief .conf-badge.poor{background:rgba(255,71,87,0.15);color:var(--danger);border:1px solid rgba(255,71,87,0.3);}#panel-brief .limited-badge{font-family:'Space Mono',monospace;font-size:9px;font-weight:700;padding:2px 8px;border-radius:12px;background:rgba(107,122,153,0.15);color:var(--muted);border:1px solid rgba(107,122,153,0.3);}#panel-brief .conf-bar-wrap{height:4px;background:var(--surface2);border-radius:2px;overflow:hidden;margin-top:4px;width:60px;}#panel-brief .conf-bar-fill{height:100%;border-radius:2px;transition:width 0.5s;}#panel-brief .countdown-display{font-family:'Space Mono',monospace;font-size:10px;color:var(--warning);display:flex;align-items:center;gap:5px;}#panel-brief .countdown-display .cd-time{font-weight:700;color:var(--accent);}/* ── SCANNER STATUS ─────────────────────────────────────────── */#panel-brief .scan-bar{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:8px;}#panel-brief .scan-status{font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);}#panel-brief .scan-status .active{color:var(--accent);}#panel-brief .scan-btn{background:var(--accent);border:none;border-radius:7px;padding:5px 12px;font-size:10px;font-family:'Space Mono',monospace;color:#000;cursor:pointer;font-weight:700;}#panel-brief .scan-progress{height:3px;background:var(--surface);border-radius:2px;overflow:hidden;margin-top:6px;}#panel-brief .scan-progress-bar{height:100%;background:var(--accent);border-radius:2px;transition:width 0.3s;}#panel-brief .not-ready-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;margin-bottom:9px;overflow:hidden;position:relative;opacity:0.6;}#panel-brief .not-ready-card .nr-badge{position:absolute;top:10px;right:10px;font-family:'Space Mono',monospace;font-size:9px;padding:3px 8px;border-radius:12px;background:rgba(255,165,2,0.15);color:var(--warning);border:1px solid rgba(255,165,2,0.3);}#panel-brief .top3-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}#panel-brief .top3-count{font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);}#panel-brief .empty{text-align:center;padding:24px;color:var(--muted);font-size:12px;}#panel-brief .drive-badge{font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:2px 7px;}@keyframes fadeUp{from{opacity:0;transform:translateX(-50%) translateY(8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}@media(max-width:580px){#panel-brief .tgrid{grid-template-columns:repeat(2,1fr);}#panel-brief .pos-stats{grid-template-columns:repeat(2,1fr);}#panel-brief .fgrid{grid-template-columns:repeat(2,1fr);}#panel-brief .pnl-bar{display:grid!important;grid-template-columns:1fr 1fr;padding:0;}#panel-brief .pnl-item{flex:none;padding:8px 10px;border-right:none!important;border-bottom:1px solid var(--border);}#panel-brief .pnl-item:nth-child(odd){border-right:1px solid var(--border)!important;}#panel-brief .pnl-item:nth-child(3),#panel-brief .pnl-item:nth-child(4){border-bottom:none;}#panel-brief .pnl-val{font-size:16px;}#panel-brief .pnl-label{font-size:7px;letter-spacing:0.5px;}#panel-brief .pnl-sub{font-size:7px;}#panel-brief .tab{font-size:9px;}#panel-brief .pnl-item{padding:5px 8px;}#panel-brief .pnl-bar{padding:0;}#panel-brief .card-bot{flex-direction:column;align-items:flex-start;}#panel-brief .card-bot .inv-section{order:-1;width:100%;margin-bottom:6px;}}
 /* ══ TRADESHEET (scoped to #panel-sheet) ══════════════════════ */
 /* ══ TS-SPECIFIC RULES ═══════════════════════════════════════════════ *//* ── CSS VARIABLES ─────────────────────────────────────────────── */*{margin:0;padding:0;box-sizing:border-box;}body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;}/* ── TOP BAR ────────────────────────────────────────────────────── */#panel-sheet .top-bar{position:sticky;top:0;z-index:200;background:var(--surface);border-bottom:1px solid var(--border);}#panel-sheet .header{padding:10px 20px;display:flex;align-items:center;justify-content:space-between;}#panel-sheet .logo{font-family:'Space Mono',monospace;font-size:22px;font-weight:700;color:#22d3ee;}#panel-sheet .logo span{color:#ffa502;}#panel-sheet .hright{display:flex;align-items:center;gap:12px;}#panel-sheet .mkt-status{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted);font-family:'Space Mono',monospace;}#panel-sheet .dot{width:6px;height:6px;border-radius:50%;background:var(--good);animation:pulse 2s infinite;}#panel-sheet .dot.closed{background:var(--danger);animation:none;}@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}#panel-sheet .clock{font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);}#panel-sheet .theme-btn{background:none;border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:11px;font-family:'Space Mono',monospace;color:var(--muted);cursor:pointer;transition:all .2s;}#panel-sheet .theme-btn:hover{border-color:var(--accent);color:var(--accent);}/* ── MAIN LAYOUT ─────────────────────────────────────────────────── */#panel-sheet .main{padding:16px 20px;max-width:1200px;margin:0 auto;}#panel-sheet .sec-label{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin:20px 0 10px;}#panel-sheet .sec-label:first-child{margin-top:0;}/* ── TICKER BAR ──────────────────────────────────────────────────── */#panel-sheet .ticker-bar{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 18px;display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap;}#panel-sheet .ticker-input-wrap{display:flex;align-items:center;gap:8px;flex:0 0 auto;}#panel-sheet .ticker-input{background:var(--surface2);border:2px solid var(--border);border-radius:8px;padding:8px 14px;color:var(--text);font-family:'Space Mono',monospace;font-size:16px;font-weight:700;width:110px;text-transform:uppercase;outline:none;transition:border-color .2s;}#panel-sheet .ticker-input.needs-input{border-color:var(--warning);background:rgba(255,165,2,.06);}#panel-sheet .ticker-input.needs-input::placeholder{color:var(--warning);opacity:0.8;}#panel-sheet .fetch-btn{background:var(--accent);border:none;border-radius:8px;padding:9px 20px;font-size:12px;font-family:'Space Mono',monospace;font-weight:700;color:#000;cursor:pointer;transition:opacity .2s;white-space:nowrap;}#panel-sheet .fetch-btn:hover{opacity:.85;}#panel-sheet .fetch-btn:disabled{opacity:.4;cursor:not-allowed;}#panel-sheet .stock-info{display:flex;align-items:center;gap:16px;flex-wrap:wrap;}#panel-sheet .stock-price{font-family:'Space Mono',monospace;font-size:22px;font-weight:700;}#panel-sheet .stock-price.up{color:var(--good);}#panel-sheet .stock-price.dn{color:var(--danger);}#panel-sheet .stock-chg{font-family:'Space Mono',monospace;font-size:11px;}#panel-sheet .stock-chg.up{color:var(--good);}#panel-sheet .stock-chg.dn{color:var(--danger);}#panel-sheet .stock-name{font-size:12px;color:var(--muted);}#panel-sheet .fetch-status{font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);}#panel-sheet .fetch-status.loading{color:var(--accent);}#panel-sheet .fetch-status.error{color:var(--danger);}#panel-sheet .fetch-status.ok{color:var(--good);}/* ── TWO-COL LAYOUT ─────────────────────────────────────────────── */#panel-sheet .two-col{display:grid;grid-template-columns:1fr 340px;gap:14px;align-items:start;}/* ── DASHBOARD ───────────────────────────────────────────────────── */#panel-sheet .dashboard{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;}#panel-sheet .dash-header{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}#panel-sheet .dash-title{font-family:'Space Mono',monospace;font-size:11px;font-weight:700;color:var(--accent);}#panel-sheet .n-control{display:flex;align-items:center;gap:6px;font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);}#panel-sheet .n-btn{background:none;border:1px solid var(--border);border-radius:4px;width:22px;height:22px;color:var(--text);cursor:pointer;font-family:'Space Mono',monospace;font-size:12px;display:flex;align-items:center;justify-content:center;transition:all .2s;}#panel-sheet .n-btn:hover{border-color:var(--accent);color:var(--accent);}#panel-sheet .n-val{font-family:'Space Mono',monospace;font-size:13px;font-weight:700;color:var(--text);min-width:16px;text-align:center;}#panel-sheet .dash-section{padding:10px 16px;}#panel-sheet .dash-sec-title{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;gap:8px;}#panel-sheet .dash-sec-title span{height:1px;flex:1;background:var(--border);}#panel-sheet .spread-table{width:100%;border-collapse:collapse;font-size:11px;}#panel-sheet .spread-table th{font-family:'Space Mono',monospace;font-size:8px;letter-spacing:1px;color:var(--muted);padding:4px 8px;text-align:left;border-bottom:1px solid var(--border);}#panel-sheet .spread-table td{padding:7px 8px;border-bottom:1px solid var(--border);font-family:'Space Mono',monospace;}#panel-sheet .spread-table tr:last-child td{border-bottom:none;}#panel-sheet .spread-table tr{cursor:pointer;transition:background .15s;}#panel-sheet .spread-table tr:hover td{background:var(--surface2);}#panel-sheet .spread-table tr.selected td{background:rgba(0,212,255,.07);border-left:2px solid var(--accent);}#panel-sheet .rank-num{color:var(--muted);font-size:9px;}#panel-sheet .spread-label{color:var(--text);font-weight:700;}#panel-sheet .spread-exp{color:var(--muted);font-size:9px;}#panel-sheet .cost-val{color:var(--accent);}#panel-sheet .rr-val{color:var(--accent2);}#panel-sheet .ev-val{color:var(--warning);}#panel-sheet .rating-badge{padding:2px 8px;border-radius:10px;font-size:9px;font-weight:700;white-space:nowrap;}#panel-sheet .rating-badge.GOOD{background:rgba(0,255,157,.15);color:var(--good);border:1px solid rgba(0,255,157,.3);}#panel-sheet .rating-badge.OK{background:rgba(255,165,2,.15);color:var(--warning);border:1px solid rgba(255,165,2,.3);}#panel-sheet .rating-badge.RISKY{background:rgba(255,71,87,.15);color:var(--danger);border:1px solid rgba(255,71,87,.3);}#panel-sheet .no-data{padding:24px 16px;text-align:center;font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);}/* ── DECISION CHECKS ─────────────────────────────────────────────── */#panel-sheet .checks-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:10px 16px;}#panel-sheet .check-item{display:flex;align-items:center;justify-content:space-between;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:6px 10px;}#panel-sheet .check-label{font-size:10px;color:var(--muted);}#panel-sheet .check-val{font-family:'Space Mono',monospace;font-size:10px;font-weight:700;}#panel-sheet .check-val.yes{color:var(--good);}#panel-sheet .check-val.no{color:var(--danger);}#panel-sheet .check-val.na{color:var(--muted);}#panel-sheet .overall-box{margin:0 16px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;}#panel-sheet .overall-label{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:1px;color:var(--muted);}#panel-sheet .overall-rating{font-family:'Space Mono',monospace;font-size:14px;font-weight:700;}#panel-sheet .overall-rating.GOOD{color:var(--good);}#panel-sheet .overall-rating.OK{color:var(--warning);}#panel-sheet .overall-rating.RISKY{color:var(--danger);}#panel-sheet .overall-rating.na{color:var(--muted);}#panel-sheet .log-btn{background:var(--accent2);border:none;border-radius:6px;padding:5px 14px;font-size:10px;font-family:'Space Mono',monospace;font-weight:700;color:#000;cursor:pointer;transition:opacity .2s;}#panel-sheet .log-btn:hover{opacity:.8;}#panel-sheet .log-btn:disabled{opacity:.3;cursor:not-allowed;}/* ── CONTROLS PANEL ─────────────────────────────────────────────── */#panel-sheet .controls-panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;}#panel-sheet .ctrl-header{padding:12px 16px;border-bottom:1px solid var(--border);}#panel-sheet .ctrl-title{font-family:'Space Mono',monospace;font-size:11px;font-weight:700;color:var(--accent);}#panel-sheet .ctrl-body{padding:14px 16px;display:flex;flex-direction:column;gap:10px;}#panel-sheet .ctrl-row{display:flex;flex-direction:column;gap:3px;}#panel-sheet .ctrl-label{font-size:9px;color:var(--muted);letter-spacing:.5px;text-transform:uppercase;display:flex;align-items:center;justify-content:space-between;}#panel-sheet .override-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:9px;padding:0;transition:color .2s;}#panel-sheet .override-btn:hover{color:var(--accent);}#panel-sheet .override-btn.active{color:var(--accent);}#panel-sheet .ctrl-input,#panel-sheet .ctrl-select{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-family:'Space Mono',monospace;font-size:11px;outline:none;width:100%;transition:border-color .2s;}#panel-sheet .ctrl-input:focus,#panel-sheet .ctrl-select:focus{border-color:var(--accent);}#panel-sheet .ctrl-input.auto{border-color:rgba(0,212,255,.3);background:rgba(0,212,255,.04);}#panel-sheet .ctrl-input.overridden{border-color:var(--warning);background:rgba(255,165,2,.04);}#panel-sheet .ctrl-divider{height:1px;background:var(--border);margin:4px 0;}#panel-sheet .ctrl-row-inline{display:grid;grid-template-columns:1fr 1fr;gap:8px;}#panel-sheet .type-selector{display:grid;grid-template-columns:1fr 1fr;gap:4px;}#panel-sheet .type-btn{background:none;border:1px solid var(--border);border-radius:6px;padding:6px 4px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);cursor:pointer;text-align:center;transition:all .2s;}#panel-sheet .type-btn:hover{border-color:var(--accent);color:var(--accent);}#panel-sheet .type-btn.active.call{background:rgba(0,255,157,.15);border-color:var(--good);color:var(--good);}#panel-sheet .type-btn.active.put{background:rgba(255,71,87,.15);border-color:var(--danger);color:var(--danger);}#panel-sheet .exp-selector{display:flex;flex-direction:column;gap:4px;}#panel-sheet .exp-btn{background:none;border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);cursor:pointer;display:flex;justify-content:space-between;align-items:center;transition:all .2s;}#panel-sheet .exp-btn:hover{border-color:var(--accent);}#panel-sheet .exp-btn.active{background:rgba(0,212,255,.1);border-color:var(--accent);color:var(--accent);}#panel-sheet .exp-btn.earnings-warn{border-color:var(--danger);}#panel-sheet .exp-dte{font-size:9px;color:var(--muted);}/* ── DERIVED STATS ───────────────────────────────────────────────── */#panel-sheet .derived-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:0 16px 14px;}#panel-sheet .derived-item{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:8px 10px;}#panel-sheet .derived-label{font-size:8px;color:var(--muted);letter-spacing:.5px;text-transform:uppercase;margin-bottom:2px;}#panel-sheet .derived-val{font-family:'Space Mono',monospace;font-size:13px;font-weight:700;color:var(--accent);}#panel-sheet .derived-val.good{color:var(--good);}#panel-sheet .derived-val.danger{color:var(--danger);}#panel-sheet .derived-val.warn{color:var(--warning);}#panel-sheet .derived-val.muted{color:var(--muted);}/* ── TRADE LOG ───────────────────────────────────────────────────── */#panel-sheet .log-section{background:var(--surface);border:1px solid var(--border);border-radius:12px;margin-top:14px;overflow:hidden;}#panel-sheet .log-header{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;}#panel-sheet .log-title{font-family:'Space Mono',monospace;font-size:11px;font-weight:700;color:var(--accent);}#panel-sheet .log-toggle{font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);transition:color .2s;}#panel-sheet .log-header:hover .log-toggle{color:var(--accent);}#panel-sheet .log-body{overflow:hidden;transition:max-height .3s ease;}#panel-sheet .log-body.collapsed{max-height:0;}#panel-sheet .log-body.expanded{max-height:2000px;}#panel-sheet .log-filters{padding:10px 16px;border-bottom:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap;}#panel-sheet .filter-btn{background:none;border:1px solid var(--border);border-radius:20px;padding:4px 12px;font-size:10px;font-family:'Space Mono',monospace;color:var(--muted);cursor:pointer;transition:all .2s;}#panel-sheet .filter-btn:hover,#panel-sheet .filter-btn.active{background:var(--surface2);border-color:var(--accent);color:var(--accent);}#panel-sheet .log-table-wrap{overflow-x:auto;}#panel-sheet .log-table{width:100%;border-collapse:collapse;font-size:11px;}#panel-sheet .log-table th{font-family:'Space Mono',monospace;font-size:8px;letter-spacing:1px;color:var(--muted);padding:8px 12px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap;}#panel-sheet .log-table td{padding:9px 12px;border-bottom:1px solid var(--border);font-family:'Space Mono',monospace;white-space:nowrap;}#panel-sheet .log-table tr:last-child td{border-bottom:none;}#panel-sheet .log-table tr:hover td{background:var(--surface2);}#panel-sheet .type-pill{padding:2px 8px;border-radius:4px;font-size:9px;font-weight:700;}#panel-sheet .type-pill.lc{background:rgba(0,255,157,.15);color:var(--good);}#panel-sheet .type-pill.lp{background:rgba(255,71,87,.15);color:var(--danger);}#panel-sheet .type-pill.cs{background:rgba(0,212,255,.15);color:var(--accent);}#panel-sheet .type-pill.ps{background:rgba(255,165,2,.15);color:var(--warning);}#panel-sheet .outcome-pill{padding:2px 8px;border-radius:4px;font-size:9px;font-weight:700;}#panel-sheet .outcome-pill.open{background:rgba(107,122,153,.15);color:var(--muted);}#panel-sheet .outcome-pill.win{background:rgba(0,255,157,.15);color:var(--good);}#panel-sheet .outcome-pill.loss{background:rgba(255,71,87,.15);color:var(--danger);}#panel-sheet .outcome-pill.be{background:rgba(107,122,153,.15);color:var(--muted);}#panel-sheet .pl-pos{color:var(--good);}#panel-sheet .pl-neg{color:var(--danger);}#panel-sheet .row-actions{display:flex;gap:6px;}#panel-sheet .row-btn{background:none;border:1px solid var(--border);border-radius:4px;padding:3px 8px;font-size:9px;font-family:'Space Mono',monospace;color:var(--muted);cursor:pointer;transition:all .2s;}#panel-sheet .row-btn:hover{border-color:var(--accent);color:var(--accent);}#panel-sheet .row-btn.del:hover{border-color:var(--danger);color:var(--danger);}#panel-sheet .log-empty{padding:32px;text-align:center;font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);}#panel-sheet .log-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:12px 16px;border-bottom:1px solid var(--border);}#panel-sheet .log-stat{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:8px 10px;}#panel-sheet .log-stat-label{font-size:8px;color:var(--muted);letter-spacing:.5px;text-transform:uppercase;margin-bottom:2px;}#panel-sheet .log-stat-val{font-family:'Space Mono',monospace;font-size:14px;font-weight:700;}/* ── MODALS ──────────────────────────────────────────────────────── */#panel-sheet .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:500;display:flex;align-items:center;justify-content:center;padding:20px;}#panel-sheet .modal{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;width:100%;max-width:400px;}#panel-sheet .modal h3{font-family:'Space Mono',monospace;font-size:12px;color:var(--accent);margin-bottom:16px;letter-spacing:1px;}#panel-sheet .modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}#panel-sheet .mf{display:flex;flex-direction:column;gap:3px;}#panel-sheet .mf-full{grid-column:1/-1;}#panel-sheet .ml{font-size:9px;color:var(--muted);letter-spacing:.5px;text-transform:uppercase;}#panel-sheet .mi{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:7px 10px;color:var(--text);font-family:'Space Mono',monospace;font-size:12px;outline:none;width:100%;transition:border-color .2s;}#panel-sheet .mi:focus{border-color:var(--accent);}#panel-sheet select.mi{cursor:pointer;}#panel-sheet .outcome-row{display:flex;gap:6px;margin-bottom:14px;}#panel-sheet .out-btn{flex:1;padding:7px;border-radius:7px;border:1px solid var(--border);background:none;color:var(--muted);font-family:'Space Mono',monospace;font-size:10px;cursor:pointer;transition:all .2s;}#panel-sheet .out-btn.sel.win{background:rgba(0,255,157,.15);border-color:var(--good);color:var(--good);}#panel-sheet .out-btn.sel.loss{background:rgba(255,71,87,.15);border-color:var(--danger);color:var(--danger);}#panel-sheet .out-btn.sel.be{background:rgba(107,122,153,.15);border-color:var(--muted);color:var(--text);}#panel-sheet .modal-actions{display:flex;gap:8px;}#panel-sheet .modal-confirm{flex:1;background:var(--accent2);border:none;border-radius:8px;padding:10px;color:#000;font-weight:700;cursor:pointer;font-family:'Space Mono',monospace;font-size:11px;}#panel-sheet .modal-cancel{flex:1;background:none;border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--muted);cursor:pointer;font-family:'Space Mono',monospace;font-size:11px;}#panel-sheet .modal-delete{background:none;border:1px solid rgba(255,71,87,.4);border-radius:8px;padding:10px 14px;color:var(--danger);cursor:pointer;font-family:'Space Mono',monospace;font-size:11px;}#panel-sheet .modal-calc{font-family:'Space Mono',monospace;font-size:18px;font-weight:700;text-align:center;padding:10px;background:var(--surface2);border-radius:8px;margin-bottom:12px;}#panel-sheet .spread-only{transition:opacity .2s;}#panel-sheet .spread-only.hidden{display:none;}/* ── TOAST ───────────────────────────────────────────────────────── */#panel-sheet .toast{position:fixed;bottom:24px;right:24px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 16px;font-family:'Space Mono',monospace;font-size:11px;color:var(--text);z-index:600;transform:translateY(20px);opacity:0;transition:all .3s;}#panel-sheet .toast.show{transform:translateY(0);opacity:1;}#panel-sheet .toast.ok{border-color:var(--good);color:var(--good);}#panel-sheet .toast.err{border-color:var(--danger);color:var(--danger);}/* ── LOADING SHIMMER ─────────────────────────────────────────────── */#panel-sheet .shimmer{background:linear-gradient(90deg,var(--surface2) 25%,var(--border) 50%,var(--surface2) 75%);background-size:200% 100%;animation:shim 1.5s infinite;border-radius:4px;height:12px;margin:4px 0;}@keyframes shim{0%{background-position:200% 0}100%{background-position:-200% 0}}/* ── PAYOFF TABLE ────────────────────────────────────────────────── */#panel-sheet .payoff-section{background:var(--surface);border:1px solid var(--border);border-radius:12px;margin-top:14px;overflow:hidden;}#panel-sheet .payoff-header{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}#panel-sheet .payoff-title{font-family:'Space Mono',monospace;font-size:11px;font-weight:700;color:var(--accent);}#panel-sheet .payoff-table-wrap{overflow-x:auto;padding:10px 16px 16px;}#panel-sheet .payoff-table{width:100%;border-collapse:collapse;font-size:11px;}#panel-sheet .payoff-table th{font-family:'Space Mono',monospace;font-size:8px;letter-spacing:1px;color:var(--muted);padding:6px 10px;text-align:center;border-bottom:1px solid var(--border);}#panel-sheet .payoff-table td{padding:5px 10px;text-align:center;font-family:'Space Mono',monospace;border-bottom:1px solid var(--border);}#panel-sheet .payoff-table td.breakeven{background:rgba(255,165,2,.08);font-weight:700;}#panel-sheet .payoff-table td.profit{color:var(--good);}#panel-sheet .payoff-table td.loss{color:var(--danger);}#panel-sheet .payoff-table td.current{background:rgba(0,212,255,.08);}/* ── RESPONSIVE ──────────────────────────────────────────────────── */@media(max-width:900px){#panel-sheet .two-col{grid-template-columns:1fr;}#panel-sheet .controls-panel{order:-1;}}
+/* ── TRADEPLAN ───────────────────────────────────────────────────── */#panel-sheet .tradeplan{background:var(--surface);border:1px solid rgba(255,165,2,.4);border-radius:12px;margin-bottom:14px;overflow:hidden;display:none;}#panel-sheet .tradeplan.visible{display:block;}#panel-sheet .tp-header{padding:10px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:rgba(255,165,2,.04);}#panel-sheet .tp-title{font-family:'Space Mono',monospace;font-size:11px;font-weight:700;color:#ffa502;letter-spacing:1px;}#panel-sheet .tp-badge{font-family:'Space Mono',monospace;font-size:10px;font-weight:700;padding:2px 10px;border-radius:12px;background:rgba(255,165,2,.15);color:#ffa502;border:1px solid rgba(255,165,2,.3);}#panel-sheet .tp-body{padding:14px 16px;display:flex;flex-direction:column;gap:10px;}#panel-sheet .tp-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}#panel-sheet .tp-row-2{display:grid;grid-template-columns:1fr 1fr;gap:8px;}#panel-sheet .tp-field{display:flex;flex-direction:column;gap:3px;}#panel-sheet .tp-label{font-size:8px;color:var(--muted);letter-spacing:.5px;text-transform:uppercase;display:flex;align-items:center;justify-content:space-between;}#panel-sheet .tp-val{font-family:'Space Mono',monospace;font-size:12px;font-weight:700;color:var(--text);background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:6px 10px;min-height:30px;}#panel-sheet .tp-val.accent{color:var(--accent);}#panel-sheet .tp-val.warning{color:#ffa502;}#panel-sheet .tp-input{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-family:'Space Mono',monospace;font-size:12px;outline:none;width:100%;transition:border-color .2s;}#panel-sheet .tp-input:focus{border-color:#ffa502;}#panel-sheet .tp-input.auto{border-color:rgba(0,212,255,.3);background:rgba(0,212,255,.04);}#panel-sheet .tp-input.overridden{border-color:var(--warning);background:rgba(255,165,2,.04);}#panel-sheet .tp-override-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:9px;padding:0;transition:color .2s;}#panel-sheet .tp-override-btn:hover{color:#ffa502;}#panel-sheet .tp-override-btn.active{color:#ffa502;}#panel-sheet .tp-notes{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:12px;outline:none;resize:none;height:40px;transition:border-color .2s;box-sizing:border-box;}#panel-sheet .tp-notes:focus{border-color:#ffa502;}#panel-sheet .tp-footer{padding:12px 16px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:10px;}#panel-sheet .tp-status{font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);}#panel-sheet .tp-status.ready{color:var(--good);}#panel-sheet .tp-send-btn{background:#ffa502;border:none;border-radius:8px;padding:8px 20px;font-size:11px;font-family:'Space Mono',monospace;font-weight:700;color:#000;cursor:pointer;transition:opacity .2s;white-space:nowrap;}#panel-sheet .tp-send-btn:hover{opacity:.85;}#panel-sheet .tp-send-btn:disabled{opacity:.3;cursor:not-allowed;background:var(--border);color:var(--muted);}@media(max-width:600px){#panel-sheet .tp-row{grid-template-columns:1fr 1fr;}}
 /* ══ SWITCHER (global) ════════════════════════════════════════ */
 /* ══ APP SWITCHER ════════════════════════════════════════════════════ */
 
@@ -742,6 +744,62 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
 
     <!-- LEFT: DASHBOARD -->
     <div>
+
+      <!-- TRADEPLAN -->
+      <div class="tradeplan" id="tradeplan">
+        <div class="tp-header">
+          <div class="tp-title">📋 TRADEPLAN</div>
+          <div class="tp-badge" id="tp-badge">INCOMPLETE</div>
+        </div>
+        <div class="tp-body">
+          <!-- Row 1: Ticker / Type / Expiration / Entry Price -->
+          <div class="tp-row">
+            <div class="tp-field">
+              <div class="tp-label">Ticker</div>
+              <div class="tp-val accent" id="tp-ticker">—</div>
+            </div>
+            <div class="tp-field">
+              <div class="tp-label">Type</div>
+              <div class="tp-val" id="tp-type">—</div>
+            </div>
+            <div class="tp-field">
+              <div class="tp-label">Expiration</div>
+              <div class="tp-val" id="tp-exp">—</div>
+            </div>
+            <div class="tp-field">
+              <div class="tp-label">Entry Price</div>
+              <div class="tp-val accent" id="tp-entry">—</div>
+            </div>
+          </div>
+          <!-- Row 2: Exit ITM / Exit OTM -->
+          <div class="tp-row-2">
+            <div class="tp-field">
+              <div class="tp-label">
+                Exit ITM (Take Profit)
+                <button class="tp-override-btn" id="tp-itm-btn" onclick="toggleTpOverride('itm')" title="Override">✎</button>
+              </div>
+              <input class="tp-input auto" id="tp-itm" type="number" step="0.01" placeholder="—" readonly>
+            </div>
+            <div class="tp-field">
+              <div class="tp-label">
+                Exit OTM (Stop Loss)
+                <button class="tp-override-btn" id="tp-otm-btn" onclick="toggleTpOverride('otm')" title="Override">✎</button>
+              </div>
+              <input class="tp-input auto" id="tp-otm" type="number" step="0.01" placeholder="—" readonly>
+            </div>
+          </div>
+          <!-- Row 3: Notes -->
+          <div class="tp-field">
+            <div class="tp-label">Notes / Thesis</div>
+            <textarea class="tp-notes" id="tp-notes" placeholder="Why am I taking this trade?" oninput="updateTpStatus()"></textarea>
+          </div>
+        </div>
+        <div class="tp-footer">
+          <div class="tp-status" id="tp-status">Fetch a ticker to begin</div>
+          <button class="tp-send-btn" id="tp-send-btn" onclick="sendToPlan()" disabled>SEND TO TRADELOG →</button>
+        </div>
+      </div>
+
       <!-- CALL SPREADS -->
       <div class="dashboard">
         <div class="dash-header">
@@ -764,13 +822,6 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
           <div class="check-item"><span class="check-label">Break-even in move?</span><span class="check-val" id="ck-c-be">—</span></div>
           <div class="check-item"><span class="check-label">Strikes valid?</span><span class="check-val" id="ck-c-strikes">—</span></div>
           <div class="check-item"><span class="check-label">Earnings safe?</span><span class="check-val" id="ck-c-earn">—</span></div>
-        </div>
-        <div class="overall-box" id="call-overall-box" style="display:none;">
-          <div>
-            <div class="overall-label">CALL OVERALL</div>
-            <div class="overall-rating na" id="call-overall-rating">—</div>
-          </div>
-          <button class="log-btn" id="call-log-btn" onclick="openLogModal('call')" disabled>LOG TRADE</button>
         </div>
       </div>
 
@@ -796,13 +847,6 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
           <div class="check-item"><span class="check-label">Break-even in move?</span><span class="check-val" id="ck-p-be">—</span></div>
           <div class="check-item"><span class="check-label">Strikes valid?</span><span class="check-val" id="ck-p-strikes">—</span></div>
           <div class="check-item"><span class="check-label">Earnings safe?</span><span class="check-val" id="ck-p-earn">—</span></div>
-        </div>
-        <div class="overall-box" id="put-overall-box" style="display:none;">
-          <div>
-            <div class="overall-label">PUT OVERALL</div>
-            <div class="overall-rating na" id="put-overall-rating">—</div>
-          </div>
-          <button class="log-btn" id="put-log-btn" onclick="openLogModal('put')" disabled>LOG TRADE</button>
         </div>
       </div>
 
@@ -1393,12 +1437,12 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
 
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v6.6</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v6.7</div>
 
 <!-- ══ MOBILE SCAN BTN (mobile only, shown via CSS) ══════════════════════ -->
 <div id="mobile-scan-btn-wrap" style="display:none;">
   <button class="mscan-btn" onclick="go('briefing');window.TB.runScanner(true);">🔍 Scan Now</button>
-  <span class="mversion">v6.6</span>
+  <span class="mversion">v6.7</span>
 </div>
 
 <!-- ══ APP SWITCHER NAV ════════════════════════════════════════════════════ -->
@@ -3723,6 +3767,8 @@ let state = {
   earningsOverride: false,
   exitItmOverride: false,
   exitOtmOverride: false,
+  tpItmOverride: false,
+  tpOtmOverride: false,
   scanResults: { calls: [], puts: [] },
   selectedCall: null,
   selectedPut: null,
@@ -3818,6 +3864,7 @@ async function fetchAll() {
 
     setStatus('ok', `${ticker} loaded ✓ — select an expiration to scan`);
     // No auto-scan — user selects expiration to trigger results
+    updateTradePlan();
 
   } catch(e) {
     console.error(e);
@@ -3925,6 +3972,7 @@ async function selectExp(date) {
   state.chain = state.allChains[date] || [];
   updateDerived();
   runScanner();
+  updateTradePlan();
 }
 
 // ── TRADIER: HISTORICAL → ATR + IV RANK ──────────────────────────
@@ -4182,6 +4230,7 @@ function runScanner() {
   renderResults();
   renderPayoff();
   updateExitPrices();
+  updateTradePlan();
 }
 
 function isAllType() { return false; } // reserved for future "scan all" mode
@@ -4333,12 +4382,14 @@ function callSelectRow(i) {
   renderResults();
   renderPayoff();
   updateExitPrices();
+  updateTradePlan();
 }
 function putSelectRow(i) {
   state.selectedPut = state.scanResults.puts[i];
   renderResults();
   renderPayoff();
   updateExitPrices();
+  updateTradePlan();
 }
 
 // ── DERIVED STATS ─────────────────────────────────────────────────
@@ -4468,6 +4519,7 @@ function setTradeType(type) {
   });
 
   runScanner();
+  updateTradePlan();
 }
 
 // ── CONTROLS: OVERRIDES ───────────────────────────────────────────
@@ -4756,6 +4808,29 @@ function renderLogTable() {
 
 // ── LOG MODAL ─────────────────────────────────────────────────────
 function openLogModal(side) {
+  // TradePlan pre-fill path
+  if (state._tpPrefill) {
+    const p = state._tpPrefill;
+    state._tpPrefill = null;
+    document.getElementById('lm-ticker').value = p.ticker || '';
+    document.getElementById('lm-type').value   = p.type   || 'Long Call';
+    document.getElementById('lm-buy').value    = p.buyStrike  || '';
+    document.getElementById('lm-sell').value   = p.sellStrike || '';
+    document.getElementById('lm-exp').value    = p.expDate    || '';
+    document.getElementById('lm-qty').value    = p.contracts  || 1;
+    document.getElementById('lm-cost').value   = p.cost ? p.cost.toFixed(2) : '';
+    document.getElementById('lm-profit').value = '';
+    document.getElementById('lm-ivr').value    = document.getElementById('ivr-val').value || '';
+    document.getElementById('lm-entry').value  = p.entryDate || new Date().toISOString().split('T')[0];
+    document.getElementById('lm-sale').value   = '';
+    document.getElementById('lm-calc').style.display = 'none';
+    state.logOutcome = 'Open';
+    selectOutcome('Open');
+    logModalTypeChange();
+    document.getElementById('ts-log-modal').style.display = 'flex';
+    return;
+  }
+
   const result = side === 'call' ? state.selectedCall : state.selectedPut;
   if (!result) return;
 
@@ -4992,6 +5067,144 @@ window.onManualFieldSave      = onManualFieldSave;
 window.toggleExitOverride     = toggleExitOverride;
 window.onExitOverrideInput    = onExitOverrideInput;
 window.updateExitPrices       = updateExitPrices;
+
+// ── TRADEPLAN ──────────────────────────────────────────────────────
+function updateTradePlan() {
+  const plan = document.getElementById('tradeplan');
+  if (!plan) return;
+
+  const ticker = state.ticker || '';
+  const type   = state.tradeType || '';
+  const exp    = state.selectedExp || '';
+
+  // Show plan once ticker is loaded
+  if (ticker) {
+    plan.classList.add('visible');
+  } else {
+    plan.classList.remove('visible');
+    return;
+  }
+
+  // Populate read-only fields
+  document.getElementById('tp-ticker').textContent = ticker || '—';
+  document.getElementById('tp-type').textContent   = type   || '—';
+  document.getElementById('tp-exp').textContent    = exp    || '—';
+
+  // Entry price from selected trade matching current type
+  const isCall = type === 'Long Call' || type === 'Call Spread';
+  const trade  = isCall ? state.selectedCall : state.selectedPut;
+  const cost   = trade ? trade.cost : null;
+  document.getElementById('tp-entry').textContent = cost ? '$' + cost.toFixed(2) : '—';
+
+  // Exit prices — pull from Controls Exit Plan fields (which already calc'd)
+  const itmCtrl = document.getElementById('exit-itm-val');
+  const otmCtrl = document.getElementById('exit-otm-val');
+
+  const itmInput = document.getElementById('tp-itm');
+  const otmInput = document.getElementById('tp-otm');
+
+  if (!state.tpItmOverride) {
+    itmInput.value = itmCtrl ? itmCtrl.value : '';
+  }
+  if (!state.tpOtmOverride) {
+    otmInput.value = otmCtrl ? otmCtrl.value : '';
+  }
+
+  updateTpStatus();
+}
+
+function toggleTpOverride(side) {
+  const input = document.getElementById('tp-' + side);
+  const btn   = document.getElementById('tp-' + side + '-btn');
+  const key   = side === 'itm' ? 'tpItmOverride' : 'tpOtmOverride';
+
+  if (state[key]) {
+    state[key] = false;
+    input.readOnly = true;
+    input.className = 'tp-input auto';
+    btn.classList.remove('active');
+    updateTradePlan();
+  } else {
+    state[key] = true;
+    input.readOnly = false;
+    input.className = 'tp-input overridden';
+    btn.classList.add('active');
+    input.focus();
+  }
+  updateTpStatus();
+}
+
+function updateTpStatus() {
+  const ticker = state.ticker || '';
+  const type   = state.tradeType || '';
+  const exp    = state.selectedExp || '';
+  const itm    = document.getElementById('tp-itm')?.value;
+  const otm    = document.getElementById('tp-otm')?.value;
+
+  const sendBtn   = document.getElementById('tp-send-btn');
+  const statusEl  = document.getElementById('tp-status');
+  const badgeEl   = document.getElementById('tp-badge');
+
+  const missing = [];
+  if (!ticker) missing.push('ticker');
+  if (!type)   missing.push('type');
+  if (!exp)    missing.push('expiration');
+  if (!itm || parseFloat(itm) <= 0) missing.push('exit ITM');
+  if (!otm || parseFloat(otm) <= 0) missing.push('exit OTM');
+
+  const ready = missing.length === 0;
+
+  if (sendBtn)  { sendBtn.disabled = !ready; }
+  if (badgeEl)  { badgeEl.textContent = ready ? 'READY' : 'INCOMPLETE'; badgeEl.style.background = ready ? 'rgba(0,255,157,.15)' : 'rgba(255,165,2,.15)'; badgeEl.style.color = ready ? 'var(--good)' : '#ffa502'; badgeEl.style.borderColor = ready ? 'rgba(0,255,157,.3)' : 'rgba(255,165,2,.3)'; }
+  if (statusEl) { statusEl.textContent = ready ? '✓ Plan complete — ready to log' : 'Missing: ' + missing.join(', '); statusEl.className = 'tp-status' + (ready ? ' ready' : ''); }
+}
+
+function sendToPlan() {
+  const ticker  = state.ticker || '';
+  const type    = state.tradeType || '';
+  const exp     = state.selectedExp || '';
+  const isCall  = type === 'Long Call' || type === 'Call Spread';
+  const trade   = isCall ? state.selectedCall : state.selectedPut;
+  const cost    = trade ? trade.cost : 0;
+  const itm     = parseFloat(document.getElementById('tp-itm')?.value) || 0;
+  const otm     = parseFloat(document.getElementById('tp-otm')?.value) || 0;
+  const notes   = document.getElementById('tp-notes')?.value || '';
+  const contracts = parseInt(document.getElementById('contracts')?.value) || 1;
+
+  if (!ticker || !type || !exp || !itm || !otm) {
+    toast('Complete the plan before logging', 'err'); return;
+  }
+
+  // Build trade object for log
+  const tradeObj = {
+    ticker,
+    type,
+    expDate: exp,
+    buyStrike:  trade ? trade.buyStrike  : null,
+    sellStrike: trade ? trade.sellStrike : null,
+    cost,
+    contracts,
+    entryDate: new Date().toISOString().split('T')[0],
+    exitItm: itm,
+    exitOtm: otm,
+    notes,
+    status: 'open',
+    outcome: null,
+    pl: null,
+    source: 'tradeplan'
+  };
+
+  // Push into log modal with pre-fill
+  state._tpPrefill = tradeObj;
+  openLogModal(isCall ? 'call' : 'put');
+
+  toast('Plan loaded into TradeLog ✓', 'ok');
+  // Reset plan overrides
+  state.tpItmOverride = false;
+  state.tpOtmOverride = false;
+  document.getElementById('tp-notes').value = '';
+  updateTradePlan();
+}
 window.setLogFilter           = setLogFilter;
 window.openLogModal           = openLogModal;
 window.closeLogModal          = closeLogModal;
@@ -5007,6 +5220,10 @@ window.calcEditPL             = calcEditPL;
 window.confirmEditTrade       = confirmEditTrade;
 window.deleteEditingTrade     = deleteEditingTrade;
 window.confirmDelete          = confirmDelete;
+window.updateTradePlan        = updateTradePlan;
+window.toggleTpOverride       = toggleTpOverride;
+window.updateTpStatus         = updateTpStatus;
+window.sendToPlan             = sendToPlan;
 
 // ── PUBLIC API: window.TS ─────────────────────────────────────────
 function fetchTicker(ticker) {
@@ -5815,7 +6032,7 @@ function swApp(name){
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradingBrief V6.6 — TradeSheet Controls Improvements        ║
+     ║  END TradingBrief V6.7 — TradePlan                               ║
      ║  2026-04-15                                                       ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 </body>
