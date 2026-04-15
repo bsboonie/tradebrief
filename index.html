@@ -4810,29 +4810,6 @@ function renderLogTable() {
 
 // ── LOG MODAL ─────────────────────────────────────────────────────
 function openLogModal(side) {
-  // TradePlan pre-fill path
-  if (state._tpPrefill) {
-    const p = state._tpPrefill;
-    state._tpPrefill = null;
-    document.getElementById('lm-ticker').value = p.ticker || '';
-    document.getElementById('lm-type').value   = p.type   || 'Long Call';
-    document.getElementById('lm-buy').value    = p.buyStrike  || '';
-    document.getElementById('lm-sell').value   = p.sellStrike || '';
-    document.getElementById('lm-exp').value    = p.expDate    || '';
-    document.getElementById('lm-qty').value    = p.contracts  || 1;
-    document.getElementById('lm-cost').value   = p.cost ? p.cost.toFixed(2) : '';
-    document.getElementById('lm-profit').value = '';
-    document.getElementById('lm-ivr').value    = document.getElementById('ivr-val').value || '';
-    document.getElementById('lm-entry').value  = p.entryDate || new Date().toISOString().split('T')[0];
-    document.getElementById('lm-sale').value   = '';
-    document.getElementById('lm-calc').style.display = 'none';
-    state.logOutcome = 'Open';
-    selectOutcome('Open');
-    logModalTypeChange();
-    document.getElementById('ts-log-modal').style.display = 'flex';
-    return;
-  }
-
   const result = side === 'call' ? state.selectedCall : state.selectedPut;
   if (!result) return;
 
@@ -5161,7 +5138,7 @@ function updateTpStatus() {
   if (statusEl) { statusEl.textContent = ready ? '✓ Plan complete — ready to log' : 'Missing: ' + missing.join(', '); statusEl.className = 'tp-status' + (ready ? ' ready' : ''); }
 }
 
-function sendToPlan() {
+async function sendToPlan() {
   const ticker  = state.ticker || '';
   const type    = state.tradeType || '';
   const exp     = state.selectedExp || '';
@@ -5177,31 +5154,32 @@ function sendToPlan() {
     toast('Complete the plan before logging', 'err'); return;
   }
 
-  // Build trade object for log
   const tradeObj = {
     ticker,
     type,
-    expDate: exp,
     buyStrike:  trade ? trade.buyStrike  : null,
     sellStrike: trade ? trade.sellStrike : null,
-    cost,
+    expDate: exp,
     contracts,
+    cost,
+    maxProfit: trade ? trade.maxProfit : null,
+    rr: trade ? trade.rr : null,
+    ivRank: parseFloat(document.getElementById('ivr-val')?.value) || null,
     entryDate: new Date().toISOString().split('T')[0],
+    outcome: 'Open',
+    salePrice: null,
+    pl: null,
     exitItm: itm,
     exitOtm: otm,
     notes,
-    status: 'open',
-    outcome: null,
-    pl: null,
-    source: 'tradeplan'
   };
 
-  // Push into log modal with pre-fill
-  state._tpPrefill = tradeObj;
-  openLogModal(isCall ? 'call' : 'put');
+  await saveTrade(tradeObj);
+  renderLogTable();
+  toast('Trade logged via TradePlan ✓', 'ok');
+  if (!state.logExpanded) toggleLog();
 
-  toast('Plan loaded into TradeLog ✓', 'ok');
-  // Reset plan overrides
+  // Reset plan
   state.tpItmOverride = false;
   state.tpOtmOverride = false;
   document.getElementById('tp-notes').value = '';
