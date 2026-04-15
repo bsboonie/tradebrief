@@ -4647,7 +4647,7 @@ function onManualFieldSave(field) {
     input.style.background = '';
     input.className = 'ctrl-input auto';
   }, 800);
-  if (field === 'atr') { updateDerived(); updateExitPrices(); }
+  if (field === 'atr') { updateDerived(); updateExitPrices(); runScanner(); }
   else { runScanner(); }
 }
 
