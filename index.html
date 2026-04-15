@@ -4305,12 +4305,12 @@ function renderSide(side) {
   const topN = results.slice(0, n);
   const container = document.getElementById(`${side}-results`);
   const checksEl = document.getElementById(`${side}-checks`);
-  const overallBox = document.getElementById(`${side}-overall-box`);
+  const overallBox = document.getElementById(`${side}-overall-box`); // null in v6.7+
 
   if (!topN.length) {
     container.innerHTML = '<div class="no-data">No qualifying ' + (side === 'call' ? 'call' : 'put') + ' trades found</div>';
     checksEl.style.display = 'none';
-    overallBox.style.display = 'none';
+    if (overallBox) overallBox.style.display = 'none';
     return;
   }
 
@@ -4343,7 +4343,7 @@ function renderSide(side) {
   // Decision checks for top result
   const top = selected || topN[0];
   checksEl.style.display = 'grid';
-  overallBox.style.display = 'flex';
+  if (overallBox) overallBox.style.display = 'flex';
 
   const budget = parseFloat(document.getElementById('max-budget').value) || 200;
   const minRR = parseFloat(document.getElementById('min-rr').value) || 1.5;
@@ -4357,11 +4357,13 @@ function renderSide(side) {
   setCheck(`ck-${side === 'call' ? 'c' : 'p'}-earn`, !top.earningsBefore);
 
   const overallRating = document.getElementById(`${side}-overall-rating`);
-  overallRating.textContent = top.rating;
-  overallRating.className = `overall-rating ${top.rating}`;
+  if (overallRating) {
+    overallRating.textContent = top.rating;
+    overallRating.className = `overall-rating ${top.rating}`;
+  }
 
   const logBtn = document.getElementById(`${side}-log-btn`);
-  logBtn.disabled = false;
+  if (logBtn) logBtn.disabled = false;
 }
 
 function setCheck(id, pass) {
