@@ -1,14 +1,13 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v6.7 — TradePlan                                     ║
+     ║  TRADEBRIEF v6.8 — TradeLog Panel                                ║
      ║  Date: 2026-04-15                                                ║
-     ║  Changes from v6.6:                                              ║
-     ║    1. TradePlan block — left col, above CALL RESULTS             ║
-     ║    2. Auto-populates ticker, type, exp, entry, exits live        ║
-     ║    3. Exit ITM/OTM overridable inline without changing defaults  ║
-     ║    4. Notes free-text field                                      ║
-     ║    5. Send to TradeLog — enabled when plan complete              ║
-     ║    6. Removed CALL OVERALL / PUT OVERALL + LOG TRADE buttons     ║
+     ║  Changes from v6.7:                                              ║
+     ║    1. TradeLog moved to its own panel (#panel-log)               ║
+     ║    2. Nav split: Sheet | Log (both orange)                       ║
+     ║    3. TradeLog removed from TradeSheet                           ║
+     ║    4. Exit ITM / Exit OTM columns in log table                   ║
+     ║    5. Trashcan per row — tap red, tap again to confirm delete    ║
      ║    2. Conviction number — persists thesisScore in sd[] on        ║
      ║       analysis so it survives re-renders                         ║
      ║    3. tb_toast — replaced with no-op (toast fully removed)       ║
@@ -90,8 +89,10 @@
 .sw-word-trade{color:#22d3ee;}
 .sw-word-brief  {color:#4ade80;}
 .sw-word-sheet  {color:#ffa502;}
+.sw-word-log    {color:#ffa502;}
 .sw-btn.active.sw-brief  {border-top-color:#4ade80;}
 .sw-btn.active.sw-sheet  {border-top-color:#ffa502;}
+.sw-btn.active.sw-log    {border-top-color:#ffa502;}
 .sw-word-help   {color:#ff4d4d;}
 .sw-btn.active.sw-help   {border-top-color:#ff4d4d;}
 .sw-word-data   {color:#FF6EFF;}
@@ -151,6 +152,7 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
   .sw-word-trade { display:none !important; }
   #sw-btn-brief   .sw-word-brief   { font-size:11px !important; }
   #sw-btn-sheet   .sw-word-sheet   { font-size:11px !important; }
+  #sw-btn-log     .sw-word-log     { font-size:11px !important; }
   #sw-btn-data    .sw-word-data    { font-size:11px !important; }
   #sw-btn-help    .sw-word-help    { font-size:11px !important; }
   .sw-btn { font-size:11px; padding:0 2px; }
@@ -1023,44 +1025,6 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
     </div>
   </div>
 
-  <!-- TRADE LOG -->
-  <div class="log-section">
-    <div class="log-header" onclick="toggleLog()">
-      <div class="log-title"><span style="color:#22d3ee;">Trade</span><span style="color:#ffa502;">Log</span></div>
-      <div class="log-toggle" id="log-toggle">▼ EXPAND</div>
-    </div>
-    <div class="log-body collapsed" id="log-body">
-      <div class="log-stats">
-        <div class="log-stat"><div class="log-stat-label">Total Trades</div><div class="log-stat-val" id="ts-stat-total" style="color:var(--accent);">0</div></div>
-        <div class="log-stat"><div class="log-stat-label">Win Rate</div><div class="log-stat-val" id="stat-wr" style="color:var(--good);">—</div></div>
-        <div class="log-stat"><div class="log-stat-label">Total P&L</div><div class="log-stat-val" id="stat-pnl">—</div></div>
-        <div class="log-stat"><div class="log-stat-label">Open Trades</div><div class="log-stat-val" id="stat-open" style="color:var(--warning);">0</div></div>
-      </div>
-      <div class="log-filters">
-        <button class="filter-btn active" onclick="setLogFilter('all',this)">ALL</button>
-        <button class="filter-btn" onclick="setLogFilter('open',this)">OPEN</button>
-        <button class="filter-btn" onclick="setLogFilter('closed',this)">CLOSED</button>
-        <button class="filter-btn" onclick="setLogFilter('Long Call',this)">LONG CALL</button>
-        <button class="filter-btn" onclick="setLogFilter('Long Put',this)">LONG PUT</button>
-        <button class="filter-btn" onclick="setLogFilter('Call Spread',this)">CALL SPREAD</button>
-        <button class="filter-btn" onclick="setLogFilter('Put Spread',this)">PUT SPREAD</button>
-      </div>
-      <div class="log-table-wrap">
-        <table class="log-table">
-          <thead>
-            <tr>
-              <th>DATE</th><th>TICKER</th><th>TYPE</th><th>STRIKES</th>
-              <th>EXP</th><th>COST $</th><th>MAX $</th><th>R/R</th>
-              <th>IV RANK</th><th>OUTCOME</th><th>P&L $</th><th>ACTIONS</th>
-            </tr>
-          </thead>
-          <tbody id="log-tbody"></tbody>
-        </table>
-        <div class="log-empty" id="log-empty">No trades logged yet.</div>
-      </div>
-    </div>
-  </div>
-
 </div><!-- /main -->
 
 <!-- ── TOAST ────────────────────────────────────────────────────────── -->
@@ -1145,6 +1109,93 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
   </div>
 </div>
 </div><!-- /panel-sheet -->
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     PANEL: TRADELOG
+══════════════════════════════════════════════════════════════════════════ -->
+<div class="app-panel" id="panel-log">
+<style>
+#panel-log *{box-sizing:border-box;}
+#panel-log{background:var(--bg);min-height:100vh;font-family:'DM Sans',sans-serif;}
+#panel-log .tl-header{position:sticky;top:0;z-index:200;background:var(--surface);border-bottom:1px solid var(--border);padding:10px 16px;display:flex;align-items:center;justify-content:space-between;}
+#panel-log .tl-logo{font-family:'Space Mono',monospace;font-size:22px;font-weight:700;color:#22d3ee;}
+#panel-log .tl-logo span{color:#ffa502;}
+#panel-log .tl-main{padding:16px;max-width:1200px;margin:0 auto;}
+#panel-log .tl-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px;}
+#panel-log .tl-stat{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px;}
+#panel-log .tl-stat-label{font-family:'Space Mono',monospace;font-size:8px;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;margin-bottom:4px;}
+#panel-log .tl-stat-val{font-family:'Space Mono',monospace;font-size:20px;font-weight:700;}
+#panel-log .tl-filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
+#panel-log .tl-filter-btn{background:none;border:1px solid var(--border);border-radius:20px;padding:5px 14px;font-size:10px;font-family:'Space Mono',monospace;color:var(--muted);cursor:pointer;transition:all .2s;}
+#panel-log .tl-filter-btn:hover,#panel-log .tl-filter-btn.active{background:var(--surface);border-color:#ffa502;color:#ffa502;}
+#panel-log .tl-table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+#panel-log .tl-table{width:100%;border-collapse:collapse;font-size:11px;}
+#panel-log .tl-table th{font-family:'Space Mono',monospace;font-size:8px;letter-spacing:1px;color:var(--muted);padding:10px 12px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap;background:var(--surface2);}
+#panel-log .tl-table td{padding:10px 12px;border-bottom:1px solid var(--border);font-family:'Space Mono',monospace;white-space:nowrap;}
+#panel-log .tl-table tr:last-child td{border-bottom:none;}
+#panel-log .tl-table tr:hover td{background:var(--surface2);}
+#panel-log .tl-type-pill{padding:2px 8px;border-radius:4px;font-size:9px;font-weight:700;}
+#panel-log .tl-type-pill.lc{background:rgba(0,255,157,.15);color:var(--good);}
+#panel-log .tl-type-pill.lp{background:rgba(255,71,87,.15);color:var(--danger);}
+#panel-log .tl-type-pill.cs{background:rgba(0,212,255,.15);color:var(--accent);}
+#panel-log .tl-type-pill.ps{background:rgba(255,165,2,.15);color:var(--warning);}
+#panel-log .tl-outcome-pill{padding:2px 8px;border-radius:4px;font-size:9px;font-weight:700;}
+#panel-log .tl-outcome-pill.open{background:rgba(107,122,153,.15);color:var(--muted);}
+#panel-log .tl-outcome-pill.win{background:rgba(0,255,157,.15);color:var(--good);}
+#panel-log .tl-outcome-pill.loss{background:rgba(255,71,87,.15);color:var(--danger);}
+#panel-log .tl-outcome-pill.be{background:rgba(107,122,153,.15);color:var(--muted);}
+#panel-log .tl-pl-pos{color:var(--good);}
+#panel-log .tl-pl-neg{color:var(--danger);}
+#panel-log .tl-exit-itm{color:var(--good);font-size:10px;}
+#panel-log .tl-exit-otm{color:var(--danger);font-size:10px;}
+#panel-log .tl-empty{padding:40px;text-align:center;font-family:'Space Mono',monospace;font-size:11px;color:var(--muted);}
+#panel-log .tl-trash-btn{background:none;border:1px solid var(--border);border-radius:4px;padding:4px 8px;font-size:12px;color:var(--muted);cursor:pointer;transition:all .2s;line-height:1;}
+#panel-log .tl-trash-btn:hover{border-color:var(--danger);color:var(--danger);}
+#panel-log .tl-trash-btn.confirm{border-color:var(--danger);color:var(--danger);background:rgba(255,71,87,.12);animation:trash-pulse .6s ease;}
+#panel-log .tl-edit-btn{background:none;border:1px solid var(--border);border-radius:4px;padding:4px 8px;font-size:9px;font-family:'Space Mono',monospace;color:var(--muted);cursor:pointer;transition:all .2s;}
+#panel-log .tl-edit-btn:hover{border-color:var(--accent);color:var(--accent);}
+@keyframes trash-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.15)}}
+@media(max-width:600px){#panel-log .tl-stats{grid-template-columns:1fr 1fr;}}
+</style>
+<div class="tl-header">
+  <div class="tl-logo">Trade<span>Log</span></div>
+  <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);" id="tl-trade-count">— trades</div>
+</div>
+<div class="tl-main">
+  <!-- Stats -->
+  <div class="tl-stats">
+    <div class="tl-stat"><div class="tl-stat-label">Total Trades</div><div class="tl-stat-val" id="tl-stat-total" style="color:var(--accent);">0</div></div>
+    <div class="tl-stat"><div class="tl-stat-label">Win Rate</div><div class="tl-stat-val" id="tl-stat-wr" style="color:var(--good);">—</div></div>
+    <div class="tl-stat"><div class="tl-stat-label">Total P&L</div><div class="tl-stat-val" id="tl-stat-pnl">—</div></div>
+    <div class="tl-stat"><div class="tl-stat-label">Open Trades</div><div class="tl-stat-val" id="tl-stat-open" style="color:var(--warning);">0</div></div>
+  </div>
+  <!-- Filters -->
+  <div class="tl-filters">
+    <button class="tl-filter-btn active" onclick="tlSetFilter('all',this)">ALL</button>
+    <button class="tl-filter-btn" onclick="tlSetFilter('open',this)">OPEN</button>
+    <button class="tl-filter-btn" onclick="tlSetFilter('closed',this)">CLOSED</button>
+    <button class="tl-filter-btn" onclick="tlSetFilter('Long Call',this)">LONG CALL</button>
+    <button class="tl-filter-btn" onclick="tlSetFilter('Long Put',this)">LONG PUT</button>
+    <button class="tl-filter-btn" onclick="tlSetFilter('Call Spread',this)">CALL SPREAD</button>
+    <button class="tl-filter-btn" onclick="tlSetFilter('Put Spread',this)">PUT SPREAD</button>
+  </div>
+  <!-- Table -->
+  <div class="tl-table-wrap">
+    <table class="tl-table">
+      <thead>
+        <tr>
+          <th>DATE</th><th>TICKER</th><th>TYPE</th><th>STRIKES</th>
+          <th>EXP</th><th>COST $</th><th>MAX $</th><th>R/R</th>
+          <th>IV RANK</th><th>EXIT ↑</th><th>EXIT ↓</th>
+          <th>OUTCOME</th><th>P&L $</th><th>ACTIONS</th>
+        </tr>
+      </thead>
+      <tbody id="tl-tbody"></tbody>
+    </table>
+    <div class="tl-empty" id="tl-empty">No trades logged yet.</div>
+  </div>
+</div>
+</div><!-- /panel-log -->
 
 <!-- ══════════════════════════════════════════════════════════════════════
      PANEL 5: TRADEDATA
@@ -1437,12 +1488,12 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
 
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v6.7</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v6.8</div>
 
 <!-- ══ MOBILE SCAN BTN (mobile only, shown via CSS) ══════════════════════ -->
 <div id="mobile-scan-btn-wrap" style="display:none;">
   <button class="mscan-btn" onclick="go('briefing');window.TB.runScanner(true);">🔍 Scan Now</button>
-  <span class="mversion">v6.7</span>
+  <span class="mversion">v6.8</span>
 </div>
 
 <!-- ══ APP SWITCHER NAV ════════════════════════════════════════════════════ -->
@@ -1452,6 +1503,9 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
   </button>
   <button class="sw-btn sw-sheet"          onclick="swApp('sheet')"   id="sw-btn-sheet">
     <span class="sw-word-trade">Trade</span><span class="sw-word-sheet">Sheet</span>
+  </button>
+  <button class="sw-btn sw-log"            onclick="swApp('log')"     id="sw-btn-log">
+    <span class="sw-word-trade">Trade</span><span class="sw-word-log">Log</span>
   </button>
   <button class="sw-btn sw-data"           onclick="swApp('data')"    id="sw-btn-data">
     <span class="sw-word-trade">Trade</span><span class="sw-word-data">Data</span>
@@ -4659,11 +4713,15 @@ function adjustN(side, delta) {
   renderResults();
 }
 
-// ── LOG COLLAPSE ──────────────────────────────────────────────────
+function renderLogTable() {
+  // Log is now in panel-log — delegate to tlRender if available
+  if (typeof window.tlRender === 'function') window.tlRender();
+}
+
+// ── LOG COLLAPSE (no-op — log is now its own panel) ───────────────
 function toggleLog() {
-  state.logExpanded = !state.logExpanded;
-  document.getElementById('log-body').className = 'log-body ' + (state.logExpanded ? 'expanded' : 'collapsed');
-  document.getElementById('log-toggle').textContent = state.logExpanded ? '▲ COLLAPSE' : '▼ EXPAND';
+  // Navigate to the log panel
+  swApp('log');
 }
 
 function setLogFilter(filter, btn) {
@@ -4747,65 +4805,8 @@ async function deleteTrade(id) {
 }
 
 function renderLogTable() {
-  const filter = state.logFilter;
-  let trades = state.trades;
-
-  if (filter === 'open') trades = trades.filter(t => t.outcome === 'Open');
-  else if (filter === 'closed') trades = trades.filter(t => t.outcome !== 'Open');
-  else if (filter !== 'all') trades = trades.filter(t => t.type === filter);
-
-  const tbody = document.getElementById('log-tbody');
-  const empty = document.getElementById('log-empty');
-
-  if (!trades.length) {
-    tbody.innerHTML = '';
-    empty.style.display = 'block';
-  } else {
-    empty.style.display = 'none';
-    tbody.innerHTML = trades.map(t => {
-      const typeClass = {
-        'Long Call':'lc', 'Long Put':'lp',
-        'Call Spread':'cs', 'Put Spread':'ps'
-      }[t.type] || 'cs';
-      const outcomeClass = {Open:'open',Win:'win',Loss:'loss',Breakeven:'be'}[t.outcome] || 'open';
-      const strikes = t.sellStrike ? `$${t.buyStrike} / $${t.sellStrike}` : `$${t.buyStrike}`;
-      const pl = t.pl !== undefined ? t.pl : null;
-      const plClass = pl === null ? '' : (pl >= 0 ? 'pl-pos' : 'pl-neg');
-      const plFmt = pl === null ? '—' : `${pl >= 0 ? '+' : ''}$${Math.abs(pl).toFixed(2)}`;
-
-      return `<tr>
-        <td>${t.entryDate || '—'}</td>
-        <td style="font-weight:700;">${t.ticker}</td>
-        <td><span class="type-pill ${typeClass}">${t.type}</span></td>
-        <td>${strikes}</td>
-        <td>${t.expDate || '—'}</td>
-        <td>$${parseFloat(t.cost || 0).toFixed(2)}</td>
-        <td>${t.maxProfit !== null && t.maxProfit !== undefined ? '$' + parseFloat(t.maxProfit).toFixed(2) : '—'}</td>
-        <td>${t.rr !== null && t.rr !== undefined ? parseFloat(t.rr).toFixed(2) + 'x' : '—'}</td>
-        <td>${t.ivRank !== undefined ? parseFloat(t.ivRank).toFixed(1) : '—'}</td>
-        <td><span class="outcome-pill ${outcomeClass}">${t.outcome}</span></td>
-        <td class="${plClass}">${plFmt}</td>
-        <td><div class="row-actions">
-          <button class="row-btn" onclick="openEditModal('${t.id}')">✎ Edit</button>
-          <button class="row-btn del" onclick="confirmDelete('${t.id}')">🗑</button>
-        </div></td>
-      </tr>`;
-    }).join('');
-  }
-
-  // Stats
-  const all = state.trades;
-  const closed = all.filter(t => t.outcome !== 'Open');
-  const wins = closed.filter(t => t.outcome === 'Win');
-  const wr = closed.length ? Math.round((wins.length / closed.length) * 100) : null;
-  const totalPL = all.reduce((s, t) => s + (parseFloat(t.pl) || 0), 0);
-
-  document.getElementById('ts-stat-total').textContent = all.length;
-  document.getElementById('stat-wr').textContent = wr !== null ? wr + '%' : '—';
-  const plEl = document.getElementById('stat-pnl');
-  plEl.textContent = all.length ? `${totalPL >= 0 ? '+' : ''}$${totalPL.toFixed(2)}` : '—';
-  plEl.style.color = totalPL >= 0 ? 'var(--good)' : 'var(--danger)';
-  document.getElementById('stat-open').textContent = all.filter(t => t.outcome === 'Open').length;
+  // TradeLog is now in panel-log — delegate to tlRender
+  if (typeof window.tlRender === 'function') window.tlRender();
 }
 
 // ── LOG MODAL ─────────────────────────────────────────────────────
@@ -5257,6 +5258,7 @@ return {
   fetchTicker,
   getSelectedSpread,
   getTrades,
+  deleteTrade,
   openLogModal: openLogModalPublic,
   logTrade: confirmLogTrade,
 };
@@ -5965,6 +5967,7 @@ function swApp(name){
   if(name==='brief'   && window.TB && !window.TB._booted){window.TB.boot(); window.TB._booted=true;}
   if(name==='sheet'   && window.TS && !window.TS._booted){window.TS.boot();  window.TS._booted=true;}
   if(name==='data'    && window.TD && !window.TD._booted){window.TD.boot();  window.TD._booted=true;}
+  if(name==='log')    { tlRender(); }
   // Pre-load ticker into TS from workflow state
   if(name==='sheet' && window.TS){
     const t=sessionStorage.getItem('tbSelectedTicker');
@@ -6009,10 +6012,141 @@ function swApp(name){
   });
 })();
 
+// ══ TRADELOG PANEL JS ══════════════════════════════════════════════
+(function(){
+
+  let tlFilter = 'all';
+  let tlPendingDelete = null; // id of trade awaiting confirm
+
+  function getTrades() {
+    // Read from TS state (shared data store)
+    if (window.TS && window.TS.getTrades) return window.TS.getTrades();
+    try { return JSON.parse(localStorage.getItem('ts-trades') || '[]'); } catch(e) { return []; }
+  }
+
+  function tlRender() {
+    const all = getTrades();
+    let trades = all;
+    if (tlFilter === 'open')   trades = all.filter(t => t.outcome === 'Open');
+    else if (tlFilter === 'closed') trades = all.filter(t => t.outcome !== 'Open');
+    else if (tlFilter !== 'all')    trades = all.filter(t => t.type === tlFilter);
+
+    const tbody = document.getElementById('tl-tbody');
+    const empty = document.getElementById('tl-empty');
+    if (!tbody) return;
+
+    if (!trades.length) {
+      tbody.innerHTML = '';
+      empty.style.display = 'block';
+    } else {
+      empty.style.display = 'none';
+      tbody.innerHTML = trades.map(t => {
+        const typeClass = {'Long Call':'lc','Long Put':'lp','Call Spread':'cs','Put Spread':'ps'}[t.type] || 'cs';
+        const outcomeClass = {Open:'open',Win:'win',Loss:'loss',Breakeven:'be'}[t.outcome] || 'open';
+        const strikes = t.sellStrike ? `$${t.buyStrike} / $${t.sellStrike}` : `$${t.buyStrike}`;
+        const pl = t.pl !== undefined && t.pl !== null ? parseFloat(t.pl) : null;
+        const plClass = pl === null ? '' : (pl >= 0 ? 'tl-pl-pos' : 'tl-pl-neg');
+        const plFmt = pl === null ? '—' : `${pl >= 0 ? '+' : ''}$${Math.abs(pl).toFixed(2)}`;
+        const exitItm = t.exitItm ? `<span class="tl-exit-itm">$${parseFloat(t.exitItm).toFixed(2)}</span>` : '<span style="color:var(--muted)">—</span>';
+        const exitOtm = t.exitOtm ? `<span class="tl-exit-otm">$${parseFloat(t.exitOtm).toFixed(2)}</span>` : '<span style="color:var(--muted)">—</span>';
+        const isPending = tlPendingDelete === t.id;
+        const trashClass = isPending ? 'tl-trash-btn confirm' : 'tl-trash-btn';
+        const trashTitle = isPending ? 'Tap again to confirm delete' : 'Delete trade';
+
+        return `<tr>
+          <td>${t.entryDate || '—'}</td>
+          <td style="font-weight:700;">${t.ticker}</td>
+          <td><span class="tl-type-pill ${typeClass}">${t.type}</span></td>
+          <td>${strikes}</td>
+          <td>${t.expDate || '—'}</td>
+          <td style="color:var(--accent);">$${parseFloat(t.cost||0).toFixed(2)}</td>
+          <td>${t.maxProfit!=null ? '$'+parseFloat(t.maxProfit).toFixed(2) : '—'}</td>
+          <td>${t.rr!=null ? parseFloat(t.rr).toFixed(2)+'x' : '—'}</td>
+          <td>${t.ivRank!=null ? parseFloat(t.ivRank).toFixed(1) : '—'}</td>
+          <td>${exitItm}</td>
+          <td>${exitOtm}</td>
+          <td><span class="tl-outcome-pill ${outcomeClass}">${t.outcome}</span></td>
+          <td class="${plClass}">${plFmt}</td>
+          <td style="display:flex;gap:5px;align-items:center;">
+            <button class="tl-edit-btn" onclick="tlEdit('${t.id}')">✎ Edit</button>
+            <button class="${trashClass}" onclick="tlTrash('${t.id}')" title="${trashTitle}">🗑</button>
+          </td>
+        </tr>`;
+      }).join('');
+    }
+
+    // Stats
+    const closed = all.filter(t => t.outcome !== 'Open');
+    const wins = closed.filter(t => t.outcome === 'Win');
+    const wr = closed.length ? Math.round((wins.length/closed.length)*100) : null;
+    const totalPL = all.reduce((s,t) => s + (parseFloat(t.pl)||0), 0);
+
+    const statTotal = document.getElementById('tl-stat-total');
+    const statWr    = document.getElementById('tl-stat-wr');
+    const statPnl   = document.getElementById('tl-stat-pnl');
+    const statOpen  = document.getElementById('tl-stat-open');
+    const countEl   = document.getElementById('tl-trade-count');
+
+    if (statTotal) statTotal.textContent = all.length;
+    if (statWr)    statWr.textContent = wr !== null ? wr + '%' : '—';
+    if (statPnl)   { statPnl.textContent = all.length ? `${totalPL>=0?'+':''}$${totalPL.toFixed(2)}` : '—'; statPnl.style.color = totalPL >= 0 ? 'var(--good)' : 'var(--danger)'; }
+    if (statOpen)  statOpen.textContent = all.filter(t => t.outcome === 'Open').length;
+    if (countEl)   countEl.textContent = all.length + (all.length === 1 ? ' trade' : ' trades');
+  }
+
+  function tlSetFilter(filter, btn) {
+    tlFilter = filter;
+    document.querySelectorAll('.tl-filter-btn').forEach(b => b.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+    tlPendingDelete = null;
+    tlRender();
+  }
+
+  function tlTrash(id) {
+    if (tlPendingDelete === id) {
+      // Second tap — confirmed delete
+      tlPendingDelete = null;
+      if (window.TS && window.TS.deleteTrade) {
+        window.TS.deleteTrade(id).then(() => tlRender());
+      } else {
+        // localStorage fallback
+        try {
+          const trades = JSON.parse(localStorage.getItem('ts-trades') || '[]');
+          const updated = trades.filter(t => t.id !== id);
+          localStorage.setItem('ts-trades', JSON.stringify(updated));
+        } catch(e) {}
+        tlRender();
+      }
+    } else {
+      // First tap — arm confirm
+      tlPendingDelete = id;
+      tlRender();
+      // Auto-disarm after 3 seconds if no second tap
+      setTimeout(() => {
+        if (tlPendingDelete === id) { tlPendingDelete = null; tlRender(); }
+      }, 3000);
+    }
+  }
+
+  function tlEdit(id) {
+    // Delegate to TS edit modal — switch to sheet panel first
+    swApp('sheet');
+    setTimeout(() => {
+      if (window.TS && window.openEditModal) openEditModal(id);
+    }, 100);
+  }
+
+  window.tlRender    = tlRender;
+  window.tlSetFilter = tlSetFilter;
+  window.tlTrash     = tlTrash;
+  window.tlEdit      = tlEdit;
+
+})();
+
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradingBrief V6.7 — TradePlan                               ║
+     ║  END TradingBrief V6.8 — TradeLog Panel                          ║
      ║  2026-04-15                                                       ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 </body>
