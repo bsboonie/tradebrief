@@ -1,16 +1,16 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v6.4 — Bug Fixes + Mobile Polish                     ║
-     ║  Date: 2026-04-14                                                ║
-     ║  Changes from v6.3:                                              ║
-     ║    1. NaN fix — d.score → d.confidence (4 instances)            ║
-     ║    2. Score breakdown popup — fix immediate-close on tap         ║
-     ║    3. Suppress boot sync toast on page load                      ║
-     ║    4. SI badge — two lines                                       ║
-     ║    5. Earnings Safe label — warn if ≤7 days regardless of trade  ║
-     ║    6. Mobile Scan Now — smaller, left-justified                  ║
-     ║    7. Mobile card score/badge area — left-justified              ║
-     ║    8. Mobile earnings override — centered label + button below   ║
+     ║  TRADEBRIEF v6.6 — TradeSheet Controls Improvements             ║
+     ║  Date: 2026-04-15                                                ║
+     ║  Changes from v6.5:                                              ║
+     ║    1. ATR field — directly editable, green flash confirms save   ║
+     ║    2. IVR field — directly editable, green flash confirms save   ║
+     ║    3. Delta Min input width fix — value now fully visible        ║
+     ║    4. Exit ITM field — auto-calc from spread + target %, override║
+     ║    5. Exit OTM field — auto-calc at 50% loss default, override   ║
+     ║    2. Conviction number — persists thesisScore in sd[] on        ║
+     ║       analysis so it survives re-renders                         ║
+     ║    3. tb_toast — replaced with no-op (toast fully removed)       ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 <html lang="en">
 <head>
@@ -891,7 +891,7 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
           <div class="ctrl-row-inline">
             <div class="ctrl-row">
               <div class="ctrl-label">Min Delta</div>
-              <input class="ctrl-input" id="min-delta" type="number" value="0.15" step="0.05" min="0.05" max="0.5" oninput="runScanner()">
+              <input class="ctrl-input" id="min-delta" type="number" value="0.15" step="0.05" min="0.05" max="0.5" style="width:100%;" oninput="runScanner()">
             </div>
             <div class="ctrl-row">
               <div class="ctrl-label">Max Delta</div>
@@ -923,7 +923,7 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
               ATR 14-day
               <button class="override-btn" id="atr-override-btn" onclick="toggleOverride('atr')" title="Override auto value">✎</button>
             </div>
-            <input class="ctrl-input auto" id="atr-val" type="number" step="0.01" placeholder="Auto-calculated" readonly oninput="updateDerived()">
+            <input class="ctrl-input auto" id="atr-val" type="number" step="0.01" placeholder="Auto-calculated" oninput="updateDerived()" onblur="onManualFieldSave('atr')">
           </div>
 
           <div class="ctrl-row">
@@ -931,7 +931,33 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
               IV Rank (0–100)
               <button class="override-btn" id="ivr-override-btn" onclick="toggleOverride('ivr')" title="Override auto value">✎</button>
             </div>
-            <input class="ctrl-input auto" id="ivr-val" type="number" step="0.1" min="0" max="100" placeholder="Auto-calculated" readonly oninput="runScanner()">
+            <input class="ctrl-input auto" id="ivr-val" type="number" step="0.1" min="0" max="100" placeholder="Auto-calculated" oninput="runScanner()" onblur="onManualFieldSave('ivr')">
+          </div>
+        </div>
+
+        <!-- EXIT PRICES -->
+        <div class="ctrl-header" style="border-top:1px solid var(--border);">
+          <div class="ctrl-title">🎯 EXIT PLAN</div>
+        </div>
+        <div class="ctrl-body" style="padding-top:10px;">
+          <div class="ctrl-row-inline">
+            <div class="ctrl-row">
+              <div class="ctrl-label">
+                Exit ITM (Take Profit)
+                <button class="override-btn" id="exit-itm-override-btn" onclick="toggleExitOverride('itm')" title="Override">✎</button>
+              </div>
+              <input class="ctrl-input auto" id="exit-itm-val" type="number" step="0.01" placeholder="—" readonly oninput="onExitOverrideInput('itm')">
+            </div>
+            <div class="ctrl-row">
+              <div class="ctrl-label">
+                Exit OTM (Stop Loss)
+                <button class="override-btn" id="exit-otm-override-btn" onclick="toggleExitOverride('otm')" title="Override">✎</button>
+              </div>
+              <input class="ctrl-input auto" id="exit-otm-val" type="number" step="0.01" placeholder="—" readonly oninput="onExitOverrideInput('otm')">
+            </div>
+          </div>
+          <div style="font-size:9px;color:var(--muted);font-family:'Space Mono',monospace;margin-top:2px;">
+            ITM = target% gain · OTM = 50% loss · ✎ to override
           </div>
         </div>
 
@@ -1367,12 +1393,12 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
 
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v6.4</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v6.6</div>
 
 <!-- ══ MOBILE SCAN BTN (mobile only, shown via CSS) ══════════════════════ -->
 <div id="mobile-scan-btn-wrap" style="display:none;">
   <button class="mscan-btn" onclick="go('briefing');window.TB.runScanner(true);">🔍 Scan Now</button>
-  <span class="mversion">v6.4</span>
+  <span class="mversion">v6.6</span>
 </div>
 
 <!-- ══ APP SWITCHER NAV ════════════════════════════════════════════════════ -->
@@ -2499,7 +2525,7 @@ function renderDataCard(ticker){
         <div style="display:flex;align-items:center;gap:6px;">
           <!-- CHANGE 1 + CHANGE 5: Tappable score with onboarding hint -->
           <div style="display:flex;flex-direction:column;align-items:flex-end;gap:1px;">
-            <div style="font-family:'Space Mono',monospace;font-size:18px;font-weight:700;color:${scoreColor};cursor:pointer;position:relative;line-height:1;" onclick="toggleScoreBreakdown('${ticker}',event)" title="Tap to see score breakdown">${displayScore}<span style="font-size:9px;color:var(--muted);margin-left:2px;">▾</span></div>
+            <div id="score-display-${ticker}" style="font-family:'Space Mono',monospace;font-size:18px;font-weight:700;color:${scoreColor};cursor:pointer;position:relative;line-height:1;" onclick="toggleScoreBreakdown('${ticker}',event)" title="Tap to see score breakdown">${displayScore}<span style="font-size:9px;color:var(--muted);margin-left:2px;">▾</span></div>
             ${d.againstRegime?`<div style="font-family:'Space Mono',monospace;font-size:8px;color:#ffa502;text-align:right;line-height:1.2;">⚠ capped · vs SPY trend</div>`:''}
             ${!localStorage.getItem('tb_score_hint_seen')?`<div id="score-hint-${ticker}" style="font-family:'Space Mono',monospace;font-size:7px;color:var(--muted);text-align:right;line-height:1.2;max-width:90px;">tap score to see breakdown</div>`:''}
           </div>
@@ -3261,11 +3287,7 @@ function resetAll(){
   rB();rT();rClosed();loadS();updatePnL();updateScanBar();tb_toast('Reset complete');
 }
 
-function tb_toast(msg){
-  const t=document.createElement('div');
-  t.style.cssText='position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--accent2);color:#000;padding:9px 18px;border-radius:20px;font-family:Space Mono,monospace;font-size:11px;font-weight:700;z-index:9999;animation:fadeUp 0.3s;white-space:nowrap;';
-  t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),2500);
-}
+function tb_toast(msg){ /* removed — toast notifications disabled */ }
 
 // ── BROWSER NOTIFICATIONS ──────────────────────────────────────────────────
 async function toggleNotifications(){
@@ -3540,12 +3562,13 @@ ${siStr}`;
 
     tb_toast(`✓ ${verdict} — Conviction: ${conviction}`);
 
+    // Persist thesis score in sd so conviction survives re-renders
+    if(sd[ticker])sd[ticker].thesisScore=score;
     // Update the headline score number in the card to show conviction total
-    const scoreEl=document.querySelector(`#score-breakdown-${ticker}`)?.parentElement?.querySelector('div[onclick^="toggleScoreBreakdown"]');
+    const scoreEl=document.getElementById('score-display-'+ticker);
     if(scoreEl){
       const convColor=conviction>=70?'var(--good)':conviction>=45?'var(--accent)':'var(--warning)';
       scoreEl.style.color=convColor;
-      // Update the text node (first child is the number text)
       const textNode=scoreEl.childNodes[0];
       if(textNode&&textNode.nodeType===3)textNode.textContent=conviction;
     }
@@ -3698,6 +3721,8 @@ let state = {
   ivrOverride: false,
   earningsDate: '',
   earningsOverride: false,
+  exitItmOverride: false,
+  exitOtmOverride: false,
   scanResults: { calls: [], puts: [] },
   selectedCall: null,
   selectedPut: null,
@@ -4156,6 +4181,7 @@ function runScanner() {
 
   renderResults();
   renderPayoff();
+  updateExitPrices();
 }
 
 function isAllType() { return false; } // reserved for future "scan all" mode
@@ -4306,11 +4332,13 @@ function callSelectRow(i) {
   state.selectedCall = state.scanResults.calls[i];
   renderResults();
   renderPayoff();
+  updateExitPrices();
 }
 function putSelectRow(i) {
   state.selectedPut = state.scanResults.puts[i];
   renderResults();
   renderPayoff();
+  updateExitPrices();
 }
 
 // ── DERIVED STATS ─────────────────────────────────────────────────
@@ -4462,6 +4490,89 @@ function toggleOverride(field) {
     input.className = 'ctrl-input overridden';
     input.focus();
     btn.classList.add('active');
+  }
+}
+
+// Flash green on field to confirm manual save
+function onManualFieldSave(field) {
+  const input = document.getElementById(field === 'atr' ? 'atr-val' : 'ivr-val');
+  const val = parseFloat(input.value);
+  if (isNaN(val) || val <= 0) return;
+
+  // Mark as overridden
+  if (field === 'atr') { state.atrOverride = true; }
+  else { state.ivrOverride = true; }
+  const btn = document.getElementById(field + '-override-btn');
+  if (btn) btn.classList.add('active');
+
+  // Green flash confirmation
+  input.className = 'ctrl-input auto'; // reset first
+  input.style.borderColor = 'var(--good)';
+  input.style.background = 'rgba(0,255,157,0.08)';
+  input.style.transition = 'border-color 0.3s, background 0.3s';
+  setTimeout(() => {
+    input.style.borderColor = '';
+    input.style.background = '';
+    input.className = 'ctrl-input overridden';
+  }, 800);
+
+  if (field === 'atr') { updateDerived(); updateExitPrices(); }
+  else { runScanner(); }
+}
+
+// Exit price override toggle
+function toggleExitOverride(side) {
+  const input = document.getElementById('exit-' + side + '-val');
+  const btn = document.getElementById('exit-' + side + '-override-btn');
+  const stateKey = side === 'itm' ? 'exitItmOverride' : 'exitOtmOverride';
+
+  if (state[stateKey]) {
+    state[stateKey] = false;
+    input.readOnly = true;
+    input.className = 'ctrl-input auto';
+    btn.classList.remove('active');
+    updateExitPrices();
+  } else {
+    state[stateKey] = true;
+    input.readOnly = false;
+    input.className = 'ctrl-input overridden';
+    btn.classList.add('active');
+    input.focus();
+  }
+}
+
+function onExitOverrideInput(side) {
+  // Just keep overridden styling — value is live
+}
+
+// Calculate and display exit prices based on selected spread/option
+function updateExitPrices() {
+  const itmEl = document.getElementById('exit-itm-val');
+  const otmEl = document.getElementById('exit-otm-val');
+
+  // Use call selection first, then put
+  const trade = state.selectedCall || state.selectedPut;
+  if (!trade) {
+    if (!state.exitItmOverride) itmEl.value = '';
+    if (!state.exitOtmOverride) otmEl.value = '';
+    return;
+  }
+
+  const cost = trade.cost || 0; // premium paid per share (debit)
+  const targetPct = parseFloat(document.getElementById('max-budget')?.value) || 80;
+  // Use the settings target% if available
+  const settingsTarget = parseFloat(localStorage.getItem('tb_target')) || 80;
+
+  if (!state.exitItmOverride) {
+    // ITM exit = cost + (cost × target% / 100)
+    const exitItm = cost + (cost * settingsTarget / 100);
+    itmEl.value = exitItm > 0 ? exitItm.toFixed(2) : '';
+  }
+
+  if (!state.exitOtmOverride) {
+    // OTM exit = cost - (cost × 50% / 100) = cost × 0.5
+    const exitOtm = cost * 0.50;
+    otmEl.value = exitOtm > 0 ? exitOtm.toFixed(2) : '';
   }
 }
 
@@ -4877,6 +4988,10 @@ window.adjustN                = adjustN;
 window.callSelectRow          = callSelectRow;
 window.putSelectRow           = putSelectRow;
 window.toggleLog              = toggleLog;
+window.onManualFieldSave      = onManualFieldSave;
+window.toggleExitOverride     = toggleExitOverride;
+window.onExitOverrideInput    = onExitOverrideInput;
+window.updateExitPrices       = updateExitPrices;
 window.setLogFilter           = setLogFilter;
 window.openLogModal           = openLogModal;
 window.closeLogModal          = closeLogModal;
@@ -5700,7 +5815,8 @@ function swApp(name){
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradingBrief V6.4 — Bug Fixes + Mobile Polish | 2026-04-14  ║
+     ║  END TradingBrief V6.6 — TradeSheet Controls Improvements        ║
+     ║  2026-04-15                                                       ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 </body>
 </html>
