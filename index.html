@@ -1,13 +1,16 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v6.3 — Regime Clarity + Final Polish                 ║
+     ║  TRADEBRIEF v6.4 — Bug Fixes + Mobile Polish                     ║
      ║  Date: 2026-04-14                                                ║
-     ║  Changes from v6.2:                                              ║
-     ║    1. Regime subtitle under score when fighting SPY trend        ║
-     ║    2. Full conviction breakdown line in thesis panel             ║
-     ║    3. VOL pill relabeled to show self-explanatory ratio text     ║
-     ║    4. Stronger regime reason text on card                        ║
-     ║    5. First-use onboarding hint on score tap                     ║
+     ║  Changes from v6.3:                                              ║
+     ║    1. NaN fix — d.score → d.confidence (4 instances)            ║
+     ║    2. Score breakdown popup — fix immediate-close on tap         ║
+     ║    3. Suppress boot sync toast on page load                      ║
+     ║    4. SI badge — two lines                                       ║
+     ║    5. Earnings Safe label — warn if ≤7 days regardless of trade  ║
+     ║    6. Mobile Scan Now — smaller, left-justified                  ║
+     ║    7. Mobile card score/badge area — left-justified              ║
+     ║    8. Mobile earnings override — centered label + button below   ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 <html lang="en">
 <head>
@@ -112,19 +115,20 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
     background:linear-gradient(to top, #0d1117 60%, transparent);
     z-index:9999;
     align-items:center;
-    justify-content:space-between;
+    justify-content:flex-start;
   }
   #mobile-scan-btn-wrap .mscan-btn {
-    flex:1;
+    flex:0 0 auto;
     background:var(--accent);
     border:none;
-    border-radius:8px;
-    padding:8px 0;
+    border-radius:7px;
+    padding:5px 14px;
     font-family:'Space Mono',monospace;
-    font-size:12px;
+    font-size:11px;
     font-weight:700;
     color:#000;
     cursor:pointer;
+    white-space:nowrap;
   }
   #mobile-scan-btn-wrap .mversion {
     font-family:'Space Mono',monospace;
@@ -148,6 +152,38 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
   #sw-btn-data    .sw-word-data    { font-size:11px !important; }
   #sw-btn-help    .sw-word-help    { font-size:11px !important; }
   .sw-btn { font-size:11px; padding:0 2px; }
+
+  /* FIX 7: Mobile card — left-justify score/badge/SI area */
+  #panel-brief .card-top { align-items: flex-start; }
+  #panel-brief .card-top > div[style*="margin-left:auto"] {
+    margin-left: 0 !important;
+    align-items: flex-start !important;
+    width: 100%;
+    margin-top: 8px;
+  }
+
+  /* FIX 8: Mobile earnings override — centered label, button below input */
+  #panel-brief .earn-override-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    gap: 6px;
+  }
+  #panel-brief .earn-override-label {
+    text-align: center;
+    width: 100%;
+    white-space: normal;
+  }
+  #panel-brief .earn-override-row {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+  }
+  #panel-brief .earn-input { width: 100%; max-width: 180px; }
+  #panel-brief .earn-save { width: 100%; max-width: 180px; }
 }
 </style>
 </head>
@@ -1331,12 +1367,12 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
 
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v6.3</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v6.4</div>
 
 <!-- ══ MOBILE SCAN BTN (mobile only, shown via CSS) ══════════════════════ -->
 <div id="mobile-scan-btn-wrap" style="display:none;">
   <button class="mscan-btn" onclick="go('briefing');window.TB.runScanner(true);">🔍 Scan Now</button>
-  <span class="mversion">v6.3</span>
+  <span class="mversion">v6.4</span>
 </div>
 
 <!-- ══ APP SWITCHER NAV ════════════════════════════════════════════════════ -->
@@ -2531,7 +2567,7 @@ function renderDataCard(ticker){
         <div class="tstat">
           <div class="tlabel">EARNINGS</div>
           <div class="tval" style="color:${earnPillDTEColor};">${earnDate||'Unknown'}</div>
-          <div class="tnote">${earnDTE!==null?(earnDTE<=0?'Today / Past':earnDTE+'d away — '+(earnRisky?'⚠️ RISKY':'✅ Safe')):'No data'}</div>
+          <div class="tnote">${earnDTE!==null?(earnDTE<=0?'Today / Past':earnDTE<=7?'⚠️ Too close — avoid new positions':earnDTE+'d away — '+(earnRisky?'⚠️ RISKY':'✅ Safe')):'No data'}</div>
         </div>
       </div>
       <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-top:10px;gap:8px;">
@@ -2539,9 +2575,9 @@ function renderDataCard(ticker){
           <button class="sel-btn" onclick="select('${ticker}')"${isLimited?' disabled title="Need full data to select"':''}>${isLimited?'⏳':'⬇ Select'}</button>
           <a class="ref-sm" href="https://www.tradingview.com/chart/?symbol=${ticker}" target="_blank" rel="noopener noreferrer" style="text-decoration:none;">📈 TV</a>
         </div>
-        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
-          <div style="font-family:'Space Mono',monospace;font-size:9px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;">Earnings Date Override</div>
-          <div style="display:flex;align-items:center;gap:6px;">
+        <div class="earn-override-section" style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+          <div class="earn-override-label" style="font-family:'Space Mono',monospace;font-size:9px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;">Earnings Date Override</div>
+          <div class="earn-override-row" style="display:flex;align-items:center;gap:6px;">
             <input class="earn-input" id="earn-in-${ticker}" type="date" value="${earningsOverrides[ticker]||''}" style="max-width:150px;">
             <button class="earn-save" onclick="saveEarningsOverride('${ticker}')">Override</button>
           </div>
@@ -2573,7 +2609,7 @@ function renderDataCard(ticker){
         <div class="thesis-score-row">
           <span class="thesis-score-big" style="color:${d.thesisVerdict==='STRONG'?'var(--good)':d.thesisVerdict==='SKIP'?'var(--danger)':'var(--warning)'};">${d.thesisVerdict}</span>
           <div class="thesis-conviction">
-            Technical + Regime: <span>${d.score}</span> &nbsp;|&nbsp; Thesis <span style="color:#bf8cff;">+${d.thesisScore}</span> → Overall Conviction: <span style="color:${Math.min(100,d.score+d.thesisScore)>=70?'var(--good)':Math.min(100,d.score+d.thesisScore)>=45?'var(--accent)':'var(--warning)'};">${Math.min(100, d.score + d.thesisScore)}</span>
+            Technical + Regime: <span>${d.confidence}</span> &nbsp;|&nbsp; Thesis <span style="color:#bf8cff;">+${d.thesisScore}</span> → Overall Conviction: <span style="color:${Math.min(100,(d.confidence||0)+d.thesisScore)>=70?'var(--good)':Math.min(100,(d.confidence||0)+d.thesisScore)>=45?'var(--accent)':'var(--warning)'};">${Math.min(100, (d.confidence||0) + d.thesisScore)}</span>
           </div>
         </div>
         <div class="thesis-breakdown" id="thesis-breakdown-${ticker}">${d.thesisBreakdown}</div>
@@ -2934,7 +2970,7 @@ async function fbLoad(){
       if(d.cfg){cfg=JSON.parse(d.cfg);localStorage.setItem('cfg',d.cfg);}
       rB();rT();rClosed();updatePnL();loadS();
       setSyncStatus('✓ loaded '+new Date().toLocaleTimeString());
-      tb_toast('☁ Synced from cloud');
+      // Silent sync on boot — no toast to avoid flash on page load
     }else{
       await fbSyncAll();
       setSyncStatus('✓ initialized');
@@ -3339,9 +3375,11 @@ function toggleScoreBreakdown(ticker, e){
   });
   el.style.display=el.style.display==='none'?'block':'none';
 }
-// Close score breakdowns on outside click
+// Close score breakdowns on outside click — use setTimeout to avoid same-event close
 document.addEventListener('click',function(){
-  document.querySelectorAll('[id^="score-breakdown-"]').forEach(d=>d.style.display='none');
+  setTimeout(()=>{
+    document.querySelectorAll('[id^="score-breakdown-"]').forEach(d=>d.style.display='none');
+  },10);
 });
 
 function toggleThesis(ticker){
@@ -3403,7 +3441,7 @@ Return ONLY valid JSON, no markdown, no backticks:
 
   const userMsg=`Ticker: ${ticker}
 Signal: ${d.direction} (${d.signal})
-Confidence score: ${d.score}/100
+Confidence score: ${d.confidence||0}/100
 Price: $${d.price.toFixed(2)}
 Day move: ${(d.changePct>=0?'+':'')+d.changePct.toFixed(2)}%
 RSI 14: ${d.rsi14!==null?d.rsi14.toFixed(1):'N/A'}
@@ -3434,7 +3472,7 @@ ${siStr}`;
 
     const verdict=(parsed.verdict||'MARGINAL').toUpperCase();
     const score=Math.max(0,Math.min(10,parseInt(parsed.score)||5));
-    const conviction=Math.min(100,d.score+score);
+    const conviction=Math.min(100,(d.confidence||0)+score);
     const verdictColor=verdict==='STRONG'?'var(--good)':verdict==='SKIP'?'var(--danger)':'var(--warning)';
 
     // Build breakdown HTML
@@ -3471,7 +3509,7 @@ ${siStr}`;
         <div class="thesis-score-row">
           <span class="thesis-score-big" style="color:${verdictColor};">${verdict}</span>
           <div class="thesis-conviction">
-            Technical + Regime: <span>${d.score}</span> &nbsp;|&nbsp; Thesis <span style="color:#bf8cff;">+${score}</span> → Overall Conviction: <span style="color:${conviction>=70?'var(--good)':conviction>=45?'var(--accent)':'var(--warning)'};">${conviction}</span>
+            Technical + Regime: <span>${d.confidence||0}</span> &nbsp;|&nbsp; Thesis <span style="color:#bf8cff;">+${score}</span> → Overall Conviction: <span style="color:${conviction>=70?'var(--good)':conviction>=45?'var(--accent)':'var(--warning)'};">${conviction}</span>
           </div>
         </div>
         ${breakdown}
@@ -5346,7 +5384,7 @@ window.SI = (function(){
                     : 'Early Data – Watch Closely';
     const regimeSuffix = rec.withRegimeTotal>5?' · regime: '+(rec.withRegimeCorrect/rec.withRegimeTotal*100).toFixed(0)+'%':'';
 
-    return `<div style="display:inline-flex;align-items:center;gap:4px;font-family:'Space Mono',monospace;font-size:9px;font-weight:700;color:${color};background:${color}22;border:1px solid ${color}55;border-radius:10px;padding:2px 7px;margin-left:4px;" title="${fullTitle}${regimeSuffix}"><span>${tierLabel}</span><span style="opacity:0.6;">·</span><span>${statsLabel}</span></div>`;
+    return `<div style="display:inline-flex;flex-direction:column;align-items:flex-start;gap:1px;font-family:'Space Mono',monospace;font-size:9px;font-weight:700;color:${color};background:${color}22;border:1px solid ${color}55;border-radius:10px;padding:3px 8px;margin-left:4px;margin-top:2px;" title="${fullTitle}${regimeSuffix}"><span>${tierLabel}</span><span style="opacity:0.7;font-weight:400;">${statsLabel}</span></div>`;
   }
 
   // ── RESET A TICKER RECORD (admin) ────────────────────────────
@@ -5662,7 +5700,7 @@ function swApp(name){
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradingBrief V6.3 — Regime Clarity + Final Polish | 2026-04-14  ║
+     ║  END TradingBrief V6.4 — Bug Fixes + Mobile Polish | 2026-04-14  ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 </body>
 </html>
