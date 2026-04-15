@@ -1,13 +1,12 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v6.8 — TradeLog Panel                                ║
+     ║  TRADEBRIEF v6.9 — Controls Polish + TradeLog Inline Edit        ║
      ║  Date: 2026-04-15                                                ║
-     ║  Changes from v6.7:                                              ║
-     ║    1. TradeLog moved to its own panel (#panel-log)               ║
-     ║    2. Nav split: Sheet | Log (both orange)                       ║
-     ║    3. TradeLog removed from TradeSheet                           ║
-     ║    4. Exit ITM / Exit OTM columns in log table                   ║
-     ║    5. Trashcan per row — tap red, tap again to confirm delete    ║
+     ║  Changes from v6.8:                                              ║
+     ║    1. Controls: focus=orange, blur=green flash, settles clean    ║
+     ║    2. New exp selected: ATR/IVR/Exit ITM/OTM reset to auto       ║
+     ║    3. TradeLog: inline edit Exit ITM/OTM, no modal               ║
+     ║    4. Edit button removed from TradeLog rows                     ║
      ║    2. Conviction number — persists thesisScore in sd[] on        ║
      ║       analysis so it survives re-renders                         ║
      ║    3. tb_toast — replaced with no-op (toast fully removed)       ║
@@ -969,7 +968,7 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
               ATR 14-day
               <button class="override-btn" id="atr-override-btn" onclick="toggleOverride('atr')" title="Override auto value">✎</button>
             </div>
-            <input class="ctrl-input auto" id="atr-val" type="number" step="0.01" placeholder="Auto-calculated" oninput="updateDerived()" onblur="onManualFieldSave('atr')">
+            <input class="ctrl-input auto" id="atr-val" type="number" step="0.01" placeholder="Auto-calculated" oninput="updateDerived()" onfocus="onCtrlFieldFocus(this)" onblur="onManualFieldSave('atr')">
           </div>
 
           <div class="ctrl-row">
@@ -977,7 +976,7 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
               IV Rank (0–100)
               <button class="override-btn" id="ivr-override-btn" onclick="toggleOverride('ivr')" title="Override auto value">✎</button>
             </div>
-            <input class="ctrl-input auto" id="ivr-val" type="number" step="0.1" min="0" max="100" placeholder="Auto-calculated" oninput="runScanner()" onblur="onManualFieldSave('ivr')">
+            <input class="ctrl-input auto" id="ivr-val" type="number" step="0.1" min="0" max="100" placeholder="Auto-calculated" oninput="runScanner()" onfocus="onCtrlFieldFocus(this)" onblur="onManualFieldSave('ivr')">
           </div>
         </div>
 
@@ -992,14 +991,14 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
                 Exit ITM (Take Profit)
                 <button class="override-btn" id="exit-itm-override-btn" onclick="toggleExitOverride('itm')" title="Override">✎</button>
               </div>
-              <input class="ctrl-input auto" id="exit-itm-val" type="number" step="0.01" placeholder="—" readonly oninput="onExitOverrideInput('itm')">
+              <input class="ctrl-input auto" id="exit-itm-val" type="number" step="0.01" placeholder="—" onfocus="onCtrlFieldFocus(this)" onblur="onExitFieldSave('itm')">
             </div>
             <div class="ctrl-row">
               <div class="ctrl-label">
                 Exit OTM (Stop Loss)
                 <button class="override-btn" id="exit-otm-override-btn" onclick="toggleExitOverride('otm')" title="Override">✎</button>
               </div>
-              <input class="ctrl-input auto" id="exit-otm-val" type="number" step="0.01" placeholder="—" readonly oninput="onExitOverrideInput('otm')">
+              <input class="ctrl-input auto" id="exit-otm-val" type="number" step="0.01" placeholder="—" onfocus="onCtrlFieldFocus(this)" onblur="onExitFieldSave('otm')">
             </div>
           </div>
           <div style="font-size:9px;color:var(--muted);font-family:'Space Mono',monospace;margin-top:2px;">
@@ -1154,6 +1153,10 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
 #panel-log .tl-trash-btn.confirm{border-color:var(--danger);color:var(--danger);background:rgba(255,71,87,.12);animation:trash-pulse .6s ease;}
 #panel-log .tl-edit-btn{background:none;border:1px solid var(--border);border-radius:4px;padding:4px 8px;font-size:9px;font-family:'Space Mono',monospace;color:var(--muted);cursor:pointer;transition:all .2s;}
 #panel-log .tl-edit-btn:hover{border-color:var(--accent);color:var(--accent);}
+#panel-log .tl-exit-input{background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:3px 6px;color:var(--text);font-family:'Space Mono',monospace;font-size:10px;width:72px;outline:none;transition:border-color 0.15s,background 0.15s;}
+#panel-log .tl-exit-itm-input{color:var(--good);}
+#panel-log .tl-exit-otm-input{color:var(--danger);}
+#panel-log .tl-exit-input:focus{border-color:var(--warning);background:rgba(255,165,2,0.06);}
 @keyframes trash-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.15)}}
 @media(max-width:600px){#panel-log .tl-stats{grid-template-columns:1fr 1fr;}}
 </style>
@@ -1488,12 +1491,12 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
 
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v6.8</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v6.9</div>
 
 <!-- ══ MOBILE SCAN BTN (mobile only, shown via CSS) ══════════════════════ -->
 <div id="mobile-scan-btn-wrap" style="display:none;">
   <button class="mscan-btn" onclick="go('briefing');window.TB.runScanner(true);">🔍 Scan Now</button>
-  <span class="mversion">v6.8</span>
+  <span class="mversion">v6.9</span>
 </div>
 
 <!-- ══ APP SWITCHER NAV ════════════════════════════════════════════════════ -->
@@ -4004,6 +4007,18 @@ function renderExpSelector() {
 
 async function selectExp(date) {
   state.selectedExp = date;
+
+  // Reset ALL overrides — new expiration means fresh auto values
+  state.atrOverride = false;
+  state.ivrOverride = false;
+  state.exitItmOverride = false;
+  state.exitOtmOverride = false;
+  // Reset override btn visuals
+  ['atr','ivr'].forEach(f => {
+    const btn = document.getElementById(f + '-override-btn');
+    if (btn) btn.classList.remove('active');
+  });
+
   renderExpSelector();
 
   // Fetch chain on-demand if not already loaded
@@ -4022,6 +4037,9 @@ async function selectExp(date) {
       setStatus('error', `Chain fetch failed: ${e.message}`);
     }
   }
+
+  // Re-fetch historical to get fresh ATR + IVR (overrides cleared above)
+  await fetchHistorical(state.ticker);
 
   state.chain = state.allChains[date] || [];
   updateDerived();
@@ -4601,57 +4619,69 @@ function toggleOverride(field) {
   }
 }
 
-// Flash green on field to confirm manual save
+// Orange border when any ctrl field is focused
+function onCtrlFieldFocus(input) {
+  input.style.borderColor = 'var(--warning)';
+  input.style.background = 'rgba(255,165,2,0.06)';
+  input.style.transition = 'border-color 0.15s, background 0.15s';
+}
+
+// Green flash then settle clean on ATR/IVR blur
 function onManualFieldSave(field) {
   const input = document.getElementById(field === 'atr' ? 'atr-val' : 'ivr-val');
   const val = parseFloat(input.value);
-  if (isNaN(val) || val <= 0) return;
-
-  // Mark as overridden
+  if (isNaN(val) || val <= 0) {
+    input.style.borderColor = '';
+    input.style.background = '';
+    return;
+  }
   if (field === 'atr') { state.atrOverride = true; }
   else { state.ivrOverride = true; }
   const btn = document.getElementById(field + '-override-btn');
   if (btn) btn.classList.add('active');
-
-  // Green flash confirmation
-  input.className = 'ctrl-input auto'; // reset first
   input.style.borderColor = 'var(--good)';
   input.style.background = 'rgba(0,255,157,0.08)';
   input.style.transition = 'border-color 0.3s, background 0.3s';
   setTimeout(() => {
     input.style.borderColor = '';
     input.style.background = '';
-    input.className = 'ctrl-input overridden';
+    input.className = 'ctrl-input auto';
   }, 800);
-
   if (field === 'atr') { updateDerived(); updateExitPrices(); }
   else { runScanner(); }
 }
 
-// Exit price override toggle
+// Green flash then settle clean on Exit ITM/OTM blur
+function onExitFieldSave(side) {
+  const input = document.getElementById('exit-' + side + '-val');
+  const val = parseFloat(input.value);
+  if (isNaN(val) || val <= 0) {
+    input.style.borderColor = '';
+    input.style.background = '';
+    return;
+  }
+  if (side === 'itm') state.exitItmOverride = true;
+  else state.exitOtmOverride = true;
+  input.style.borderColor = 'var(--good)';
+  input.style.background = 'rgba(0,255,157,0.08)';
+  input.style.transition = 'border-color 0.3s, background 0.3s';
+  setTimeout(() => {
+    input.style.borderColor = '';
+    input.style.background = '';
+    input.className = 'ctrl-input auto';
+  }, 800);
+  updateTradePlan();
+}
+
+// Exit price override toggle (kept for pencil btn back-compat, now less used)
 function toggleExitOverride(side) {
   const input = document.getElementById('exit-' + side + '-val');
-  const btn = document.getElementById('exit-' + side + '-override-btn');
   const stateKey = side === 'itm' ? 'exitItmOverride' : 'exitOtmOverride';
-
-  if (state[stateKey]) {
-    state[stateKey] = false;
-    input.readOnly = true;
-    input.className = 'ctrl-input auto';
-    btn.classList.remove('active');
-    updateExitPrices();
-  } else {
-    state[stateKey] = true;
-    input.readOnly = false;
-    input.className = 'ctrl-input overridden';
-    btn.classList.add('active');
-    input.focus();
-  }
+  state[stateKey] = false;
+  updateExitPrices();
 }
 
-function onExitOverrideInput(side) {
-  // Just keep overridden styling — value is live
-}
+function onExitOverrideInput(side) {}
 
 // Calculate and display exit prices based on selected spread/option
 function updateExitPrices() {
@@ -5044,6 +5074,8 @@ window.callSelectRow          = callSelectRow;
 window.putSelectRow           = putSelectRow;
 window.toggleLog              = toggleLog;
 window.onManualFieldSave      = onManualFieldSave;
+window.onCtrlFieldFocus       = onCtrlFieldFocus;
+window.onExitFieldSave        = onExitFieldSave;
 window.toggleExitOverride     = toggleExitOverride;
 window.onExitOverrideInput    = onExitOverrideInput;
 window.updateExitPrices       = updateExitPrices;
@@ -5259,6 +5291,7 @@ return {
   getSelectedSpread,
   getTrades,
   deleteTrade,
+  updateTrade,
   openLogModal: openLogModalPublic,
   logTrade: confirmLogTrade,
 };
@@ -6047,8 +6080,8 @@ function swApp(name){
         const pl = t.pl !== undefined && t.pl !== null ? parseFloat(t.pl) : null;
         const plClass = pl === null ? '' : (pl >= 0 ? 'tl-pl-pos' : 'tl-pl-neg');
         const plFmt = pl === null ? '—' : `${pl >= 0 ? '+' : ''}$${Math.abs(pl).toFixed(2)}`;
-        const exitItm = t.exitItm ? `<span class="tl-exit-itm">$${parseFloat(t.exitItm).toFixed(2)}</span>` : '<span style="color:var(--muted)">—</span>';
-        const exitOtm = t.exitOtm ? `<span class="tl-exit-otm">$${parseFloat(t.exitOtm).toFixed(2)}</span>` : '<span style="color:var(--muted)">—</span>';
+        const exitItmVal = t.exitItm ? parseFloat(t.exitItm).toFixed(2) : '';
+        const exitOtmVal = t.exitOtm ? parseFloat(t.exitOtm).toFixed(2) : '';
         const isPending = tlPendingDelete === t.id;
         const trashClass = isPending ? 'tl-trash-btn confirm' : 'tl-trash-btn';
         const trashTitle = isPending ? 'Tap again to confirm delete' : 'Delete trade';
@@ -6063,12 +6096,11 @@ function swApp(name){
           <td>${t.maxProfit!=null ? '$'+parseFloat(t.maxProfit).toFixed(2) : '—'}</td>
           <td>${t.rr!=null ? parseFloat(t.rr).toFixed(2)+'x' : '—'}</td>
           <td>${t.ivRank!=null ? parseFloat(t.ivRank).toFixed(1) : '—'}</td>
-          <td>${exitItm}</td>
-          <td>${exitOtm}</td>
+          <td><input class="tl-exit-input tl-exit-itm-input" type="number" step="0.01" value="${exitItmVal}" placeholder="—" data-id="${t.id}" data-side="itm" onfocus="tlExitFocus(this)" onblur="tlExitSave(this)" onkeydown="if(event.key==='Enter')this.blur()"></td>
+          <td><input class="tl-exit-input tl-exit-otm-input" type="number" step="0.01" value="${exitOtmVal}" placeholder="—" data-id="${t.id}" data-side="otm" onfocus="tlExitFocus(this)" onblur="tlExitSave(this)" onkeydown="if(event.key==='Enter')this.blur()"></td>
           <td><span class="tl-outcome-pill ${outcomeClass}">${t.outcome}</span></td>
           <td class="${plClass}">${plFmt}</td>
           <td style="display:flex;gap:5px;align-items:center;">
-            <button class="tl-edit-btn" onclick="tlEdit('${t.id}')">✎ Edit</button>
             <button class="${trashClass}" onclick="tlTrash('${t.id}')" title="${trashTitle}">🗑</button>
           </td>
         </tr>`;
@@ -6128,25 +6160,49 @@ function swApp(name){
     }
   }
 
-  function tlEdit(id) {
-    // Delegate to TS edit modal — switch to sheet panel first
-    swApp('sheet');
+  function tlExitFocus(input) {
+    // Orange on focus — handled via CSS :focus, nothing extra needed
+  }
+
+  async function tlExitSave(input) {
+    const id   = input.dataset.id;
+    const side = input.dataset.side;
+    const val  = parseFloat(input.value);
+    if (isNaN(val) || val < 0) return;
+
+    // Green flash
+    input.style.borderColor = 'var(--good)';
+    input.style.background  = 'rgba(0,255,157,0.08)';
     setTimeout(() => {
-      if (window.TS && window.openEditModal) openEditModal(id);
-    }, 100);
+      input.style.borderColor = '';
+      input.style.background  = '';
+    }, 800);
+
+    // Save to store
+    const field = side === 'itm' ? 'exitItm' : 'exitOtm';
+    if (window.TS && window.TS.updateTrade) {
+      await window.TS.updateTrade(id, { [field]: val });
+    } else {
+      try {
+        const trades = JSON.parse(localStorage.getItem('ts-trades') || '[]');
+        const idx = trades.findIndex(t => t.id === id);
+        if (idx >= 0) { trades[idx][field] = val; localStorage.setItem('ts-trades', JSON.stringify(trades)); }
+      } catch(e) {}
+    }
   }
 
   window.tlRender    = tlRender;
   window.tlSetFilter = tlSetFilter;
   window.tlTrash     = tlTrash;
-  window.tlEdit      = tlEdit;
+  window.tlExitFocus = tlExitFocus;
+  window.tlExitSave  = tlExitSave;
 
 })();
 
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradingBrief V6.8 — TradeLog Panel                          ║
+     ║  END TradingBrief V6.9 — Controls Polish + TradeLog Inline Edit  ║
      ║  2026-04-15                                                       ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 </body>
