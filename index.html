@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v7.4 — Chunk 5 Polish                                ║
+     ║  TRADEBRIEF v7.5.1 — HowTo flash fix    ║
      ║  Date: 2026-04-16                                                ║
-     ║  Changes from v7.3:                                              ║
-     ║    1. Settings overlay CSS restored (card/row/label formatting)  ║
-     ║    2. Browser tab title updated to v7.4                          ║
-     ║    3. Bottom HTML stamp updated to v7.4                          ║
+     ║  Changes from v7.5:                                              ║
+     ║    1. TradeLog: Active Trades / Closed Trades sections           ║
+     ║    2. Live $ column — real Tradier mid-price per open position   ║
+     ║    3. Close Trade button — inline row, pre-fills Live $          ║
+     ║    4. Total P&L stat = realized + unrealized (Live $ - Cost)     ║
+     ║    5. TB P&L bar unrealized fed from live option prices          ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 <html lang="en">
 <head>
@@ -15,7 +17,7 @@
 <meta name="theme-color" content="#111827">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>TradeBrief v7.4</title>
+<title>TradeBrief v7.5.1</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -258,7 +260,7 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
 <div class="main">
 
   <!-- ── HOW-TO ─────────────────────────────────────────────── -->
-  <div class="tab-content active" id="tab-howto">
+  <div class="tab-content" id="tab-howto">
     <div class="howto-tabs">
       <button class="howto-tab active" onclick="hwTab('overview')">📋 Overview</button>
       <button class="howto-tab" onclick="hwTab('usage')">🚀 How To Use</button>
@@ -1185,6 +1187,25 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
 #panel-log .tl-exit-input:focus{border-color:var(--warning);background:rgba(255,165,2,0.06);}
 @keyframes trash-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.15)}}
 @media(max-width:600px){#panel-log .tl-stats{grid-template-columns:1fr 1fr;}}
+#panel-log .tl-section-hdr{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;padding:14px 0 6px;margin-top:6px;}
+#panel-log .tl-section-hdr:first-child{margin-top:0;}
+#panel-log .tl-live-pos{color:var(--good);}
+#panel-log .tl-live-neg{color:var(--danger);}
+#panel-log .tl-live-loading{color:var(--muted);font-style:italic;}
+#panel-log .tl-close-btn{background:none;border:1px solid rgba(255,165,2,0.5);border-radius:4px;padding:4px 8px;font-size:9px;font-family:'Space Mono',monospace;color:#ffa502;cursor:pointer;transition:all .2s;}
+#panel-log .tl-close-btn:hover{background:rgba(255,165,2,0.12);border-color:#ffa502;}
+#panel-log .tl-close-row td{background:rgba(255,165,2,0.04);border-top:1px solid rgba(255,165,2,0.2)!important;}
+#panel-log .tl-close-price{background:var(--surface2);border:1px solid var(--warning);border-radius:4px;padding:4px 8px;color:var(--text);font-family:'Space Mono',monospace;font-size:11px;width:90px;outline:none;}
+#panel-log .tl-close-pl{font-family:'Space Mono',monospace;font-size:12px;font-weight:700;min-width:70px;display:inline-block;}
+#panel-log .tl-confirm-btn{background:#ffa502;border:none;border-radius:4px;padding:5px 12px;font-size:9px;font-family:'Space Mono',monospace;font-weight:700;color:#000;cursor:pointer;}
+#panel-log .tl-cancel-btn{background:none;border:1px solid var(--border);border-radius:4px;padding:5px 10px;font-size:9px;font-family:'Space Mono',monospace;color:var(--muted);cursor:pointer;}
+#panel-log .tl-outcome-sel{display:flex;gap:4px;}
+#panel-log .tl-out-btn{background:none;border:1px solid var(--border);border-radius:4px;padding:3px 8px;font-size:9px;font-family:'Space Mono',monospace;color:var(--muted);cursor:pointer;transition:all .2s;}
+#panel-log .tl-out-btn.sel-win{background:rgba(0,255,157,.15);border-color:var(--good);color:var(--good);}
+#panel-log .tl-out-btn.sel-loss{background:rgba(255,71,87,.15);border-color:var(--danger);color:var(--danger);}
+#panel-log .tl-out-btn.sel-be{background:rgba(107,122,153,.15);border-color:var(--muted);color:var(--text);}
+#panel-log .tl-closed-section .tl-table-wrap{border-color:rgba(107,122,153,0.3);}
+#panel-log .tl-closed-section .tl-table th{background:rgba(107,122,153,0.06);}
 </style>
 <div class="tl-header">
   <div style="display:flex;align-items:center;gap:10px;">
@@ -1218,20 +1239,36 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
     <button class="tl-filter-btn" onclick="tlSetFilter('Call Spread',this)">CALL SPREAD</button>
     <button class="tl-filter-btn" onclick="tlSetFilter('Put Spread',this)">PUT SPREAD</button>
   </div>
-  <!-- Table -->
-  <div class="tl-table-wrap">
+  <!-- Table — Active Trades -->
+  <div class="tl-section-hdr">Active Trades</div>
+  <div class="tl-table-wrap" id="tl-active-wrap">
     <table class="tl-table">
       <thead>
         <tr>
           <th>DATE</th><th>TICKER</th><th>TYPE</th><th>STRIKES</th>
-          <th>EXP</th><th>COST $</th><th>MAX $</th><th>R/R</th>
+          <th>EXP</th><th>COST $</th><th>MAX $</th><th>LIVE $</th><th>R/R</th>
           <th>IV RANK</th><th>EXIT ↑</th><th>EXIT ↓</th>
-          <th>OUTCOME</th><th>P&L $</th><th>ACTIONS</th>
+          <th>ACTIONS</th>
         </tr>
       </thead>
-      <tbody id="tl-tbody"></tbody>
+      <tbody id="tl-active-tbody"></tbody>
     </table>
-    <div class="tl-empty" id="tl-empty">No trades logged yet.</div>
+    <div class="tl-empty" id="tl-active-empty">No active trades.</div>
+  </div>
+  <!-- Table — Closed Trades -->
+  <div class="tl-section-hdr tl-closed-section" style="margin-top:20px;">Closed Trades</div>
+  <div class="tl-table-wrap tl-closed-section" id="tl-closed-wrap">
+    <table class="tl-table">
+      <thead>
+        <tr>
+          <th>DATE</th><th>TICKER</th><th>TYPE</th><th>STRIKES</th>
+          <th>EXP</th><th>COST $</th><th>MAX $</th><th>CLOSED $</th><th>R/R</th>
+          <th>IV RANK</th><th>OUTCOME</th><th>P&L $</th><th>ACTIONS</th>
+        </tr>
+      </thead>
+      <tbody id="tl-closed-tbody"></tbody>
+    </table>
+    <div class="tl-empty" id="tl-closed-empty" style="display:none;">No closed trades yet.</div>
   </div>
 </div>
 </div><!-- /panel-log -->
@@ -1624,12 +1661,12 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
 
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.4</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.5.1</div>
 
 <!-- ══ MOBILE SCAN BTN (mobile only, shown via CSS) ══════════════════════ -->
 <div id="mobile-scan-btn-wrap" style="display:none;">
   <button class="mscan-btn" onclick="go('briefing');window.TB.runScanner(true);">🔍 Scan Now</button>
-  <span class="mversion">v7.4</span>
+  <span class="mversion">v7.5.1</span>
 </div>
 
 <!-- ══ APP SWITCHER NAV ════════════════════════════════════════════════════ -->
@@ -5128,6 +5165,7 @@ function syncTradesFromLog(){
       target:      parseFloat(t.target) || S('target') || 80,
       maxUnlimited:!t.maxProfit,
       entryPrice:  parseFloat(t.entryPrice) || parseFloat(t.buyStrike) || 0,
+      _tlId:       t.id, // reference back to TradeLog id for live price lookup
     }));
   closedTrades = all
     .filter(t => t.outcome && t.outcome !== 'Open')
@@ -6357,69 +6395,266 @@ function swApp(name){
 (function(){
 
   let tlFilter = 'all';
-  let tlPendingDelete = null; // id of trade awaiting confirm
+  let tlPendingDelete = null;
+  let tlClosingId = null;      // id of trade currently in inline-close mode
+  let tlCloseOutcome = 'Loss'; // default outcome for inline close
+  let tlLiveData = {};         // {id: {liveVal, loading, error}}
+  const PROXY = 'https://tradebrief-proxy.netlify.app/.netlify/functions';
 
   function getTrades() {
-    // Read from TS state (shared data store)
     if (window.TS && window.TS.getTrades) return window.TS.getTrades();
     try { return JSON.parse(localStorage.getItem('ts-trades') || '[]'); } catch(e) { return []; }
   }
 
+  // ── LIVE PRICE FETCH ─────────────────────────────────────────────
+  async function fetchLivePrice(trade) {
+    const id = trade.id;
+    tlLiveData[id] = { liveVal: null, loading: true, error: false };
+    try {
+      const exp = trade.expDate || trade.exp || '';
+      if (!exp || !trade.buyStrike) { tlLiveData[id] = { liveVal: null, loading: false, error: true }; return; }
+      const r = await fetch(`${PROXY}/tradier?type=options&symbol=${trade.ticker}&expiration=${exp}`);
+      const d = await r.json();
+      const opts = d.options?.option;
+      if (!opts) { tlLiveData[id] = { liveVal: null, loading: false, error: true }; return; }
+      const arr = Array.isArray(opts) ? opts : [opts];
+      const isCall = trade.type === 'Long Call' || trade.type === 'Call Spread';
+      const optType = isCall ? 'call' : 'put';
+      const isSpread = trade.type === 'Call Spread' || trade.type === 'Put Spread';
+      // Find buy leg mid
+      const buyLeg = arr.find(o => parseFloat(o.strike) === parseFloat(trade.buyStrike) && o.option_type === optType);
+      if (!buyLeg) { tlLiveData[id] = { liveVal: null, loading: false, error: true }; return; }
+      const buyMid = (parseFloat(buyLeg.bid || 0) + parseFloat(buyLeg.ask || 0)) / 2;
+      let liveVal;
+      if (!isSpread) {
+        liveVal = buyMid * 100 * (parseInt(trade.contracts) || 1);
+      } else {
+        const sellLeg = arr.find(o => parseFloat(o.strike) === parseFloat(trade.sellStrike) && o.option_type === optType);
+        const sellMid = sellLeg ? (parseFloat(sellLeg.bid || 0) + parseFloat(sellLeg.ask || 0)) / 2 : 0;
+        liveVal = (buyMid - sellMid) * 100 * (parseInt(trade.contracts) || 1);
+      }
+      tlLiveData[id] = { liveVal, loading: false, error: false };
+    } catch(e) {
+      tlLiveData[id] = { liveVal: null, loading: false, error: true };
+    }
+    tlRender();
+    syncTradesFromLog();
+  }
+
+  async function fetchAllLivePrices(activeTrades) {
+    for (const t of activeTrades) {
+      if (!tlLiveData[t.id] || tlLiveData[t.id].error) {
+        fetchLivePrice(t); // fire and forget — each resolves and re-renders
+      }
+    }
+  }
+
+  // ── INLINE CLOSE HELPERS ─────────────────────────────────────────
+  function tlStartClose(id) {
+    tlClosingId = id;
+    tlCloseOutcome = 'Loss';
+    tlRender();
+  }
+
+  function tlCancelClose() {
+    tlClosingId = null;
+    tlRender();
+  }
+
+  function tlSetCloseOutcome(outcome, el) {
+    tlCloseOutcome = outcome;
+    document.querySelectorAll('#tl-close-out-row .tl-out-btn').forEach(b => b.className = 'tl-out-btn');
+    if (el) {
+      el.classList.add(outcome === 'Win' ? 'sel-win' : outcome === 'Loss' ? 'sel-loss' : 'sel-be');
+    }
+    tlCalcClosePL();
+  }
+
+  function tlCalcClosePL() {
+    const input = document.getElementById('tl-close-price-input');
+    const plEl = document.getElementById('tl-close-pl-display');
+    if (!input || !plEl || !tlClosingId) return;
+    const all = getTrades();
+    const trade = all.find(t => t.id === tlClosingId);
+    if (!trade) return;
+    const exitPrice = parseFloat(input.value);
+    if (isNaN(exitPrice)) { plEl.textContent = '—'; plEl.className = 'tl-close-pl'; return; }
+    const contracts = parseInt(trade.contracts) || 1;
+    const pl = (exitPrice - parseFloat(trade.cost)) * contracts;
+    plEl.textContent = (pl >= 0 ? '+' : '') + '$' + Math.abs(pl).toFixed(2);
+    plEl.className = 'tl-close-pl ' + (pl >= 0 ? 'tl-live-pos' : 'tl-live-neg');
+    // Auto-detect outcome
+    if (pl > 0) tlCloseOutcome = 'Win';
+    else if (pl < 0) tlCloseOutcome = 'Loss';
+    else tlCloseOutcome = 'Breakeven';
+    document.querySelectorAll('#tl-close-out-row .tl-out-btn').forEach(b => {
+      b.className = 'tl-out-btn' +
+        (b.dataset.out === 'Win' && tlCloseOutcome === 'Win' ? ' sel-win' :
+         b.dataset.out === 'Loss' && tlCloseOutcome === 'Loss' ? ' sel-loss' :
+         b.dataset.out === 'Breakeven' && tlCloseOutcome === 'Breakeven' ? ' sel-be' : '');
+    });
+  }
+
+  async function tlConfirmClose() {
+    if (!tlClosingId) return;
+    const input = document.getElementById('tl-close-price-input');
+    if (!input) return;
+    const exitPrice = parseFloat(input.value);
+    if (isNaN(exitPrice) || exitPrice < 0) { input.style.borderColor = 'var(--danger)'; return; }
+    const all = getTrades();
+    const trade = all.find(t => t.id === tlClosingId);
+    if (!trade) return;
+    const contracts = parseInt(trade.contracts) || 1;
+    const pl = (exitPrice - parseFloat(trade.cost)) * contracts;
+    const update = {
+      outcome: tlCloseOutcome,
+      pl: parseFloat(pl.toFixed(2)),
+      closedPrice: exitPrice,
+      closedDate: new Date().toISOString().split('T')[0]
+    };
+    if (window.TS && window.TS.updateTrade) {
+      await window.TS.updateTrade(tlClosingId, update);
+    } else {
+      try {
+        const trades = JSON.parse(localStorage.getItem('ts-trades') || '[]');
+        const idx = trades.findIndex(t => t.id === tlClosingId);
+        if (idx >= 0) { Object.assign(trades[idx], update); localStorage.setItem('ts-trades', JSON.stringify(trades)); }
+      } catch(e) {}
+    }
+    tlClosingId = null;
+    tlRender();
+    syncTradesFromLog();
+  }
+
+  // ── MAIN RENDER ──────────────────────────────────────────────────
   function tlRender() {
     const all = getTrades();
-    let trades = all;
-    if (tlFilter === 'open')   trades = all.filter(t => t.outcome === 'Open');
-    else if (tlFilter === 'closed') trades = all.filter(t => t.outcome !== 'Open');
-    else if (tlFilter !== 'all')    trades = all.filter(t => t.type === tlFilter);
+    const active = all.filter(t => t.outcome === 'Open' || !t.outcome);
+    const closed = all.filter(t => t.outcome && t.outcome !== 'Open');
 
-    const tbody = document.getElementById('tl-tbody');
-    const empty = document.getElementById('tl-empty');
-    if (!tbody) return;
+    // ── Active trades ─────────────────────────────────────────────
+    const activeTbody = document.getElementById('tl-active-tbody');
+    const activeEmpty = document.getElementById('tl-active-empty');
+    if (activeTbody) {
+      if (!active.length) {
+        activeTbody.innerHTML = '';
+        if (activeEmpty) activeEmpty.style.display = 'block';
+      } else {
+        if (activeEmpty) activeEmpty.style.display = 'none';
+        activeTbody.innerHTML = active.map(t => {
+          const typeClass = {'Long Call':'lc','Long Put':'lp','Call Spread':'cs','Put Spread':'ps'}[t.type] || 'cs';
+          const strikes = t.sellStrike ? `$${t.buyStrike} / $${t.sellStrike}` : `$${t.buyStrike}`;
+          const exitItmVal = t.exitItm ? parseFloat(t.exitItm).toFixed(2) : '';
+          const exitOtmVal = t.exitOtm ? parseFloat(t.exitOtm).toFixed(2) : '';
+          const isPending = tlPendingDelete === t.id;
+          const isClosing = tlClosingId === t.id;
+          const trashClass = isPending ? 'tl-trash-btn confirm' : 'tl-trash-btn';
 
-    if (!trades.length) {
-      tbody.innerHTML = '';
-      empty.style.display = 'block';
-    } else {
-      empty.style.display = 'none';
-      tbody.innerHTML = trades.map(t => {
-        const typeClass = {'Long Call':'lc','Long Put':'lp','Call Spread':'cs','Put Spread':'ps'}[t.type] || 'cs';
-        const outcomeClass = {Open:'open',Win:'win',Loss:'loss',Breakeven:'be'}[t.outcome] || 'open';
-        const strikes = t.sellStrike ? `$${t.buyStrike} / $${t.sellStrike}` : `$${t.buyStrike}`;
-        const pl = t.pl !== undefined && t.pl !== null ? parseFloat(t.pl) : null;
-        const plClass = pl === null ? '' : (pl >= 0 ? 'tl-pl-pos' : 'tl-pl-neg');
-        const plFmt = pl === null ? '—' : `${pl >= 0 ? '+' : ''}$${Math.abs(pl).toFixed(2)}`;
-        const exitItmVal = t.exitItm ? parseFloat(t.exitItm).toFixed(2) : '';
-        const exitOtmVal = t.exitOtm ? parseFloat(t.exitOtm).toFixed(2) : '';
-        const isPending = tlPendingDelete === t.id;
-        const trashClass = isPending ? 'tl-trash-btn confirm' : 'tl-trash-btn';
-        const trashTitle = isPending ? 'Tap again to confirm delete' : 'Delete trade';
+          // Live $ cell
+          const ld = tlLiveData[t.id];
+          let liveCell = '<span class="tl-live-loading">…</span>';
+          if (ld && !ld.loading) {
+            if (ld.liveVal !== null) {
+              const liveColor = ld.liveVal >= parseFloat(t.cost) * (parseInt(t.contracts)||1) ? 'tl-live-pos' : 'tl-live-neg';
+              liveCell = `<span class="${liveColor}">$${ld.liveVal.toFixed(2)}</span>`;
+            } else {
+              liveCell = '<span class="tl-live-loading">—</span>';
+            }
+          }
 
-        return `<tr>
-          <td>${t.entryDate || '—'}</td>
-          <td style="font-weight:700;">${t.ticker}</td>
-          <td><span class="tl-type-pill ${typeClass}">${t.type}</span></td>
-          <td>${strikes}</td>
-          <td>${t.expDate || '—'}</td>
-          <td style="color:var(--accent);">$${parseFloat(t.cost||0).toFixed(2)}</td>
-          <td>${t.maxProfit!=null ? '$'+parseFloat(t.maxProfit).toFixed(2) : '—'}</td>
-          <td>${t.rr!=null ? parseFloat(t.rr).toFixed(2)+'x' : '—'}</td>
-          <td>${t.ivRank!=null ? parseFloat(t.ivRank).toFixed(1) : '—'}</td>
-          <td><input class="tl-exit-input tl-exit-itm-input" type="number" step="0.01" value="${exitItmVal}" placeholder="—" data-id="${t.id}" data-side="itm" onfocus="tlExitFocus(this)" onblur="tlExitSave(this)" onkeydown="if(event.key==='Enter')this.blur()"></td>
-          <td><input class="tl-exit-input tl-exit-otm-input" type="number" step="0.01" value="${exitOtmVal}" placeholder="—" data-id="${t.id}" data-side="otm" onfocus="tlExitFocus(this)" onblur="tlExitSave(this)" onkeydown="if(event.key==='Enter')this.blur()"></td>
-          <td><span class="tl-outcome-pill ${outcomeClass}">${t.outcome}</span></td>
-          <td class="${plClass}">${plFmt}</td>
-          <td style="display:flex;gap:5px;align-items:center;">
-            <button class="${trashClass}" onclick="tlTrash('${t.id}')" title="${trashTitle}">🗑</button>
-          </td>
-        </tr>`;
-      }).join('');
+          // Inline close row
+          const closeRow = isClosing ? `
+          <tr id="tl-close-out-row" class="tl-close-row">
+            <td colspan="13" style="padding:10px 12px;">
+              <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                <span style="font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:1px;">CLOSE AT ($)</span>
+                <input id="tl-close-price-input" class="tl-close-price" type="number" step="0.01"
+                  value="${ld && ld.liveVal !== null ? (ld.liveVal / ((parseInt(t.contracts)||1))).toFixed(2) : ''}"
+                  placeholder="exit price" oninput="tlCalcClosePL()">
+                <span id="tl-close-pl-display" class="tl-close-pl">—</span>
+                <div class="tl-outcome-sel">
+                  <button class="tl-out-btn sel-loss" data-out="Win" onclick="tlSetCloseOutcome('Win',this)">Win</button>
+                  <button class="tl-out-btn" data-out="Loss" onclick="tlSetCloseOutcome('Loss',this)">Loss</button>
+                  <button class="tl-out-btn" data-out="Breakeven" onclick="tlSetCloseOutcome('Breakeven',this)">B/E</button>
+                </div>
+                <button class="tl-confirm-btn" onclick="tlConfirmClose()">Confirm</button>
+                <button class="tl-cancel-btn" onclick="tlCancelClose()">Cancel</button>
+              </div>
+            </td>
+          </tr>` : '';
+
+          return `<tr>
+            <td>${t.entryDate || '—'}</td>
+            <td style="font-weight:700;">${t.ticker}</td>
+            <td><span class="tl-type-pill ${typeClass}">${t.type}</span></td>
+            <td>${strikes}</td>
+            <td>${t.expDate || '—'}</td>
+            <td style="color:var(--accent);">$${parseFloat(t.cost||0).toFixed(2)}</td>
+            <td>${t.maxProfit!=null ? '$'+parseFloat(t.maxProfit).toFixed(2) : '—'}</td>
+            <td>${liveCell}</td>
+            <td>${t.rr!=null ? parseFloat(t.rr).toFixed(2)+'x' : '—'}</td>
+            <td>${t.ivRank!=null ? parseFloat(t.ivRank).toFixed(1) : '—'}</td>
+            <td><input class="tl-exit-input tl-exit-itm-input" type="number" step="0.01" value="${exitItmVal}" placeholder="—" data-id="${t.id}" data-side="itm" onfocus="tlExitFocus(this)" onblur="tlExitSave(this)" onkeydown="if(event.key==='Enter')this.blur()"></td>
+            <td><input class="tl-exit-input tl-exit-otm-input" type="number" step="0.01" value="${exitOtmVal}" placeholder="—" data-id="${t.id}" data-side="otm" onfocus="tlExitFocus(this)" onblur="tlExitSave(this)" onkeydown="if(event.key==='Enter')this.blur()"></td>
+            <td style="display:flex;gap:5px;align-items:center;">
+              <button class="tl-close-btn" onclick="tlStartClose('${t.id}')" title="Close trade">Close</button>
+              <button class="${trashClass}" onclick="tlTrash('${t.id}')" title="${isPending?'Tap again to confirm':'Delete'}">🗑</button>
+            </td>
+          </tr>${closeRow}`;
+        }).join('');
+      }
     }
 
-    // Stats
-    const closed = all.filter(t => t.outcome !== 'Open');
+    // ── Closed trades ─────────────────────────────────────────────
+    const closedTbody = document.getElementById('tl-closed-tbody');
+    const closedEmpty = document.getElementById('tl-closed-empty');
+    if (closedTbody) {
+      if (!closed.length) {
+        closedTbody.innerHTML = '';
+        if (closedEmpty) closedEmpty.style.display = 'block';
+      } else {
+        if (closedEmpty) closedEmpty.style.display = 'none';
+        closedTbody.innerHTML = closed.map(t => {
+          const typeClass = {'Long Call':'lc','Long Put':'lp','Call Spread':'cs','Put Spread':'ps'}[t.type] || 'cs';
+          const outcomeClass = {Win:'win',Loss:'loss',Breakeven:'be'}[t.outcome] || 'be';
+          const strikes = t.sellStrike ? `$${t.buyStrike} / $${t.sellStrike}` : `$${t.buyStrike}`;
+          const pl = t.pl !== undefined && t.pl !== null ? parseFloat(t.pl) : null;
+          const plClass = pl === null ? '' : (pl >= 0 ? 'tl-pl-pos' : 'tl-pl-neg');
+          const plFmt = pl === null ? '—' : `${pl >= 0 ? '+' : ''}$${Math.abs(pl).toFixed(2)}`;
+          const closedPrice = t.closedPrice ? `$${parseFloat(t.closedPrice).toFixed(2)}` : '—';
+          const isPending = tlPendingDelete === t.id;
+          const trashClass = isPending ? 'tl-trash-btn confirm' : 'tl-trash-btn';
+          return `<tr>
+            <td>${t.entryDate || '—'}</td>
+            <td style="font-weight:700;">${t.ticker}</td>
+            <td><span class="tl-type-pill ${typeClass}">${t.type}</span></td>
+            <td>${strikes}</td>
+            <td>${t.expDate || '—'}</td>
+            <td style="color:var(--accent);">$${parseFloat(t.cost||0).toFixed(2)}</td>
+            <td>${t.maxProfit!=null ? '$'+parseFloat(t.maxProfit).toFixed(2) : '—'}</td>
+            <td style="color:var(--muted);">${closedPrice}</td>
+            <td>${t.rr!=null ? parseFloat(t.rr).toFixed(2)+'x' : '—'}</td>
+            <td>${t.ivRank!=null ? parseFloat(t.ivRank).toFixed(1) : '—'}</td>
+            <td><span class="tl-outcome-pill ${outcomeClass}">${t.outcome}</span></td>
+            <td class="${plClass}">${plFmt}</td>
+            <td><button class="${trashClass}" onclick="tlTrash('${t.id}')" title="${isPending?'Tap again to confirm':'Delete'}">🗑</button></td>
+          </tr>`;
+        }).join('');
+      }
+    }
+
+    // ── Stats ─────────────────────────────────────────────────────
+    const realizedPL = closed.reduce((s,t) => s + (parseFloat(t.pl)||0), 0);
+    const unrealizedPL = active.reduce((s,t) => {
+      const ld = tlLiveData[t.id];
+      if (ld && ld.liveVal !== null) {
+        return s + (ld.liveVal - parseFloat(t.cost) * (parseInt(t.contracts)||1));
+      }
+      return s;
+    }, 0);
+    const totalPL = realizedPL + unrealizedPL;
     const wins = closed.filter(t => t.outcome === 'Win');
     const wr = closed.length ? Math.round((wins.length/closed.length)*100) : null;
-    const totalPL = all.reduce((s,t) => s + (parseFloat(t.pl)||0), 0);
 
     const statTotal = document.getElementById('tl-stat-total');
     const statWr    = document.getElementById('tl-stat-wr');
@@ -6429,9 +6664,15 @@ function swApp(name){
 
     if (statTotal) statTotal.textContent = all.length;
     if (statWr)    statWr.textContent = wr !== null ? wr + '%' : '—';
-    if (statPnl)   { statPnl.textContent = all.length ? `${totalPL>=0?'+':''}$${totalPL.toFixed(2)}` : '—'; statPnl.style.color = totalPL >= 0 ? 'var(--good)' : 'var(--danger)'; }
-    if (statOpen)  statOpen.textContent = all.filter(t => t.outcome === 'Open').length;
+    if (statPnl) {
+      statPnl.textContent = all.length ? `${totalPL>=0?'+':''}$${Math.abs(totalPL).toFixed(2)}` : '—';
+      statPnl.style.color = totalPL > 0 ? 'var(--good)' : totalPL < 0 ? 'var(--danger)' : 'var(--muted)';
+    }
+    if (statOpen)  statOpen.textContent = active.length;
     if (countEl)   countEl.textContent = all.length + (all.length === 1 ? ' trade' : ' trades');
+
+    // Fetch live prices for any active trade not yet fetched
+    fetchAllLivePrices(active);
   }
 
   function tlSetFilter(filter, btn) {
@@ -6444,12 +6685,10 @@ function swApp(name){
 
   function tlTrash(id) {
     if (tlPendingDelete === id) {
-      // Second tap — confirmed delete
       tlPendingDelete = null;
       if (window.TS && window.TS.deleteTrade) {
         window.TS.deleteTrade(id).then(() => tlRender());
       } else {
-        // localStorage fallback
         try {
           const trades = JSON.parse(localStorage.getItem('ts-trades') || '[]');
           const updated = trades.filter(t => t.id !== id);
@@ -6458,35 +6697,24 @@ function swApp(name){
         tlRender();
       }
     } else {
-      // First tap — arm confirm
       tlPendingDelete = id;
       tlRender();
-      // Auto-disarm after 3 seconds if no second tap
       setTimeout(() => {
         if (tlPendingDelete === id) { tlPendingDelete = null; tlRender(); }
       }, 3000);
     }
   }
 
-  function tlExitFocus(input) {
-    // Orange on focus — handled via CSS :focus, nothing extra needed
-  }
+  function tlExitFocus(input) {}
 
   async function tlExitSave(input) {
     const id   = input.dataset.id;
     const side = input.dataset.side;
     const val  = parseFloat(input.value);
     if (isNaN(val) || val < 0) return;
-
-    // Green flash
     input.style.borderColor = 'var(--good)';
     input.style.background  = 'rgba(0,255,157,0.08)';
-    setTimeout(() => {
-      input.style.borderColor = '';
-      input.style.background  = '';
-    }, 800);
-
-    // Save to store
+    setTimeout(() => { input.style.borderColor = ''; input.style.background = ''; }, 800);
     const field = side === 'itm' ? 'exitItm' : 'exitOtm';
     if (window.TS && window.TS.updateTrade) {
       await window.TS.updateTrade(id, { [field]: val });
@@ -6499,18 +6727,23 @@ function swApp(name){
     }
   }
 
-  window.tlRender    = tlRender;
-  window.tlSetFilter = tlSetFilter;
-  window.tlTrash     = tlTrash;
-  window.tlExitFocus = tlExitFocus;
-  window.tlExitSave  = tlExitSave;
+  window.tlRender          = tlRender;
+  window.tlSetFilter       = tlSetFilter;
+  window.tlTrash           = tlTrash;
+  window.tlExitFocus       = tlExitFocus;
+  window.tlExitSave        = tlExitSave;
+  window.tlStartClose      = tlStartClose;
+  window.tlCancelClose     = tlCancelClose;
+  window.tlSetCloseOutcome = tlSetCloseOutcome;
+  window.tlCalcClosePL     = tlCalcClosePL;
+  window.tlConfirmClose    = tlConfirmClose;
 
 })();
 
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradingBrief v7.4 — Chunk 5 Polish                          ║
+     ║  END TradingBrief v7.5.1 — HowTo flash fix                          ║
      ║  2026-04-16                                                       ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 </body>
