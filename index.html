@@ -1,15 +1,12 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v7.1 — Settings Polish + Header Consistency          ║
+     ║  TRADEBRIEF v7.3 — TradeLog → P&L Bar sync                       ║
      ║  Date: 2026-04-16                                                ║
-     ║  Changes from v7.0:                                              ║
-     ║    1. All panel headers: market dot + status + clock added       ║
-     ║    2. TS/TL/TD/TH headers: TradeBrief logo-text nav added       ║
-     ║    3. Gear ⚙️ swaps to ← when on Settings, returns to prev tab  ║
-     ║    4. Delta Range inputs: width fixed (was 55px, now 70px)       ║
-     ║    5. Trade Defaults: Default Stop Loss (%) setting added        ║
-     ║    6. 100% stop loss suppresses CLOSE NOW for loss triggers      ║
-     ║    7. Scanner card: X button overlap with score/badge fixed      ║
+     ║  Changes from v7.2:                                              ║
+     ║    1. P&L bar now reads from TradeLog (tradesheet collection)    ║
+     ║    2. syncTradesFromLog() maps tradesheet → trades/closedTrades  ║
+     ║    3. Fires on loadTrades, saveTrade, updateTrade, deleteTrade   ║
+     ║    4. Single Firestore source of truth for all trade data        ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 <html lang="en">
 <head>
@@ -1526,13 +1523,89 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
 </div><!-- /panel-help -->
 
 
+<!-- ══ SETTINGS OVERLAY ═════════════════════════════════════════════════ -->
+<div id="settings-overlay" style="display:none;position:fixed;inset:0;z-index:950;background:var(--bg);overflow-y:auto;">
+  <!-- Header -->
+  <div style="position:sticky;top:0;z-index:10;background:var(--surface);border-bottom:1px solid var(--border);padding:10px 16px;display:flex;align-items:center;justify-content:space-between;">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div id="so-logo" style="font-family:'Space Mono',monospace;font-size:22px;font-weight:700;color:#22d3ee;">Trade<span style="color:#4ade80;">Brief</span></div>
+      <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;">Settings</div>
+    </div>
+    <button onclick="closeSettings()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 12px;cursor:pointer;color:var(--muted);font-family:'Space Mono',monospace;font-size:14px;line-height:1;transition:all 0.2s;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">←</button>
+  </div>
+  <!-- Settings content (shared with TB tab — same IDs) -->
+  <div style="padding:14px 16px;max-width:960px;margin:0 auto;">
+    <div class="sec">Signal Thresholds</div>
+    <div class="settings-section">
+      <h3>RSI & MOVING AVERAGES</h3>
+      <div class="setting-row"><div class="setting-info"><div class="setting-label">RSI Overbought</div><div class="setting-desc">Above this = caution zone. Default: 70</div></div><div class="setting-control"><input class="num-input" id="so-rsi-ob" type="number" min="60" max="90" value="70" onchange="saveSO()"></div></div>
+      <div class="setting-row"><div class="setting-info"><div class="setting-label">RSI Oversold</div><div class="setting-desc">Below this = potential bounce. Default: 30</div></div><div class="setting-control"><input class="num-input" id="so-rsi-os" type="number" min="10" max="40" value="30" onchange="saveSO()"></div></div>
+      <div class="setting-row"><div class="setting-info"><div class="setting-label">EMA Combination</div><div class="setting-desc">Short / Long periods</div></div><div class="setting-control"><select class="sel-input" id="so-ema" onchange="saveSO()"><option value="8,21">8/21 (default)</option><option value="9,21">9/21</option><option value="10,20">10/20</option><option value="8,34">8/34</option></select></div></div>
+    </div>
+    <div class="sec">Spread Filters</div>
+    <div class="settings-section">
+      <h3>OPTIONS CRITERIA</h3>
+      <div class="setting-row"><div class="setting-info"><div class="setting-label">Minimum R/R Ratio</div><div class="setting-desc">Don't suggest below this. Default: 1.5</div></div><div class="setting-control"><input class="num-input" id="so-rr" type="number" min="0.5" max="5" step="0.1" value="1.5" onchange="saveSO()"></div></div>
+      <div class="setting-row"><div class="setting-info"><div class="setting-label">Minimum PoP (%)</div><div class="setting-desc">Min probability of profit. Default: 30</div></div><div class="setting-control"><input class="num-input" id="so-pop" type="number" min="10" max="70" value="30" onchange="saveSO()"></div></div>
+      <div class="setting-row"><div class="setting-info"><div class="setting-label">Max Cost/Width</div><div class="setting-desc">Spread efficiency ceiling. Default: 0.50</div></div><div class="setting-control"><input class="num-input" id="so-cw" type="number" min="0.1" max="1" step="0.05" value="0.50" onchange="saveSO()"></div></div>
+      <div class="setting-row"><div class="setting-info"><div class="setting-label">Delta Range</div><div class="setting-desc">Min / Max delta</div></div><div class="setting-control" style="gap:4px;"><input class="num-input" id="so-dmin" type="number" min="0.05" max="0.5" step="0.05" value="0.15" onchange="saveSO()"><span style="color:var(--muted);font-size:11px;">–</span><input class="num-input" id="so-dmax" type="number" min="0.3" max="0.95" step="0.05" value="0.70" onchange="saveSO()"></div></div>
+      <div class="setting-row"><div class="setting-info"><div class="setting-label">Max Budget ($)</div><div class="setting-desc">Max per spread. Default: $150</div></div><div class="setting-control"><input class="num-input" id="so-budget" type="number" min="25" max="5000" step="25" value="150" style="width:80px;" onchange="saveSO()"></div></div>
+    </div>
+    <div class="sec">Guardrails & Alerts</div>
+    <div class="settings-section">
+      <h3>RISK CONTROLS</h3>
+      <div class="setting-row"><div class="setting-info"><div class="setting-label">IV Rank Warning</div><div class="setting-desc">Flag high IV in the briefing</div></div><div class="setting-control"><label class="toggle"><input type="checkbox" id="so-iv" checked onchange="saveSO()"><div class="toggle-slider"></div></label></div></div>
+      <div class="setting-row"><div class="setting-info"><div class="setting-label">Earnings Guardrail</div><div class="setting-desc">Flag RISKY when earnings before expiration</div></div><div class="setting-control"><label class="toggle"><input type="checkbox" id="so-earn" checked onchange="saveSO()"><div class="toggle-slider"></div></label></div></div>
+      <div class="setting-row"><div class="setting-info"><div class="setting-label">Browser Notifications</div><div class="setting-desc">Alert on TAKE PROFIT / CLOSE NOW even when tab is in background</div></div><div class="setting-control"><label class="toggle"><input type="checkbox" id="so-notif" onchange="toggleNotifications()"><div class="toggle-slider"></div></label></div></div>
+      <div class="setting-row"><div class="setting-info"><div class="setting-label">DTE Warning (days)</div><div class="setting-desc">Alert when expiring within this many days</div></div><div class="setting-control"><input class="num-input" id="so-dte" type="number" min="1" max="21" value="5" onchange="saveSO()"></div></div>
+      <div class="setting-row"><div class="setting-info"><div class="setting-label">Profit Alert Threshold (%)</div><div class="setting-desc">Trigger TAKE PROFIT badge at this % gain</div></div><div class="setting-control"><input class="num-input" id="so-profit-alert" type="number" min="10" max="500" value="75" onchange="saveSO()"></div></div>
+    </div>
+    <div class="sec">Trade Defaults</div>
+    <div class="settings-section">
+      <h3>DEFAULT VALUES</h3>
+      <div class="setting-row"><div class="setting-info"><div class="setting-label">Default Profit Target (%)</div><div class="setting-desc">Pre-fills target % on new trades</div></div><div class="setting-control"><input class="num-input" id="so-target" type="number" min="20" max="500" value="80" onchange="saveSO()"></div></div>
+      <div class="setting-row"><div class="setting-info"><div class="setting-label">Default Stop Loss (%)</div><div class="setting-desc">Pre-fills exit at this % loss. Set to 100 to let expire worthless.</div></div><div class="setting-control"><input class="num-input" id="so-loss" type="number" min="1" max="100" value="50" onchange="saveSO()"></div></div>
+      <div class="setting-row"><div class="setting-info"><div class="setting-label">Default Contracts</div><div class="setting-desc">Number of contracts per trade</div></div><div class="setting-control"><input class="num-input" id="so-contracts" type="number" min="1" max="100" value="1" onchange="saveSO()"></div></div>
+      <div class="setting-row"><div class="setting-info"><div class="setting-label">Price Change Format</div><div class="setting-desc">How to show today's move</div></div><div class="setting-control"><select class="sel-input" id="so-pricefmt" onchange="saveSO()"><option value="both">$ and %</option><option value="dollar">$ only</option><option value="pct">% only</option></select></div></div>
+    </div>
+    <div class="sec">Display</div>
+    <div class="settings-section">
+      <h3>APPEARANCE</h3>
+      <div class="setting-row"><div class="setting-info"><div class="setting-label">Theme</div><div class="setting-desc">Switch between dark and light mode</div></div><div class="setting-control"><select class="sel-input" id="so-theme" onchange="tb_applyTheme();saveSO()"><option value="dark">🌙 Dark</option><option value="light">☀️ Light</option></select></div></div>
+    </div>
+    <div class="sec">Integrations</div>
+    <div class="settings-section">
+      <h3>DATA & CONNECTIONS</h3>
+      <div class="setting-row"><div class="setting-info"><div class="setting-label">Google Drive</div><div class="setting-desc">Auto-save briefings to Drive</div></div><div class="setting-control"><button class="action-btn" onclick="tb_toast('Google Drive coming soon!')">Connect</button></div></div>
+      <div class="setting-row"><div class="setting-info"><div class="setting-label">Export Trade Log</div><div class="setting-desc">Download full history as CSV</div></div><div class="setting-control"><button class="action-btn success" onclick="exportTrades()">Export CSV</button></div></div>
+      <div class="setting-row"><div class="setting-info"><div class="setting-label">Reset All Data</div><div class="setting-desc">Clear everything and start fresh</div></div><div class="setting-control"><button class="action-btn danger" onclick="resetAll()">Reset</button></div></div>
+    </div>
+    <div class="sec">Cross-Device Sync</div>
+    <div class="settings-section">
+      <h3>GOOGLE ACCOUNT</h3>
+      <div class="setting-row">
+        <div class="setting-info">
+          <div class="setting-label">Signed In As</div>
+          <div class="setting-desc" id="so-auth-user-name">Not signed in</div>
+        </div>
+        <div class="setting-control" style="flex-direction:column;align-items:flex-end;gap:6px;">
+          <button class="action-btn success" id="so-auth-signin-btn" onclick="tbSignIn()" style="font-size:10px;padding:5px 12px;">Sign in with Google</button>
+          <button class="action-btn danger" id="so-auth-signout-btn" onclick="tbSignOut()" style="font-size:10px;padding:5px 12px;display:none;">Sign Out</button>
+        </div>
+      </div>
+      <div style="padding:4px 12px 10px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);">Sync: <span id="so-sync-status-txt" style="color:var(--accent);">not signed in</span></div>
+    </div>
+  </div>
+</div><!-- /settings-overlay -->
+
+
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.1</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.3</div>
 
 <!-- ══ MOBILE SCAN BTN (mobile only, shown via CSS) ══════════════════════ -->
 <div id="mobile-scan-btn-wrap" style="display:none;">
   <button class="mscan-btn" onclick="go('briefing');window.TB.runScanner(true);">🔍 Scan Now</button>
-  <span class="mversion">v7.1</span>
+  <span class="mversion">v7.3</span>
 </div>
 
 <!-- ══ APP SWITCHER NAV ════════════════════════════════════════════════════ -->
@@ -2182,32 +2255,89 @@ function clk(){
 setInterval(clk,1000);clk();
 
 // ── TABS ───────────────────────────────────────────────────────────────────
-let prevTab='briefing';
 function go(n){
-  const cur=sessionStorage.getItem('tbActiveTab')||'briefing';
-  if(cur!=='settings'&&n==='settings')prevTab=cur;
-  const ns=['howto','briefing','trades','ai','settings'];
   document.querySelectorAll('.tab[data-tab]').forEach(t=>t.classList.toggle('active',t.dataset.tab===n));
   document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
   const el=document.getElementById('tab-'+n);
   if(el)el.classList.add('active');
   if(n==='trades'){rPending();rT();rClosed();}
-  if(n==='settings')loadS();
   sessionStorage.setItem('tbActiveTab',n);
-  // Update TB gear button
-  const gearBtn=document.getElementById('tb-gear-btn');
-  if(gearBtn)gearBtn.textContent=n==='settings'?'←':'⚙️';
 }
-function tbGearClick(){
-  const cur=sessionStorage.getItem('tbActiveTab')||'briefing';
-  if(cur==='settings')go(prevTab);
-  else go('settings');
-}
+function tbGearClick(){openSettings();}
 // ── NON-TB GEAR HANDLERS ───────────────────────────────────────────────────
-function tsGearClick(){swApp('brief');go('settings');}
-function tlGearClick(){swApp('brief');go('settings');}
-function tdGearClick(){swApp('brief');go('settings');}
-function thGearClick(){swApp('brief');go('settings');}
+function tsGearClick(){openSettings();}
+function tlGearClick(){openSettings();}
+function tdGearClick(){openSettings();}
+function thGearClick(){openSettings();}
+
+// ── SETTINGS OVERLAY ───────────────────────────────────────────────────────
+function openSettings(){
+  loadSO();
+  document.getElementById('settings-overlay').style.display='block';
+  // Sync auth UI to overlay elements
+  const nameEl=document.getElementById('auth-user-name');
+  const soName=document.getElementById('so-auth-user-name');
+  if(nameEl&&soName)soName.textContent=nameEl.textContent;
+  const signinBtn=document.getElementById('auth-signin-btn');
+  const soSignin=document.getElementById('so-auth-signin-btn');
+  const signoutBtn=document.getElementById('auth-signout-btn');
+  const soSignout=document.getElementById('so-auth-signout-btn');
+  if(signinBtn&&soSignin)soSignin.style.display=signinBtn.style.display;
+  if(signoutBtn&&soSignout)soSignout.style.display=signoutBtn.style.display;
+  const syncTxt=document.getElementById('sync-status-txt');
+  const soSync=document.getElementById('so-sync-status-txt');
+  if(syncTxt&&soSync)soSync.textContent=syncTxt.textContent;
+}
+function closeSettings(){
+  document.getElementById('settings-overlay').style.display='none';
+}
+function loadSO(){
+  document.getElementById('so-rsi-ob').value=S('rsiOb');
+  document.getElementById('so-rsi-os').value=S('rsiOs');
+  document.getElementById('so-ema').value=S('ema');
+  document.getElementById('so-rr').value=S('rr');
+  document.getElementById('so-pop').value=S('pop');
+  document.getElementById('so-cw').value=S('cw');
+  document.getElementById('so-dmin').value=S('dmin');
+  document.getElementById('so-dmax').value=S('dmax');
+  document.getElementById('so-budget').value=S('budget');
+  document.getElementById('so-iv').checked=S('iv');
+  document.getElementById('so-earn').checked=S('earn');
+  document.getElementById('so-dte').value=S('dte');
+  document.getElementById('so-profit-alert').value=S('profitAlert');
+  document.getElementById('so-target').value=S('target');
+  document.getElementById('so-loss').value=S('loss');
+  document.getElementById('so-contracts').value=S('contracts');
+  document.getElementById('so-pricefmt').value=S('pricefmt');
+  document.getElementById('so-notif').checked=S('notif')||false;
+  document.getElementById('so-theme').value=S('theme')||'dark';
+}
+function saveSO(){
+  cfg={
+    rsiOb:+document.getElementById('so-rsi-ob').value,
+    rsiOs:+document.getElementById('so-rsi-os').value,
+    ema:document.getElementById('so-ema').value,
+    rr:+document.getElementById('so-rr').value,
+    pop:+document.getElementById('so-pop').value,
+    cw:+document.getElementById('so-cw').value,
+    dmin:+document.getElementById('so-dmin').value,
+    dmax:+document.getElementById('so-dmax').value,
+    budget:+document.getElementById('so-budget').value,
+    iv:document.getElementById('so-iv').checked,
+    earn:document.getElementById('so-earn').checked,
+    dte:+document.getElementById('so-dte').value,
+    profitAlert:+document.getElementById('so-profit-alert').value,
+    target:+document.getElementById('so-target').value,
+    loss:+document.getElementById('so-loss').value,
+    contracts:+document.getElementById('so-contracts').value,
+    pricefmt:document.getElementById('so-pricefmt').value,
+    notif:document.getElementById('so-notif').checked,
+    theme:document.getElementById('so-theme').value,
+  };
+  localStorage.setItem('cfg',JSON.stringify(cfg));
+  // Also sync TB tab settings fields if they exist
+  loadS();
+}
 
 function hwTab(n){
   document.querySelectorAll('.howto-tab').forEach(t=>t.classList.remove('active'));
@@ -2265,7 +2395,9 @@ function loadS(){
   tb_applyTheme();
 }
 function tb_applyTheme(){
-  const t=document.getElementById('s-theme')?document.getElementById('s-theme').value:S('theme')||'dark';
+  const soTheme=document.getElementById('so-theme');
+  const sTheme=document.getElementById('s-theme');
+  const t=(soTheme?soTheme.value:null)||(sTheme?sTheme.value:null)||S('theme')||'dark';
   document.body.classList.toggle('light',t==='light');
 }
 
@@ -3200,6 +3332,8 @@ async function fbLoad(){
 function setSyncStatus(msg){
   const el=document.getElementById('sync-status-txt');
   if(el)el.textContent=msg;
+  const soEl=document.getElementById('so-sync-status-txt');
+  if(soEl)soEl.textContent=msg;
 }
 
 function forceFbSync(){
@@ -3225,15 +3359,24 @@ function updateAuthUI(user){
   const nameEl=document.getElementById('auth-user-name');
   const signInBtn=document.getElementById('auth-signin-btn');
   const signOutBtn=document.getElementById('auth-signout-btn');
-  if(!nameEl)return;
+  const soName=document.getElementById('so-auth-user-name');
+  const soSignIn=document.getElementById('so-auth-signin-btn');
+  const soSignOut=document.getElementById('so-auth-signout-btn');
   if(user){
-    nameEl.textContent=user.displayName||user.email||'Signed in';
+    const label=user.displayName||user.email||'Signed in';
+    if(nameEl)nameEl.textContent=label;
+    if(soName)soName.textContent=label;
     if(signInBtn)signInBtn.style.display='none';
     if(signOutBtn)signOutBtn.style.display='inline-block';
+    if(soSignIn)soSignIn.style.display='none';
+    if(soSignOut)soSignOut.style.display='inline-block';
   }else{
-    nameEl.textContent='Not signed in';
+    if(nameEl)nameEl.textContent='Not signed in';
+    if(soName)soName.textContent='Not signed in';
     if(signInBtn)signInBtn.style.display='inline-block';
     if(signOutBtn)signOutBtn.style.display='none';
+    if(soSignIn)soSignIn.style.display='inline-block';
+    if(soSignOut)soSignOut.style.display='none';
   }
 }
 
@@ -3484,13 +3627,16 @@ function tb_toast(msg){ /* removed — toast notifications disabled */ }
 
 // ── BROWSER NOTIFICATIONS ──────────────────────────────────────────────────
 async function toggleNotifications(){
-  const on=document.getElementById('s-notif').checked;
+  // Read from overlay (so-notif) if overlay is open, else fall back to TB tab (s-notif)
+  const overlayOpen=document.getElementById('settings-overlay').style.display!=='none';
+  const el=document.getElementById(overlayOpen?'so-notif':'s-notif');
+  const on=el?el.checked:false;
   if(on){
-    if(!('Notification' in window)){tb_toast('Browser notifications not supported');document.getElementById('s-notif').checked=false;return;}
+    if(!('Notification' in window)){tb_toast('Browser notifications not supported');if(el)el.checked=false;return;}
     const perm=await Notification.requestPermission();
     if(perm!=='granted'){
       tb_toast('Notification permission denied');
-      document.getElementById('s-notif').checked=false;
+      if(el)el.checked=false;
       return;
     }
     tb_toast('Notifications enabled ✓');
@@ -3498,7 +3644,7 @@ async function toggleNotifications(){
   }else{
     tb_toast('Notifications disabled');
   }
-  saveS();
+  saveSO();
 }
 
 function sendNotification(title,body){
@@ -4861,6 +5007,7 @@ async function loadTrades() {
   if (!window._fbReady) {
     state.trades = JSON.parse(localStorage.getItem('ts-trades') || '[]');
     renderLogTable();
+    syncTradesFromLog();
     return;
   }
   try {
@@ -4873,6 +5020,7 @@ async function loadTrades() {
     state.trades = JSON.parse(localStorage.getItem('ts-trades') || '[]');
   }
   renderLogTable();
+  syncTradesFromLog();
 }
 
 async function saveTrade(trade) {
@@ -4881,6 +5029,7 @@ async function saveTrade(trade) {
     trade.id = Date.now().toString();
     state.trades.unshift(trade);
     localStorage.setItem('ts-trades', JSON.stringify(state.trades));
+    syncTradesFromLog();
     return trade.id;
   }
   try {
@@ -4888,12 +5037,14 @@ async function saveTrade(trade) {
     const ref = await fb.addDoc(fb.collection(fb.db, 'tradesheet'), trade);
     trade.id = ref.id;
     state.trades.unshift(trade);
+    syncTradesFromLog();
     return ref.id;
   } catch(e) {
     console.warn('Firestore save failed:', e);
     trade.id = Date.now().toString();
     state.trades.unshift(trade);
     localStorage.setItem('ts-trades', JSON.stringify(state.trades));
+    syncTradesFromLog();
     return trade.id;
   }
 }
@@ -4903,14 +5054,17 @@ async function updateTrade(id, data) {
   if (idx >= 0) state.trades[idx] = { ...state.trades[idx], ...data };
   if (!window._fbReady) {
     localStorage.setItem('ts-trades', JSON.stringify(state.trades));
+    syncTradesFromLog();
     return;
   }
   try {
     const fb = window._fb;
     await fb.updateDoc(fb.doc(fb.db, 'tradesheet', id), data);
+    syncTradesFromLog();
   } catch(e) {
     console.warn('Firestore update failed:', e);
     localStorage.setItem('ts-trades', JSON.stringify(state.trades));
+    syncTradesFromLog();
   }
 }
 
@@ -4918,15 +5072,49 @@ async function deleteTrade(id) {
   state.trades = state.trades.filter(t => t.id !== id);
   if (!window._fbReady) {
     localStorage.setItem('ts-trades', JSON.stringify(state.trades));
+    syncTradesFromLog();
     return;
   }
   try {
     const fb = window._fb;
     await fb.deleteDoc(fb.doc(fb.db, 'tradesheet', id));
+    syncTradesFromLog();
   } catch(e) {
     console.warn('Firestore delete failed:', e);
     localStorage.setItem('ts-trades', JSON.stringify(state.trades));
+    syncTradesFromLog();
   }
+}
+
+function syncTradesFromLog(){
+  // Map TradeLog's state.trades into TB's trades/closedTrades so P&L bar uses one source of truth
+  const all = (state && state.trades) ? state.trades : [];
+  trades = all
+    .filter(t => t.outcome === 'Open' || !t.outcome)
+    .map(t => ({
+      ticker:      t.ticker,
+      type:        t.type,
+      buy:         parseFloat(t.buyStrike) || 0,
+      sell:        t.sellStrike ? parseFloat(t.sellStrike) : null,
+      cost:        parseFloat(t.cost) || 0,
+      profit:      t.maxProfit ? parseFloat(t.maxProfit) : null,
+      exp:         t.expDate || t.exp || '',
+      entryDate:   t.entryDate || '',
+      qty:         parseInt(t.contracts) || parseInt(t.qty) || 1,
+      target:      parseFloat(t.target) || S('target') || 80,
+      maxUnlimited:!t.maxProfit,
+      entryPrice:  parseFloat(t.entryPrice) || parseFloat(t.buyStrike) || 0,
+    }));
+  closedTrades = all
+    .filter(t => t.outcome && t.outcome !== 'Open')
+    .map(t => ({
+      ticker:    t.ticker,
+      type:      t.type,
+      outcome:   t.outcome === 'Breakeven' ? 'BE' : t.outcome,
+      actualPL:  t.pl !== undefined && t.pl !== null ? parseFloat(t.pl) : 0,
+      entryDate: t.entryDate || '',
+    }));
+  updatePnL();
 }
 
 function renderLogTable() {
