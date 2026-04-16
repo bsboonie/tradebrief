@@ -1,12 +1,11 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v7.3 — TradeLog → P&L Bar sync                       ║
+     ║  TRADEBRIEF v7.4 — Chunk 5 Polish                                ║
      ║  Date: 2026-04-16                                                ║
-     ║  Changes from v7.2:                                              ║
-     ║    1. P&L bar now reads from TradeLog (tradesheet collection)    ║
-     ║    2. syncTradesFromLog() maps tradesheet → trades/closedTrades  ║
-     ║    3. Fires on loadTrades, saveTrade, updateTrade, deleteTrade   ║
-     ║    4. Single Firestore source of truth for all trade data        ║
+     ║  Changes from v7.3:                                              ║
+     ║    1. Settings overlay CSS restored (card/row/label formatting)  ║
+     ║    2. Browser tab title updated to v7.4                          ║
+     ║    3. Bottom HTML stamp updated to v7.4                          ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 <html lang="en">
 <head>
@@ -16,7 +15,7 @@
 <meta name="theme-color" content="#111827">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>TradingBrief V6.1</title>
+<title>TradeBrief v7.4</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -185,6 +184,31 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
   #panel-brief .earn-input { width: 100%; max-width: 180px; }
   #panel-brief .earn-save { width: 100%; max-width: 180px; }
 }
+
+/* ── SETTINGS OVERLAY (unscoped — lives outside all panels) ───── */
+#settings-overlay .settings-section{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px;}
+#settings-overlay .settings-section h3{font-family:'Space Mono',monospace;font-size:10px;color:var(--accent);margin-bottom:12px;letter-spacing:1px;text-transform:uppercase;}
+#settings-overlay .setting-row{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border);}
+#settings-overlay .setting-row:last-child{border-bottom:none;padding-bottom:0;}
+#settings-overlay .setting-info{flex:1;}
+#settings-overlay .setting-label{font-size:13px;font-weight:500;margin-bottom:2px;color:var(--text);}
+#settings-overlay .setting-desc{font-size:11px;color:var(--muted);}
+#settings-overlay .setting-control{margin-left:14px;display:flex;align-items:center;gap:6px;}
+#settings-overlay .toggle{position:relative;width:40px;height:20px;cursor:pointer;}
+#settings-overlay .toggle input{opacity:0;width:0;height:0;}
+#settings-overlay .toggle-slider{position:absolute;inset:0;background:var(--border);border-radius:20px;transition:0.3s;}
+#settings-overlay .toggle-slider:before{content:'';position:absolute;width:14px;height:14px;left:3px;top:3px;background:#fff;border-radius:50%;transition:0.3s;}
+#settings-overlay .toggle input:checked+.toggle-slider{background:var(--accent2);}
+#settings-overlay .toggle input:checked+.toggle-slider:before{transform:translateX(20px);}
+#settings-overlay .num-input{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:5px 8px;color:var(--text);font-family:'Space Mono',monospace;font-size:11px;outline:none;width:70px;text-align:center;}
+#settings-overlay .num-input:focus{border-color:var(--accent);}
+#settings-overlay .sel-input{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:5px 8px;color:var(--text);font-family:'Space Mono',monospace;font-size:11px;outline:none;}
+#settings-overlay .action-btn{background:none;border:1px solid var(--border);border-radius:8px;padding:6px 12px;font-size:11px;color:var(--text);cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.2s;}
+#settings-overlay .action-btn:hover{border-color:var(--accent);color:var(--accent);}
+#settings-overlay .action-btn.danger{border-color:rgba(255,71,87,0.4);color:var(--danger);}
+#settings-overlay .action-btn.success{border-color:rgba(0,255,157,0.4);color:var(--good);}
+#settings-overlay .sec{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin:18px 0 8px;}
+#settings-overlay .sec:first-child{margin-top:0;}
 </style>
 </head>
 <body>
@@ -1600,12 +1624,12 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
 
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.3</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.4</div>
 
 <!-- ══ MOBILE SCAN BTN (mobile only, shown via CSS) ══════════════════════ -->
 <div id="mobile-scan-btn-wrap" style="display:none;">
   <button class="mscan-btn" onclick="go('briefing');window.TB.runScanner(true);">🔍 Scan Now</button>
-  <span class="mversion">v7.3</span>
+  <span class="mversion">v7.4</span>
 </div>
 
 <!-- ══ APP SWITCHER NAV ════════════════════════════════════════════════════ -->
@@ -6486,7 +6510,7 @@ function swApp(name){
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradingBrief V7.0 — Card Dismiss + Cross-Device Sync Fix    ║
+     ║  END TradingBrief v7.4 — Chunk 5 Polish                          ║
      ║  2026-04-16                                                       ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 </body>
