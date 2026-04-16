@@ -1,14 +1,15 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v7.0 — Card Dismiss + Cross-Device Sync Fix          ║
+     ║  TRADEBRIEF v7.1 — Settings Polish + Header Consistency          ║
      ║  Date: 2026-04-16                                                ║
-     ║  Changes from v6.9:                                              ║
-     ║    1. TradeBrief: X button dismisses card, next ranked slides in ║
-     ║    2. Dismissed cards cleared on fresh scan                      ║
-     ║    3. TradeLog: loadTrades() now fires on fb-authed (not         ║
-     ║       fb-ready) — fixes cross-device sync for signed-in users    ║
-     ║       analysis so it survives re-renders                         ║
-     ║    3. tb_toast — replaced with no-op (toast fully removed)       ║
+     ║  Changes from v7.0:                                              ║
+     ║    1. All panel headers: market dot + status + clock added       ║
+     ║    2. TS/TL/TD/TH headers: TradeBrief logo-text nav added       ║
+     ║    3. Gear ⚙️ swaps to ← when on Settings, returns to prev tab  ║
+     ║    4. Delta Range inputs: width fixed (was 55px, now 70px)       ║
+     ║    5. Trade Defaults: Default Stop Loss (%) setting added        ║
+     ║    6. 100% stop loss suppresses CLOSE NOW for loss triggers      ║
+     ║    7. Scanner card: X button overlap with score/badge fixed      ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 <html lang="en">
 <head>
@@ -201,10 +202,11 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
     <div style="display:flex;align-items:center;gap:10px;">
       <div class="logo">Trade<span>Brief</span></div>
       <div class="mkt"><div class="dot" id="mdot"></div><span id="mlbl">...</span></div>
+      <div class="clock" id="tb-clock">—</div>
     </div>
     <div class="hright">
       <button class="scan-btn" id="header-scan-btn-top" onclick="go('briefing');window.TB.runScanner(true);" style="padding:5px 14px;font-size:11px;border-radius:7px;white-space:nowrap;">🔍 Scan Now</button>
-      <button onclick="go('settings')" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 9px;cursor:pointer;color:var(--muted);font-size:14px;line-height:1;transition:all 0.2s;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">⚙️</button>
+      <button id="tb-gear-btn" onclick="tbGearClick()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 9px;cursor:pointer;color:var(--muted);font-size:14px;line-height:1;transition:all 0.2s;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">⚙️</button>
     </div>
   </div>
   <!-- P&L Bar -->
@@ -529,7 +531,7 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
       <div class="setting-row"><div class="setting-info"><div class="setting-label">Minimum R/R Ratio</div><div class="setting-desc">Don't suggest below this. Default: 1.5</div></div><div class="setting-control"><input class="num-input" id="s-rr" type="number" min="0.5" max="5" step="0.1" value="1.5" onchange="saveS()"></div></div>
       <div class="setting-row"><div class="setting-info"><div class="setting-label">Minimum PoP (%)</div><div class="setting-desc">Min probability of profit. Default: 30</div></div><div class="setting-control"><input class="num-input" id="s-pop" type="number" min="10" max="70" value="30" onchange="saveS()"></div></div>
       <div class="setting-row"><div class="setting-info"><div class="setting-label">Max Cost/Width</div><div class="setting-desc">Spread efficiency ceiling. Default: 0.50</div></div><div class="setting-control"><input class="num-input" id="s-cw" type="number" min="0.1" max="1" step="0.05" value="0.50" onchange="saveS()"></div></div>
-      <div class="setting-row"><div class="setting-info"><div class="setting-label">Delta Range</div><div class="setting-desc">Min / Max delta</div></div><div class="setting-control" style="gap:4px;"><input class="num-input" id="s-dmin" type="number" min="0.05" max="0.5" step="0.05" value="0.15" style="width:55px;" onchange="saveS()"><span style="color:var(--muted);font-size:11px;">–</span><input class="num-input" id="s-dmax" type="number" min="0.3" max="0.95" step="0.05" value="0.70" style="width:55px;" onchange="saveS()"></div></div>
+      <div class="setting-row"><div class="setting-info"><div class="setting-label">Delta Range</div><div class="setting-desc">Min / Max delta</div></div><div class="setting-control" style="gap:4px;"><input class="num-input" id="s-dmin" type="number" min="0.05" max="0.5" step="0.05" value="0.15" onchange="saveS()"><span style="color:var(--muted);font-size:11px;">–</span><input class="num-input" id="s-dmax" type="number" min="0.3" max="0.95" step="0.05" value="0.70" onchange="saveS()"></div></div>
       <div class="setting-row"><div class="setting-info"><div class="setting-label">Max Budget ($)</div><div class="setting-desc">Max per spread. Default: $150</div></div><div class="setting-control"><input class="num-input" id="s-budget" type="number" min="25" max="5000" step="25" value="150" style="width:80px;" onchange="saveS()"></div></div>
     </div>
     <div class="sec">Guardrails & Alerts</div>
@@ -545,6 +547,7 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
     <div class="settings-section">
       <h3>DEFAULT VALUES</h3>
       <div class="setting-row"><div class="setting-info"><div class="setting-label">Default Profit Target (%)</div><div class="setting-desc">Pre-fills target % on new trades</div></div><div class="setting-control"><input class="num-input" id="s-target" type="number" min="20" max="500" value="80" onchange="saveS()"></div></div>
+      <div class="setting-row"><div class="setting-info"><div class="setting-label">Default Stop Loss (%)</div><div class="setting-desc">Pre-fills exit at this % loss. Set to 100 to let expire worthless.</div></div><div class="setting-control"><input class="num-input" id="s-loss" type="number" min="1" max="100" value="50" onchange="saveS()"></div></div>
       <div class="setting-row"><div class="setting-info"><div class="setting-label">Default Contracts</div><div class="setting-desc">Number of contracts per trade</div></div><div class="setting-control"><input class="num-input" id="s-contracts" type="number" min="1" max="100" value="1" onchange="saveS()"></div></div>
       <div class="setting-row"><div class="setting-info"><div class="setting-label">Price Change Format</div><div class="setting-desc">How to show today's move</div></div><div class="setting-control"><select class="sel-input" id="s-pricefmt" onchange="saveS()"><option value="both">$ and %</option><option value="dollar">$ only</option><option value="pct">% only</option></select></div></div>
     </div>
@@ -694,7 +697,8 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
         <span id="mkt-label">—</span>
       </div>
       <div class="clock" id="ts-clock">—</div>
-      <button class="theme-btn" onclick="ts_toggleTheme()">☀ / ☾</button>
+      <span onclick="switchToPanel('brief')" style="font-family:'Space Mono',monospace;font-size:16px;font-weight:700;color:#22d3ee;cursor:pointer;opacity:0.85;transition:opacity 0.2s;user-select:none;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.85'">Trade<span style="color:#4ade80;">Brief</span></span>
+      <button id="ts-gear-btn" onclick="tsGearClick()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 9px;cursor:pointer;color:var(--muted);font-size:14px;line-height:1;transition:all 0.2s;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">⚙️</button>
     </div>
   </div>
   <!-- Condensed P&L bar -->
@@ -1160,8 +1164,18 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
 @media(max-width:600px){#panel-log .tl-stats{grid-template-columns:1fr 1fr;}}
 </style>
 <div class="tl-header">
-  <div class="tl-logo">Trade<span>Log</span></div>
-  <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);" id="tl-trade-count">— trades</div>
+  <div style="display:flex;align-items:center;gap:10px;">
+    <div class="tl-logo">Trade<span>Log</span></div>
+    <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted);font-family:'Space Mono',monospace;">
+      <div class="dot" id="tl-dot" style="width:6px;height:6px;border-radius:50%;background:var(--good);animation:pulse 2s infinite;"></div>
+      <span id="tl-mkt-label">—</span>
+    </div>
+    <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);" id="tl-clock">—</div>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;">
+    <span onclick="switchToPanel('brief')" style="font-family:'Space Mono',monospace;font-size:16px;font-weight:700;color:#22d3ee;cursor:pointer;opacity:0.85;transition:opacity 0.2s;user-select:none;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.85'">Trade<span style="color:#4ade80;">Brief</span></span>
+    <button id="tl-gear-btn" onclick="tlGearClick()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 9px;cursor:pointer;color:var(--muted);font-size:14px;line-height:1;transition:all 0.2s;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">⚙️</button>
+  </div>
 </div>
 <div class="tl-main">
   <!-- Stats -->
@@ -1251,8 +1265,18 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
 </style>
 
 <div class="td-header">
-  <div class="td-logo">Trade<span>Data</span></div>
-  <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);" id="td-last-run">Last curation: —</div>
+  <div style="display:flex;align-items:center;gap:10px;">
+    <div class="td-logo">Trade<span>Data</span></div>
+    <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted);font-family:'Space Mono',monospace;">
+      <div class="dot" id="td-dot" style="width:6px;height:6px;border-radius:50%;background:var(--good);animation:pulse 2s infinite;"></div>
+      <span id="td-mkt-label">—</span>
+    </div>
+    <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);" id="td-clock">—</div>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;">
+    <span onclick="switchToPanel('brief')" style="font-family:'Space Mono',monospace;font-size:16px;font-weight:700;color:#22d3ee;cursor:pointer;opacity:0.85;transition:opacity 0.2s;user-select:none;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.85'">Trade<span style="color:#4ade80;">Brief</span></span>
+    <button id="td-gear-btn" onclick="tdGearClick()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 9px;cursor:pointer;color:var(--muted);font-size:14px;line-height:1;transition:all 0.2s;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">⚙️</button>
+  </div>
 </div>
 
 <div class="td-main">
@@ -1374,7 +1398,18 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
 </style>
 
 <div class="th-header">
-  <div class="th-logo">Trade<span>Help</span></div>
+  <div style="display:flex;align-items:center;gap:10px;">
+    <div class="th-logo">Trade<span>Help</span></div>
+    <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted);font-family:'Space Mono',monospace;">
+      <div class="dot" id="th-dot" style="width:6px;height:6px;border-radius:50%;background:var(--good);animation:pulse 2s infinite;"></div>
+      <span id="th-mkt-label">—</span>
+    </div>
+    <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);" id="th-clock">—</div>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;">
+    <span onclick="switchToPanel('brief')" style="font-family:'Space Mono',monospace;font-size:16px;font-weight:700;color:#22d3ee;cursor:pointer;opacity:0.85;transition:opacity 0.2s;user-select:none;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.85'">Trade<span style="color:#4ade80;">Brief</span></span>
+    <button id="th-gear-btn" onclick="thGearClick()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 9px;cursor:pointer;color:var(--muted);font-size:14px;line-height:1;transition:all 0.2s;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">⚙️</button>
+  </div>
 </div>
 
 <div class="th-main">
@@ -1490,12 +1525,12 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
 
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.0</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.1</div>
 
 <!-- ══ MOBILE SCAN BTN (mobile only, shown via CSS) ══════════════════════ -->
 <div id="mobile-scan-btn-wrap" style="display:none;">
   <button class="mscan-btn" onclick="go('briefing');window.TB.runScanner(true);">🔍 Scan Now</button>
-  <span class="mversion">v7.0</span>
+  <span class="mversion">v7.1</span>
 </div>
 
 <!-- ══ APP SWITCHER NAV ════════════════════════════════════════════════════ -->
@@ -2098,7 +2133,7 @@ function stopAutoRefresh(){
   if(autoRefreshTimer){clearInterval(autoRefreshTimer);autoRefreshTimer=null;}
 }
 
-const DEFAULTS={rsiOb:70,rsiOs:30,ema:'8,21',rr:1.5,pop:30,cw:0.50,dmin:0.15,dmax:0.70,budget:150,iv:true,earn:true,dte:5,profitAlert:75,target:80,contracts:1,pricefmt:'both'};
+const DEFAULTS={rsiOb:70,rsiOs:30,ema:'8,21',rr:1.5,pop:30,cw:0.50,dmin:0.15,dmax:0.70,budget:150,iv:true,earn:true,dte:5,profitAlert:75,target:80,contracts:1,pricefmt:'both',loss:50};
 function S(k){return cfg[k]!==undefined?cfg[k]:DEFAULTS[k];}
 
 // ── CLOCK & MARKET ─────────────────────────────────────────────────────────
@@ -2109,19 +2144,47 @@ function isOpen(){
 }
 function clk(){
   const et=new Date(new Date().toLocaleString('en-US',{timeZone:'America/New_York'}));
-  const h=et.getHours(),m=et.getMinutes(),d=et.getDay();
+  const h=et.getHours(),m=et.getMinutes(),s=et.getSeconds(),d=et.getDay();
   const wk=d>=1&&d<=5,open=isOpen(),pre2=wk&&h>=4&&(h<9||(h===9&&m<30));
-  const dot=document.getElementById('mdot'),lbl=document.getElementById('mlbl');
-  if(open){dot.className='dot';dot.style.background='var(--good)';lbl.textContent='OPEN';}
-  else if(pre2){dot.className='dot';dot.style.background='var(--warning)';lbl.textContent='PRE-MKT';}
-  else{dot.className='dot closed';lbl.textContent='CLOSED';}
+  const pad=n=>String(n).padStart(2,'0');
+  const timeStr=`${pad(h)}:${pad(m)}:${pad(s)} ET`;
+  let status='CLOSED',dotBg='var(--danger)',dotAnim=false;
+  if(open){status='OPEN';dotBg='var(--good)';dotAnim=true;}
+  else if(pre2){status='PRE-MKT';dotBg='var(--warning)';dotAnim=true;}
+  // TB
+  const tbDot=document.getElementById('mdot'),tbLbl=document.getElementById('mlbl'),tbClk=document.getElementById('tb-clock');
+  if(tbDot){tbDot.style.background=dotBg;tbDot.className=dotAnim?'dot':'dot closed';}
+  if(tbLbl)tbLbl.textContent=status;
+  if(tbClk)tbClk.textContent=timeStr;
+  // TS
+  const tsDot=document.getElementById('mkt-dot'),tsLbl=document.getElementById('mkt-label'),tsClk=document.getElementById('ts-clock');
+  if(tsDot){tsDot.style.background=dotBg;tsDot.className=dotAnim?'dot':'dot closed';}
+  if(tsLbl)tsLbl.textContent=status;
+  if(tsClk)tsClk.textContent=timeStr;
+  // TL
+  const tlDot=document.getElementById('tl-dot'),tlLbl=document.getElementById('tl-mkt-label'),tlClk=document.getElementById('tl-clock');
+  if(tlDot){tlDot.style.background=dotBg;tlDot.className=dotAnim?'dot':'dot closed';}
+  if(tlLbl)tlLbl.textContent=status;
+  if(tlClk)tlClk.textContent=timeStr;
+  // TD
+  const tdDot=document.getElementById('td-dot'),tdLbl=document.getElementById('td-mkt-label'),tdClk=document.getElementById('td-clock');
+  if(tdDot){tdDot.style.background=dotBg;tdDot.className=dotAnim?'dot':'dot closed';}
+  if(tdLbl)tdLbl.textContent=status;
+  if(tdClk)tdClk.textContent=timeStr;
+  // TH
+  const thDot=document.getElementById('th-dot'),thLbl=document.getElementById('th-mkt-label'),thClk=document.getElementById('th-clock');
+  if(thDot){thDot.style.background=dotBg;thDot.className=dotAnim?'dot':'dot closed';}
+  if(thLbl)thLbl.textContent=status;
+  if(thClk)thClk.textContent=timeStr;
 }
 setInterval(clk,1000);clk();
 
 // ── TABS ───────────────────────────────────────────────────────────────────
+let prevTab='briefing';
 function go(n){
+  const cur=sessionStorage.getItem('tbActiveTab')||'briefing';
+  if(cur!=='settings'&&n==='settings')prevTab=cur;
   const ns=['howto','briefing','trades','ai','settings'];
-  // Match tabs by data-tab attribute or fallback to index for remaining tabs
   document.querySelectorAll('.tab[data-tab]').forEach(t=>t.classList.toggle('active',t.dataset.tab===n));
   document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
   const el=document.getElementById('tab-'+n);
@@ -2129,7 +2192,40 @@ function go(n){
   if(n==='trades'){rPending();rT();rClosed();}
   if(n==='settings')loadS();
   sessionStorage.setItem('tbActiveTab',n);
+  // Update TB gear button
+  const gearBtn=document.getElementById('tb-gear-btn');
+  if(gearBtn)gearBtn.textContent=n==='settings'?'←':'⚙️';
 }
+function tbGearClick(){
+  const cur=sessionStorage.getItem('tbActiveTab')||'briefing';
+  if(cur==='settings')go(prevTab);
+  else go('settings');
+}
+// ── PANEL SWITCHER (for non-TB panels) ────────────────────────────────────
+function switchToPanel(panel){
+  const panels=['brief','sheet','log','data','help'];
+  panels.forEach(p=>{
+    const el=document.getElementById('panel-'+p);
+    if(el)el.style.display=p===panel?'block':'none';
+  });
+  sessionStorage.setItem('activePanel',panel);
+}
+// ── NON-TB GEAR HANDLERS ───────────────────────────────────────────────────
+let tsPrevSection=null,tlPrevSection=null,tdPrevSection=null,thPrevSection=null;
+function tsGearClick(){
+  const btn=document.getElementById('ts-gear-btn');
+  if(btn&&btn.textContent==='←'){
+    // back — restore previous TS state if needed
+    btn.textContent='⚙️';
+    // For TS, settings is a TB-side concern — just go to TB settings
+  } else {
+    switchToPanel('brief');
+    go('settings');
+  }
+}
+function tlGearClick(){switchToPanel('brief');go('settings');}
+function tdGearClick(){switchToPanel('brief');go('settings');}
+function thGearClick(){switchToPanel('brief');go('settings');}
 
 function hwTab(n){
   document.querySelectorAll('.howto-tab').forEach(t=>t.classList.remove('active'));
@@ -2159,6 +2255,7 @@ function saveS(){
     pricefmt:document.getElementById('s-pricefmt').value,
     notif:document.getElementById('s-notif').checked,
     theme:document.getElementById('s-theme').value,
+    loss:+document.getElementById('s-loss').value,
   };
   localStorage.setItem('cfg',JSON.stringify(cfg));
   tb_toast('Settings saved ✓');
@@ -2182,6 +2279,7 @@ function loadS(){
   document.getElementById('s-pricefmt').value=S('pricefmt');
   document.getElementById('s-notif').checked=S('notif')||false;
   document.getElementById('s-theme').value=S('theme')||'dark';
+  document.getElementById('s-loss').value=S('loss');
   tb_applyTheme();
 }
 function tb_applyTheme(){
@@ -2413,6 +2511,8 @@ function positionStatus(trade,stockPrice,plPct){
 
   if(dte<=S('dte')&&plPct>0)return{key:'closenow',label:'🔥 CLOSE NOW',note:'Profitable + expiring soon'};
   if(dte<=S('dte'))return{key:'expiring',label:'⚠️ EXPIRING',note:dte+'d left — act soon'};
+  if(plPct<=-S('loss')&&S('loss')<100)return{key:'closenow',label:'🔥 CLOSE NOW',note:'Stop loss hit — exit position'};
+  if(plPct<0&&S('loss')===100)return{key:'underwater',label:'🔴 UNDERWATER',note:'Below cost basis'};
   if(plPct>=threshold&&!trendOk)return{key:'takeprofit',label:'🎯 TAKE PROFIT',note:'Target hit + trend weakening'};
   if(plPct>=threshold&&trendOk)return{key:'hold',label:'📈 HOLD',note:'Target hit but trend still strong'};
   if(plPct>=50)return{key:'building',label:'🟢 BUILDING',note:'Good progress toward target'};
@@ -2632,7 +2732,7 @@ function renderDataCard(ticker){
         <div class="ip" title="Today's volume vs 30-day average"><span class="il">VOL RATIO</span><span class="iv" style="color:${volRatioColor};">${volRatioDisplay}</span></div>
         ${d.atr14!==null&&d.atr14!==undefined?`<div class="ip"><span class="il">ATR 14</span><span class="iv mid">$${d.atr14.toFixed(2)}</span></div>`:''}
       </div>
-      <div style="margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
+      <div style="margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:2px;padding-right:24px;">
         <div style="display:flex;align-items:center;gap:6px;">
           <!-- CHANGE 1 + CHANGE 5: Tappable score with onboarding hint -->
           <div style="display:flex;flex-direction:column;align-items:flex-end;gap:1px;">
@@ -6216,7 +6316,7 @@ function swApp(name){
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradingBrief V7.0 — Card Dismiss + Cross-Device Sync Fix    ║
+     ║  END TradingBrief V7.1 — Card Dismiss + Cross-Device Sync Fix    ║
      ║  2026-04-16                                                       ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 </body>
