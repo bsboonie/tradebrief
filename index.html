@@ -690,14 +690,16 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
 <!-- ── TOP BAR ─────────────────────────────────────────────────────── -->
 <div class="top-bar">
   <div class="header">
-    <div class="logo">Trade<span>Sheet</span></div>
-    <div class="hright">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div class="logo">Trade<span>Sheet</span></div>
       <div class="mkt-status">
         <div class="dot" id="mkt-dot"></div>
         <span id="mkt-label">—</span>
       </div>
       <div class="clock" id="ts-clock">—</div>
-      <span onclick="switchToPanel('brief')" style="font-family:'Space Mono',monospace;font-size:16px;font-weight:700;color:#22d3ee;cursor:pointer;opacity:0.85;transition:opacity 0.2s;user-select:none;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.85'">Trade<span style="color:#4ade80;">Brief</span></span>
+    </div>
+    <div class="hright">
+      <span onclick="swApp('brief')" style="font-family:'Space Mono',monospace;font-size:16px;font-weight:700;color:#22d3ee;cursor:pointer;opacity:0.85;transition:opacity 0.2s;user-select:none;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.85'">Trade<span style="color:#4ade80;">Brief</span></span>
       <button id="ts-gear-btn" onclick="tsGearClick()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 9px;cursor:pointer;color:var(--muted);font-size:14px;line-height:1;transition:all 0.2s;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">⚙️</button>
     </div>
   </div>
@@ -1173,7 +1175,7 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
     <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);" id="tl-clock">—</div>
   </div>
   <div style="display:flex;align-items:center;gap:10px;">
-    <span onclick="switchToPanel('brief')" style="font-family:'Space Mono',monospace;font-size:16px;font-weight:700;color:#22d3ee;cursor:pointer;opacity:0.85;transition:opacity 0.2s;user-select:none;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.85'">Trade<span style="color:#4ade80;">Brief</span></span>
+    <span onclick="swApp('brief')" style="font-family:'Space Mono',monospace;font-size:16px;font-weight:700;color:#22d3ee;cursor:pointer;opacity:0.85;transition:opacity 0.2s;user-select:none;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.85'">Trade<span style="color:#4ade80;">Brief</span></span>
     <button id="tl-gear-btn" onclick="tlGearClick()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 9px;cursor:pointer;color:var(--muted);font-size:14px;line-height:1;transition:all 0.2s;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">⚙️</button>
   </div>
 </div>
@@ -1274,7 +1276,7 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
     <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);" id="td-clock">—</div>
   </div>
   <div style="display:flex;align-items:center;gap:10px;">
-    <span onclick="switchToPanel('brief')" style="font-family:'Space Mono',monospace;font-size:16px;font-weight:700;color:#22d3ee;cursor:pointer;opacity:0.85;transition:opacity 0.2s;user-select:none;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.85'">Trade<span style="color:#4ade80;">Brief</span></span>
+    <span onclick="swApp('brief')" style="font-family:'Space Mono',monospace;font-size:16px;font-weight:700;color:#22d3ee;cursor:pointer;opacity:0.85;transition:opacity 0.2s;user-select:none;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.85'">Trade<span style="color:#4ade80;">Brief</span></span>
     <button id="td-gear-btn" onclick="tdGearClick()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 9px;cursor:pointer;color:var(--muted);font-size:14px;line-height:1;transition:all 0.2s;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">⚙️</button>
   </div>
 </div>
@@ -1407,7 +1409,7 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
     <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);" id="th-clock">—</div>
   </div>
   <div style="display:flex;align-items:center;gap:10px;">
-    <span onclick="switchToPanel('brief')" style="font-family:'Space Mono',monospace;font-size:16px;font-weight:700;color:#22d3ee;cursor:pointer;opacity:0.85;transition:opacity 0.2s;user-select:none;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.85'">Trade<span style="color:#4ade80;">Brief</span></span>
+    <span onclick="swApp('brief')" style="font-family:'Space Mono',monospace;font-size:16px;font-weight:700;color:#22d3ee;cursor:pointer;opacity:0.85;transition:opacity 0.2s;user-select:none;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.85'">Trade<span style="color:#4ade80;">Brief</span></span>
     <button id="th-gear-btn" onclick="thGearClick()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 9px;cursor:pointer;color:var(--muted);font-size:14px;line-height:1;transition:all 0.2s;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">⚙️</button>
   </div>
 </div>
@@ -2201,31 +2203,11 @@ function tbGearClick(){
   if(cur==='settings')go(prevTab);
   else go('settings');
 }
-// ── PANEL SWITCHER (for non-TB panels) ────────────────────────────────────
-function switchToPanel(panel){
-  const panels=['brief','sheet','log','data','help'];
-  panels.forEach(p=>{
-    const el=document.getElementById('panel-'+p);
-    if(el)el.style.display=p===panel?'block':'none';
-  });
-  sessionStorage.setItem('activePanel',panel);
-}
 // ── NON-TB GEAR HANDLERS ───────────────────────────────────────────────────
-let tsPrevSection=null,tlPrevSection=null,tdPrevSection=null,thPrevSection=null;
-function tsGearClick(){
-  const btn=document.getElementById('ts-gear-btn');
-  if(btn&&btn.textContent==='←'){
-    // back — restore previous TS state if needed
-    btn.textContent='⚙️';
-    // For TS, settings is a TB-side concern — just go to TB settings
-  } else {
-    switchToPanel('brief');
-    go('settings');
-  }
-}
-function tlGearClick(){switchToPanel('brief');go('settings');}
-function tdGearClick(){switchToPanel('brief');go('settings');}
-function thGearClick(){switchToPanel('brief');go('settings');}
+function tsGearClick(){swApp('brief');go('settings');}
+function tlGearClick(){swApp('brief');go('settings');}
+function tdGearClick(){swApp('brief');go('settings');}
+function thGearClick(){swApp('brief');go('settings');}
 
 function hwTab(n){
   document.querySelectorAll('.howto-tab').forEach(t=>t.classList.remove('active'));
@@ -6316,7 +6298,7 @@ function swApp(name){
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradingBrief V7.1 — Card Dismiss + Cross-Device Sync Fix    ║
+     ║  END TradingBrief V7.0 — Card Dismiss + Cross-Device Sync Fix    ║
      ║  2026-04-16                                                       ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 </body>
