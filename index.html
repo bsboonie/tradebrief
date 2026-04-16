@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v7.5.1 — HowTo flash fix    ║
+     ║  TRADEBRIEF v7.5.2 — Close trade P&L calculation fix    ║
      ║  Date: 2026-04-16                                                ║
-     ║  Changes from v7.5:                                              ║
+     ║  Changes from v7.5.1:                                              ║
      ║    1. TradeLog: Active Trades / Closed Trades sections           ║
      ║    2. Live $ column — real Tradier mid-price per open position   ║
      ║    3. Close Trade button — inline row, pre-fills Live $          ║
@@ -17,7 +17,7 @@
 <meta name="theme-color" content="#111827">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>TradeBrief v7.5.1</title>
+<title>TradeBrief v7.5.2</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -1661,12 +1661,12 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
 
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.5.1</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.5.2</div>
 
 <!-- ══ MOBILE SCAN BTN (mobile only, shown via CSS) ══════════════════════ -->
 <div id="mobile-scan-btn-wrap" style="display:none;">
   <button class="mscan-btn" onclick="go('briefing');window.TB.runScanner(true);">🔍 Scan Now</button>
-  <span class="mversion">v7.5.1</span>
+  <span class="mversion">v7.5.2</span>
 </div>
 
 <!-- ══ APP SWITCHER NAV ════════════════════════════════════════════════════ -->
@@ -6480,7 +6480,7 @@ function swApp(name){
     const exitPrice = parseFloat(input.value);
     if (isNaN(exitPrice)) { plEl.textContent = '—'; plEl.className = 'tl-close-pl'; return; }
     const contracts = parseInt(trade.contracts) || 1;
-    const pl = (exitPrice - parseFloat(trade.cost)) * contracts;
+    const pl = exitPrice - parseFloat(trade.cost);
     plEl.textContent = (pl >= 0 ? '+' : '') + '$' + Math.abs(pl).toFixed(2);
     plEl.className = 'tl-close-pl ' + (pl >= 0 ? 'tl-live-pos' : 'tl-live-neg');
     // Auto-detect outcome
@@ -6505,7 +6505,7 @@ function swApp(name){
     const trade = all.find(t => t.id === tlClosingId);
     if (!trade) return;
     const contracts = parseInt(trade.contracts) || 1;
-    const pl = (exitPrice - parseFloat(trade.cost)) * contracts;
+    const pl = exitPrice - parseFloat(trade.cost);
     const update = {
       outcome: tlCloseOutcome,
       pl: parseFloat(pl.toFixed(2)),
@@ -6569,8 +6569,8 @@ function swApp(name){
               <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
                 <span style="font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:1px;">CLOSE AT ($)</span>
                 <input id="tl-close-price-input" class="tl-close-price" type="number" step="0.01"
-                  value="${ld && ld.liveVal !== null ? (ld.liveVal / ((parseInt(t.contracts)||1))).toFixed(2) : ''}"
-                  placeholder="exit price" oninput="tlCalcClosePL()">
+                  value="${ld && ld.liveVal !== null ? ld.liveVal.toFixed(2) : ''}"
+                  placeholder="total exit value $" oninput="tlCalcClosePL()">
                 <span id="tl-close-pl-display" class="tl-close-pl">—</span>
                 <div class="tl-outcome-sel">
                   <button class="tl-out-btn sel-loss" data-out="Win" onclick="tlSetCloseOutcome('Win',this)">Win</button>
@@ -6743,7 +6743,7 @@ function swApp(name){
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradingBrief v7.5.1 — HowTo flash fix                          ║
+     ║  END TradingBrief v7.5.2 — Close trade P&L calculation fix                          ║
      ║  2026-04-16                                                       ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 </body>
