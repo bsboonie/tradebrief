@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v7.5.2 — Close trade P&L calculation fix    ║
+     ║  TRADEBRIEF v7.5.3 — Close trade outcome auto-detect fix    ║
      ║  Date: 2026-04-16                                                ║
-     ║  Changes from v7.5.1:                                              ║
+     ║  Changes from v7.5.2:                                              ║
      ║    1. TradeLog: Active Trades / Closed Trades sections           ║
      ║    2. Live $ column — real Tradier mid-price per open position   ║
      ║    3. Close Trade button — inline row, pre-fills Live $          ║
@@ -17,7 +17,7 @@
 <meta name="theme-color" content="#111827">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>TradeBrief v7.5.2</title>
+<title>TradeBrief v7.5.3</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -1661,12 +1661,12 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
 
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.5.2</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.5.3</div>
 
 <!-- ══ MOBILE SCAN BTN (mobile only, shown via CSS) ══════════════════════ -->
 <div id="mobile-scan-btn-wrap" style="display:none;">
   <button class="mscan-btn" onclick="go('briefing');window.TB.runScanner(true);">🔍 Scan Now</button>
-  <span class="mversion">v7.5.2</span>
+  <span class="mversion">v7.5.3</span>
 </div>
 
 <!-- ══ APP SWITCHER NAV ════════════════════════════════════════════════════ -->
@@ -6454,6 +6454,8 @@ function swApp(name){
     tlClosingId = id;
     tlCloseOutcome = 'Loss';
     tlRender();
+    // Trigger PL calc immediately after render so pre-filled Live $ sets outcome correctly
+    setTimeout(() => tlCalcClosePL(), 50);
   }
 
   function tlCancelClose() {
@@ -6743,7 +6745,7 @@ function swApp(name){
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradingBrief v7.5.2 — Close trade P&L calculation fix                          ║
+     ║  END TradingBrief v7.5.3 — Close trade outcome auto-detect fix                          ║
      ║  2026-04-16                                                       ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 </body>
