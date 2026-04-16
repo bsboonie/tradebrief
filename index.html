@@ -1,13 +1,12 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v6.9 — Controls Polish + TradeLog Inline Edit        ║
-     ║  Date: 2026-04-15                                                ║
-     ║  Changes from v6.8:                                              ║
-     ║    1. Controls: focus=orange, blur=green flash, settles clean    ║
-     ║    2. New exp selected: ATR/IVR/Exit ITM/OTM reset to auto       ║
-     ║    3. TradeLog: inline edit Exit ITM/OTM, no modal               ║
-     ║    4. Edit button removed from TradeLog rows                     ║
-     ║    2. Conviction number — persists thesisScore in sd[] on        ║
+     ║  TRADEBRIEF v7.0 — Card Dismiss + Cross-Device Sync Fix          ║
+     ║  Date: 2026-04-16                                                ║
+     ║  Changes from v6.9:                                              ║
+     ║    1. TradeBrief: X button dismisses card, next ranked slides in ║
+     ║    2. Dismissed cards cleared on fresh scan                      ║
+     ║    3. TradeLog: loadTrades() now fires on fb-authed (not         ║
+     ║       fb-ready) — fixes cross-device sync for signed-in users    ║
      ║       analysis so it survives re-renders                         ║
      ║    3. tb_toast — replaced with no-op (toast fully removed)       ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
@@ -968,7 +967,7 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
               ATR 14-day
               <button class="override-btn" id="atr-override-btn" onclick="toggleOverride('atr')" title="Override auto value">✎</button>
             </div>
-            <input class="ctrl-input auto" id="atr-val" type="number" step="0.01" placeholder="Auto-calculated" oninput="updateDerived()" onfocus="onCtrlFieldFocus(this)" onblur="onManualFieldSave('atr')">
+            <input class="ctrl-input auto" id="atr-val" type="number" step="any" placeholder="Auto-calculated" oninput="updateDerived()" onfocus="onCtrlFieldFocus(this)" onblur="onManualFieldSave('atr')">
           </div>
 
           <div class="ctrl-row">
@@ -976,7 +975,7 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
               IV Rank (0–100)
               <button class="override-btn" id="ivr-override-btn" onclick="toggleOverride('ivr')" title="Override auto value">✎</button>
             </div>
-            <input class="ctrl-input auto" id="ivr-val" type="number" step="0.1" min="0" max="100" placeholder="Auto-calculated" oninput="runScanner()" onfocus="onCtrlFieldFocus(this)" onblur="onManualFieldSave('ivr')">
+            <input class="ctrl-input auto" id="ivr-val" type="number" step="any" min="0" max="100" placeholder="Auto-calculated" oninput="runScanner()" onfocus="onCtrlFieldFocus(this)" onblur="onManualFieldSave('ivr')">
           </div>
         </div>
 
@@ -1491,12 +1490,12 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
 
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v6.9</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.0</div>
 
 <!-- ══ MOBILE SCAN BTN (mobile only, shown via CSS) ══════════════════════ -->
 <div id="mobile-scan-btn-wrap" style="display:none;">
   <button class="mscan-btn" onclick="go('briefing');window.TB.runScanner(true);">🔍 Scan Now</button>
-  <span class="mversion">v6.9</span>
+  <span class="mversion">v7.0</span>
 </div>
 
 <!-- ══ APP SWITCHER NAV ════════════════════════════════════════════════════ -->
@@ -1636,6 +1635,8 @@ const UNIVERSE=[
 
 // ── TOP 10 STATE ──────────────────────────────────────────────────────────
 let top10=[];// tickers currently displayed, ranked by confidence
+let rankedAll=[];// full ranked list from last buildTop10() call
+let dismissedCards=[];// tickers dismissed this session — cleared on fresh scan
 let notReadyList=[];// WAIT tickers shown as fallback
 let scannerRunning=false;
 let scannerProgress=0;
@@ -1827,8 +1828,15 @@ function buildTop10(){
     return b.confidence-a.confidence;// fallback to confidence if funds equal too
   });
 
-  top10=scored.slice(0,10).map(s=>s.ticker);
+  top10=scored.filter(s=>!dismissedCards.includes(s.ticker)).slice(0,10).map(s=>s.ticker);
+  rankedAll=scored.map(s=>s.ticker);// full ranked list for dismiss replacement pool
   updateScanBar();
+}
+
+function dismissCard(ticker){
+  if(!dismissedCards.includes(ticker))dismissedCards.push(ticker);
+  buildTop10();
+  rB();
 }
 
 async function runScanner(force){
@@ -1847,6 +1855,7 @@ async function runScanner(force){
   }
 
   scannerRunning=true;
+  dismissedCards=[];// fresh scan clears dismissed cards
   scannerTotal=3;// 3 phases
   scannerProgress=0;
   updateScanBar();
@@ -2604,7 +2613,8 @@ function renderDataCard(ticker){
   // Earnings color for pill
   const earnPillDTEColor=earnDTE!==null&&earnDTE<=14?'var(--danger)':earnDTE!==null&&earnDTE<=30?'var(--warning)':'var(--accent)';
 
-  return`<div class="data-card"${isLimited?' style="opacity:0.85;"':''}>
+  return`<div class="data-card" style="position:relative;${isLimited?' opacity:0.85;':''}">
+    <button onclick="dismissCard('${ticker}')" title="Dismiss" style="position:absolute;top:8px;right:10px;background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer;padding:4px;line-height:1;z-index:10;" onmouseover="this.style.color='var(--danger)'" onmouseout="this.style.color='var(--muted)'">✕</button>
     <div class="acc ${tr2}"></div>
     <div class="card-top">
       <div class="card-name">
@@ -3789,6 +3799,7 @@ window.TB.boot = function(){
 // Expose key TB functions globally for HTML onclick handlers
 window.TB.go = go;
 window.TB.runScanner = runScanner;
+window.TB.dismissCard = dismissCard;
 
 </script>
 
@@ -3840,12 +3851,14 @@ let state = {
 };
 
 // ── INIT ──────────────────────────────────────────────────────────
-window.addEventListener('fb-ready', () => {
+// Load trades after Google auth confirmed — ensures Firestore read uses authenticated identity
+window.addEventListener('fb-authed', () => {
   loadTrades();
 });
 
-// Also try loading if fb-ready already fired
 document.addEventListener('DOMContentLoaded', () => {
+  // Fallback: if returning signed-in user resolved before fb-authed listener attached
+  if(window._fbReady) loadTrades();
   ts_applyTheme();
   startClock();
   updateMarketStatus();
@@ -5068,6 +5081,7 @@ window.toggleOverride         = toggleOverride;
 window.toggleEarningsOverride = toggleEarningsOverride;
 window.onEarningsChange       = onEarningsChange;
 window.runScanner             = runScanner;
+window.dismissCard            = dismissCard;
 window.updateDerived          = updateDerived;
 window.adjustN                = adjustN;
 window.callSelectRow          = callSelectRow;
@@ -6202,8 +6216,8 @@ function swApp(name){
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradingBrief V6.9 — Controls Polish + TradeLog Inline Edit  ║
-     ║  2026-04-15                                                       ║
+     ║  END TradingBrief V7.0 — Card Dismiss + Cross-Device Sync Fix    ║
+     ║  2026-04-16                                                       ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 </body>
 </html>
