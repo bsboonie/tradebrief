@@ -1,13 +1,16 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v7.5.3 — Close trade outcome auto-detect fix    ║
-     ║  Date: 2026-04-16                                                ║
-     ║  Changes from v7.5.2:                                              ║
-     ║    1. TradeLog: Active Trades / Closed Trades sections           ║
-     ║    2. Live $ column — real Tradier mid-price per open position   ║
-     ║    3. Close Trade button — inline row, pre-fills Live $          ║
-     ║    4. Total P&L stat = realized + unrealized (Live $ - Cost)     ║
-     ║    5. TB P&L bar unrealized fed from live option prices          ║
+     ║  TRADEBRIEF v7.6.0 — Chunk 6: Light theme nav + Mobile fixes  ║
+     ║  Date: 2026-04-17                                                ║
+     ║  Changes from v7.5.3:                                              ║
+     ║    1. Light theme: bottom nav respects body.light (web+mobile)  ║
+     ║    2. Scan Now button: Brief panel only, hidden elsewhere        ║
+     ║    3. Version stamp: always visible bottom-left on mobile        ║
+     ║    4. Bottom nav: GPU-composited fixed position for Android      ║
+     ║    5. Bottom nav: tighter sizing, all 5 buttons fit on mobile    ║
+     ║    6. Header TradeBrief nav link: hidden on mobile               ║
+     ║    7. TradeLog mobile: horizontal scroll, abbreviated cols,      ║
+     ║       R/R and IV RANK hidden, dates/type/strikes shortened       ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 <html lang="en">
 <head>
@@ -17,7 +20,7 @@
 <meta name="theme-color" content="#111827">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>TradeBrief v7.5.3</title>
+<title>TradeBrief v7.6.0</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -100,14 +103,20 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
 /* Global: push content above switcher bar */
 body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
 
+/* ── LIGHT THEME — bottom nav ───────────────────────────────────────── */
+body.light #app-switcher{background:#ffffff;border-top:1px solid #d1dae8;}
+body.light .sw-btn:hover{background:rgba(0,0,0,0.04);}
+body.light .sw-btn.active{background:rgba(0,0,0,0.06);}
+body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,transparent);}
+
 /* ── MOBILE OVERRIDES (≤580px) ─────────────────────────────────────── */
 @media(max-width:580px){
   /* Hide Scan Now from header on mobile */
   #header-scan-btn-top { display:none !important; }
 
-  /* Show mobile scan btn wrap */
+  /* Mobile scan btn wrap — Brief panel only, hidden on all others */
   #mobile-scan-btn-wrap {
-    display:flex !important;
+    display:none;
     position:fixed;
     bottom:calc(40px + env(safe-area-inset-bottom,0px));
     left:0;right:0;
@@ -116,6 +125,12 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
     z-index:9999;
     align-items:center;
     justify-content:flex-start;
+  }
+  body.light #mobile-scan-btn-wrap {
+    background:linear-gradient(to top,#f0f4f8 60%,transparent);
+  }
+  #mobile-scan-btn-wrap.scan-visible {
+    display:flex !important;
   }
   #mobile-scan-btn-wrap .mscan-btn {
     flex:0 0 auto;
@@ -130,13 +145,24 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
     cursor:pointer;
     white-space:nowrap;
   }
-  #mobile-scan-btn-wrap .mversion {
+
+  /* Version stamp — always visible bottom-left on mobile */
+  #mobile-version-stamp {
+    display:block !important;
+    position:fixed;
+    bottom:calc(44px + env(safe-area-inset-bottom,0px));
+    left:16px;
     font-family:'Space Mono',monospace;
     font-size:9px;
     color:var(--muted);
     opacity:0.5;
-    margin-left:12px;
+    z-index:9998;
+    pointer-events:none;
     white-space:nowrap;
+  }
+  /* When scan btn is visible, nudge version stamp right of it */
+  #mobile-scan-btn-wrap.scan-visible ~ #mobile-version-stamp {
+    left:130px;
   }
 
   /* Push content up to clear mobile scan btn + nav */
@@ -145,14 +171,23 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
   /* Hide desktop version stamp on mobile */
   #app-version-stamp { display:none !important; }
 
-  /* Shortened nav labels — hide Trade prefix, replace label text */
+  /* Force bottom nav to stay fixed on Android — GPU compositing */
+  #app-switcher {
+    transform:translateZ(0);
+    -webkit-transform:translateZ(0);
+  }
+
+  /* Shortened nav labels — hide Trade prefix, tighter sizing to fit 5 buttons */
   .sw-word-trade { display:none !important; }
-  #sw-btn-brief   .sw-word-brief   { font-size:11px !important; }
-  #sw-btn-sheet   .sw-word-sheet   { font-size:11px !important; }
-  #sw-btn-log     .sw-word-log     { font-size:11px !important; }
-  #sw-btn-data    .sw-word-data    { font-size:11px !important; }
-  #sw-btn-help    .sw-word-help    { font-size:11px !important; }
-  .sw-btn { font-size:11px; padding:0 2px; }
+  .sw-btn { font-size:10px !important; padding:0 2px !important; }
+  #sw-btn-brief   .sw-word-brief   { font-size:10px !important; }
+  #sw-btn-sheet   .sw-word-sheet   { font-size:10px !important; }
+  #sw-btn-log     .sw-word-log     { font-size:10px !important; }
+  #sw-btn-data    .sw-word-data    { font-size:10px !important; }
+  #sw-btn-help    .sw-word-help    { font-size:10px !important; }
+
+  /* Hide TradeBrief nav link in panel headers on mobile */
+  .tb-nav-link { display:none !important; }
 
   /* FIX 7: Mobile card — left-justify score/badge/SI area */
   #panel-brief .card-top { align-items: flex-start; }
@@ -722,7 +757,7 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
       <div class="clock" id="ts-clock">—</div>
     </div>
     <div class="hright">
-      <span onclick="swApp('brief')" style="font-family:'Space Mono',monospace;font-size:16px;font-weight:700;color:#22d3ee;cursor:pointer;opacity:0.85;transition:opacity 0.2s;user-select:none;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.85'">Trade<span style="color:#4ade80;">Brief</span></span>
+      <span class="tb-nav-link" onclick="swApp('brief')" style="font-family:'Space Mono',monospace;font-size:16px;font-weight:700;color:#22d3ee;cursor:pointer;opacity:0.85;transition:opacity 0.2s;user-select:none;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.85'">Trade<span style="color:#4ade80;">Brief</span></span>
       <button id="ts-gear-btn" onclick="tsGearClick()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 9px;cursor:pointer;color:var(--muted);font-size:14px;line-height:1;transition:all 0.2s;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">⚙️</button>
     </div>
   </div>
@@ -1156,6 +1191,10 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
 #panel-log .tl-filter-btn{background:none;border:1px solid var(--border);border-radius:20px;padding:5px 14px;font-size:10px;font-family:'Space Mono',monospace;color:var(--muted);cursor:pointer;transition:all .2s;}
 #panel-log .tl-filter-btn:hover,#panel-log .tl-filter-btn.active{background:var(--surface);border-color:#ffa502;color:#ffa502;}
 #panel-log .tl-table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+@media(max-width:580px){
+  #panel-log .tl-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  #panel-log .tl-col-rr,#panel-log .tl-col-iv{display:none;}
+}
 #panel-log .tl-table{width:100%;border-collapse:collapse;font-size:11px;}
 #panel-log .tl-table th{font-family:'Space Mono',monospace;font-size:8px;letter-spacing:1px;color:var(--muted);padding:10px 12px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap;background:var(--surface2);}
 #panel-log .tl-table td{padding:10px 12px;border-bottom:1px solid var(--border);font-family:'Space Mono',monospace;white-space:nowrap;}
@@ -1217,7 +1256,7 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
     <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);" id="tl-clock">—</div>
   </div>
   <div style="display:flex;align-items:center;gap:10px;">
-    <span onclick="swApp('brief')" style="font-family:'Space Mono',monospace;font-size:16px;font-weight:700;color:#22d3ee;cursor:pointer;opacity:0.85;transition:opacity 0.2s;user-select:none;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.85'">Trade<span style="color:#4ade80;">Brief</span></span>
+    <span class="tb-nav-link" onclick="swApp('brief')" style="font-family:'Space Mono',monospace;font-size:16px;font-weight:700;color:#22d3ee;cursor:pointer;opacity:0.85;transition:opacity 0.2s;user-select:none;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.85'">Trade<span style="color:#4ade80;">Brief</span></span>
     <button id="tl-gear-btn" onclick="tlGearClick()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 9px;cursor:pointer;color:var(--muted);font-size:14px;line-height:1;transition:all 0.2s;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">⚙️</button>
   </div>
 </div>
@@ -1245,10 +1284,10 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
     <table class="tl-table">
       <thead>
         <tr>
-          <th>DATE</th><th>TICKER</th><th>TYPE</th><th>STRIKES</th>
-          <th>EXP</th><th>COST $</th><th>MAX $</th><th>LIVE $</th><th>R/R</th>
-          <th>IV RANK</th><th>EXIT ↑</th><th>EXIT ↓</th>
-          <th>ACTIONS</th>
+          <th>DATE</th><th>TKR</th><th>TYPE</th><th>STRK</th>
+          <th>EXP</th><th>COST $</th><th>MAX $</th><th>LIVE $</th><th class="tl-col-rr">R/R</th>
+          <th class="tl-col-iv">IV RANK</th><th>EXIT ↑</th><th>EXIT ↓</th>
+          <th>ACT</th>
         </tr>
       </thead>
       <tbody id="tl-active-tbody"></tbody>
@@ -1261,9 +1300,9 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
     <table class="tl-table">
       <thead>
         <tr>
-          <th>DATE</th><th>TICKER</th><th>TYPE</th><th>STRIKES</th>
-          <th>EXP</th><th>COST $</th><th>MAX $</th><th>CLOSED $</th><th>R/R</th>
-          <th>IV RANK</th><th>OUTCOME</th><th>P&L $</th><th>ACTIONS</th>
+          <th>DATE</th><th>TKR</th><th>TYPE</th><th>STRK</th>
+          <th>EXP</th><th>COST $</th><th>MAX $</th><th>CLOSED $</th><th class="tl-col-rr">R/R</th>
+          <th class="tl-col-iv">IV RANK</th><th>RESULT</th><th>P&L $</th><th>ACT</th>
         </tr>
       </thead>
       <tbody id="tl-closed-tbody"></tbody>
@@ -1334,7 +1373,7 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
     <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);" id="td-clock">—</div>
   </div>
   <div style="display:flex;align-items:center;gap:10px;">
-    <span onclick="swApp('brief')" style="font-family:'Space Mono',monospace;font-size:16px;font-weight:700;color:#22d3ee;cursor:pointer;opacity:0.85;transition:opacity 0.2s;user-select:none;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.85'">Trade<span style="color:#4ade80;">Brief</span></span>
+    <span class="tb-nav-link" onclick="swApp('brief')" style="font-family:'Space Mono',monospace;font-size:16px;font-weight:700;color:#22d3ee;cursor:pointer;opacity:0.85;transition:opacity 0.2s;user-select:none;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.85'">Trade<span style="color:#4ade80;">Brief</span></span>
     <button id="td-gear-btn" onclick="tdGearClick()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 9px;cursor:pointer;color:var(--muted);font-size:14px;line-height:1;transition:all 0.2s;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">⚙️</button>
   </div>
 </div>
@@ -1467,7 +1506,7 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
     <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);" id="th-clock">—</div>
   </div>
   <div style="display:flex;align-items:center;gap:10px;">
-    <span onclick="swApp('brief')" style="font-family:'Space Mono',monospace;font-size:16px;font-weight:700;color:#22d3ee;cursor:pointer;opacity:0.85;transition:opacity 0.2s;user-select:none;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.85'">Trade<span style="color:#4ade80;">Brief</span></span>
+    <span class="tb-nav-link" onclick="swApp('brief')" style="font-family:'Space Mono',monospace;font-size:16px;font-weight:700;color:#22d3ee;cursor:pointer;opacity:0.85;transition:opacity 0.2s;user-select:none;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.85'">Trade<span style="color:#4ade80;">Brief</span></span>
     <button id="th-gear-btn" onclick="thGearClick()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 9px;cursor:pointer;color:var(--muted);font-size:14px;line-height:1;transition:all 0.2s;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">⚙️</button>
   </div>
 </div>
@@ -1661,12 +1700,14 @@ body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
 
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.5.3</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.6.0</div>
 
-<!-- ══ MOBILE SCAN BTN (mobile only, shown via CSS) ══════════════════════ -->
+<!-- ══ MOBILE VERSION STAMP (always visible on mobile, bottom-left) ══════ -->
+<div id="mobile-version-stamp" style="display:none;">v7.6.0</div>
+
+<!-- ══ MOBILE SCAN BTN (Brief panel only, toggled via swApp) ═════════════ -->
 <div id="mobile-scan-btn-wrap" style="display:none;">
-  <button class="mscan-btn" onclick="go('briefing');window.TB.runScanner(true);">🔍 Scan Now</button>
-  <span class="mversion">v7.5.3</span>
+  <button class="mscan-btn" onclick="window.TB && window.TB.runScanner(true);">🔍 Scan Now</button>
 </div>
 
 <!-- ══ APP SWITCHER NAV ════════════════════════════════════════════════════ -->
@@ -6340,6 +6381,9 @@ function swApp(name){
   // Show selected
   document.getElementById('panel-'+name).classList.add('active');
   document.getElementById('sw-btn-'+name).classList.add('active');
+  // Scan Now button — Brief panel only
+  const scanWrap = document.getElementById('mobile-scan-btn-wrap');
+  if(scanWrap){ if(name==='brief'){scanWrap.classList.add('scan-visible');}else{scanWrap.classList.remove('scan-visible');} }
   // Persist
   sessionStorage.setItem('swActive',name);
   // Boot app on first visit
@@ -6545,7 +6589,7 @@ function swApp(name){
         if (activeEmpty) activeEmpty.style.display = 'none';
         activeTbody.innerHTML = active.map(t => {
           const typeClass = {'Long Call':'lc','Long Put':'lp','Call Spread':'cs','Put Spread':'ps'}[t.type] || 'cs';
-          const strikes = t.sellStrike ? `$${t.buyStrike} / $${t.sellStrike}` : `$${t.buyStrike}`;
+
           const exitItmVal = t.exitItm ? parseFloat(t.exitItm).toFixed(2) : '';
           const exitOtmVal = t.exitOtm ? parseFloat(t.exitOtm).toFixed(2) : '';
           const isPending = tlPendingDelete === t.id;
@@ -6585,17 +6629,21 @@ function swApp(name){
             </td>
           </tr>` : '';
 
+          const typeAbbr = {'Long Call':'LC','Long Put':'LP','Call Spread':'CS','Put Spread':'PS'}[t.type] || t.type;
+          const entryDateFmt = (t.entryDate||'—').replace(/^\d{4}-/,'');
+          const expDateFmt   = (t.expDate||'—').replace(/^\d{4}-/,'');
+          const strikesFmt   = t.sellStrike ? `$${t.buyStrike}/$${t.sellStrike}` : `$${t.buyStrike}`;
           return `<tr>
-            <td>${t.entryDate || '—'}</td>
+            <td>${entryDateFmt}</td>
             <td style="font-weight:700;">${t.ticker}</td>
-            <td><span class="tl-type-pill ${typeClass}">${t.type}</span></td>
-            <td>${strikes}</td>
-            <td>${t.expDate || '—'}</td>
+            <td><span class="tl-type-pill ${typeClass}">${typeAbbr}</span></td>
+            <td>${strikesFmt}</td>
+            <td>${expDateFmt}</td>
             <td style="color:var(--accent);">$${parseFloat(t.cost||0).toFixed(2)}</td>
             <td>${t.maxProfit!=null ? '$'+parseFloat(t.maxProfit).toFixed(2) : '—'}</td>
             <td>${liveCell}</td>
-            <td>${t.rr!=null ? parseFloat(t.rr).toFixed(2)+'x' : '—'}</td>
-            <td>${t.ivRank!=null ? parseFloat(t.ivRank).toFixed(1) : '—'}</td>
+            <td class="tl-col-rr">${t.rr!=null ? parseFloat(t.rr).toFixed(2)+'x' : '—'}</td>
+            <td class="tl-col-iv">${t.ivRank!=null ? parseFloat(t.ivRank).toFixed(1) : '—'}</td>
             <td><input class="tl-exit-input tl-exit-itm-input" type="number" step="0.01" value="${exitItmVal}" placeholder="—" data-id="${t.id}" data-side="itm" onfocus="tlExitFocus(this)" onblur="tlExitSave(this)" onkeydown="if(event.key==='Enter')this.blur()"></td>
             <td><input class="tl-exit-input tl-exit-otm-input" type="number" step="0.01" value="${exitOtmVal}" placeholder="—" data-id="${t.id}" data-side="otm" onfocus="tlExitFocus(this)" onblur="tlExitSave(this)" onkeydown="if(event.key==='Enter')this.blur()"></td>
             <td style="display:flex;gap:5px;align-items:center;">
@@ -6619,24 +6667,28 @@ function swApp(name){
         closedTbody.innerHTML = closed.map(t => {
           const typeClass = {'Long Call':'lc','Long Put':'lp','Call Spread':'cs','Put Spread':'ps'}[t.type] || 'cs';
           const outcomeClass = {Win:'win',Loss:'loss',Breakeven:'be'}[t.outcome] || 'be';
-          const strikes = t.sellStrike ? `$${t.buyStrike} / $${t.sellStrike}` : `$${t.buyStrike}`;
+
           const pl = t.pl !== undefined && t.pl !== null ? parseFloat(t.pl) : null;
           const plClass = pl === null ? '' : (pl >= 0 ? 'tl-pl-pos' : 'tl-pl-neg');
           const plFmt = pl === null ? '—' : `${pl >= 0 ? '+' : ''}$${Math.abs(pl).toFixed(2)}`;
           const closedPrice = t.closedPrice ? `$${parseFloat(t.closedPrice).toFixed(2)}` : '—';
           const isPending = tlPendingDelete === t.id;
           const trashClass = isPending ? 'tl-trash-btn confirm' : 'tl-trash-btn';
+          const typeAbbr = {'Long Call':'LC','Long Put':'LP','Call Spread':'CS','Put Spread':'PS'}[t.type] || t.type;
+          const entryDateFmt = (t.entryDate||'—').replace(/^\d{4}-/,'');
+          const expDateFmt   = (t.expDate||'—').replace(/^\d{4}-/,'');
+          const strikesFmt   = t.sellStrike ? `$${t.buyStrike}/$${t.sellStrike}` : `$${t.buyStrike}`;
           return `<tr>
-            <td>${t.entryDate || '—'}</td>
+            <td>${entryDateFmt}</td>
             <td style="font-weight:700;">${t.ticker}</td>
-            <td><span class="tl-type-pill ${typeClass}">${t.type}</span></td>
-            <td>${strikes}</td>
-            <td>${t.expDate || '—'}</td>
+            <td><span class="tl-type-pill ${typeClass}">${typeAbbr}</span></td>
+            <td>${strikesFmt}</td>
+            <td>${expDateFmt}</td>
             <td style="color:var(--accent);">$${parseFloat(t.cost||0).toFixed(2)}</td>
             <td>${t.maxProfit!=null ? '$'+parseFloat(t.maxProfit).toFixed(2) : '—'}</td>
             <td style="color:var(--muted);">${closedPrice}</td>
-            <td>${t.rr!=null ? parseFloat(t.rr).toFixed(2)+'x' : '—'}</td>
-            <td>${t.ivRank!=null ? parseFloat(t.ivRank).toFixed(1) : '—'}</td>
+            <td class="tl-col-rr">${t.rr!=null ? parseFloat(t.rr).toFixed(2)+'x' : '—'}</td>
+            <td class="tl-col-iv">${t.ivRank!=null ? parseFloat(t.ivRank).toFixed(1) : '—'}</td>
             <td><span class="tl-outcome-pill ${outcomeClass}">${t.outcome}</span></td>
             <td class="${plClass}">${plFmt}</td>
             <td><button class="${trashClass}" onclick="tlTrash('${t.id}')" title="${isPending?'Tap again to confirm':'Delete'}">🗑</button></td>
@@ -6745,7 +6797,7 @@ function swApp(name){
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradingBrief v7.5.3 — Close trade outcome auto-detect fix                          ║
+     ║  END TradingBrief v7.6.0 — Chunk 6: Light theme nav + Mobile fixes                     ║
      ║  2026-04-16                                                       ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 </body>
