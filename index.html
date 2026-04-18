@@ -1,16 +1,13 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v7.6.0 — Chunk 6: Light theme nav + Mobile fixes  ║
-     ║  Date: 2026-04-17                                                ║
-     ║  Changes from v7.5.3:                                              ║
-     ║    1. Light theme: bottom nav respects body.light (web+mobile)  ║
-     ║    2. Scan Now button: Brief panel only, hidden elsewhere        ║
-     ║    3. Version stamp: always visible bottom-left on mobile        ║
-     ║    4. Bottom nav: GPU-composited fixed position for Android      ║
-     ║    5. Bottom nav: tighter sizing, all 5 buttons fit on mobile    ║
-     ║    6. Header TradeBrief nav link: hidden on mobile               ║
-     ║    7. TradeLog mobile: horizontal scroll, abbreviated cols,      ║
-     ║       R/R and IV RANK hidden, dates/type/strikes shortened       ║
+     ║  TRADEBRIEF v7.7.0 — Earnings override sync TB↔TS             ║
+     ║  Date: 2026-04-18                                                ║
+     ║  Changes from v7.6.0:                                              ║
+     ║    1. Shared earningsOverrides store — single source of truth   ║
+     ║    2. TB override propagates to TS earnings field live           ║
+     ║    3. TS earnings field writes back to shared store              ║
+     ║    4. TS fetchAll pre-populates earnings from override/Finnhub  ║
+     ║    5. Stale date auto-purge — dates >7d past cleared on boot    ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 <html lang="en">
 <head>
@@ -20,7 +17,7 @@
 <meta name="theme-color" content="#111827">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>TradeBrief v7.6.0</title>
+<title>TradeBrief v7.7.0</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -1700,10 +1697,10 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
 
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.6.0</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.7.0</div>
 
 <!-- ══ MOBILE VERSION STAMP (always visible on mobile, bottom-left) ══════ -->
-<div id="mobile-version-stamp" style="display:none;">v7.6.0</div>
+<div id="mobile-version-stamp" style="display:none;">v7.7.0</div>
 
 <!-- ══ MOBILE SCAN BTN (Brief panel only, toggled via swApp) ═════════════ -->
 <div id="mobile-scan-btn-wrap" style="display:none;">
@@ -1809,6 +1806,33 @@ let wl=JSON.parse(localStorage.getItem('wl')||'["WULF","PR","HOOD","VST"]');
 let trades=JSON.parse(localStorage.getItem('trades')||'[]');
 let closedTrades=JSON.parse(localStorage.getItem('closedTrades')||'[]');
 let earningsOverrides=JSON.parse(localStorage.getItem('earningsOverrides')||'{}');
+
+// ── EARNINGS OVERRIDE UTILITIES (shared TB↔TS) ──────────────────────────
+// Purge stored dates more than 7 days in the past (quarter rollover protection)
+function purgeStaleEarningsOverrides(){
+  const cutoff=new Date();cutoff.setDate(cutoff.getDate()-7);
+  let changed=false;
+  Object.keys(earningsOverrides).forEach(t=>{
+    if(earningsOverrides[t]&&new Date(earningsOverrides[t])<cutoff){delete earningsOverrides[t];changed=true;}
+  });
+  if(changed)localStorage.setItem('earningsOverrides',JSON.stringify(earningsOverrides));
+}
+purgeStaleEarningsOverrides();
+
+// Write an earnings override and propagate to TS if that ticker is active
+function setEarningsOverride(ticker,dateVal){
+  if(dateVal){earningsOverrides[ticker]=dateVal;}else{delete earningsOverrides[ticker];}
+  localStorage.setItem('earningsOverrides',JSON.stringify(earningsOverrides));
+  // Propagate to TS earnings-date field if same ticker is loaded there
+  try{
+    const tsInput=document.getElementById('earnings-date');
+    const tsTicker=(document.getElementById('ticker-input')||{}).value||'';
+    if(tsInput&&tsTicker.trim().toUpperCase()===ticker.toUpperCase()){
+      tsInput.value=dateVal||'';
+      if(typeof onEarningsChange==='function')onEarningsChange();
+    }
+  }catch(e){}
+}
 let sd={};
 let cfg=JSON.parse(localStorage.getItem('cfg')||'{}');
 let closingTradeIdx=-1;
@@ -3379,14 +3403,10 @@ function deleteClosedTrade(){
 }
 function saveEarningsOverride(ticker){
   const val=document.getElementById('earn-in-'+ticker).value;
-  if(val){
-    earningsOverrides[ticker]=val;
-    if(sd[ticker])sd[ticker].earningsDate=val;
-  }else{
-    delete earningsOverrides[ticker];
-  }
-  localStorage.setItem('earningsOverrides',JSON.stringify(earningsOverrides));
-  rB();tb_toast('Earnings date updated');
+  setEarningsOverride(ticker,val||null);
+  if(sd[ticker])sd[ticker].earningsDate=val||null;
+  fbSyncAll();
+  rB();tb_toast('Earnings date saved ✓');
 }
 
 // ── FIREBASE SYNC ─────────────────────────────────────────────────────────
@@ -4262,8 +4282,31 @@ async function fetchAll() {
     // 4. Option chains for all expirations (pre-load)
     await fetchChains(ticker);
 
+    // 5. Earnings date — override store first, then Finnhub
+    const storedOverride = (JSON.parse(localStorage.getItem('earningsOverrides')||'{}')||{})[ticker];
+    if(storedOverride){
+      state.earningsDate = storedOverride;
+      const el = document.getElementById('earnings-date');
+      if(el) el.value = storedOverride;
+      // Re-flag expirations with stored date
+      state.expirations = state.expirations.map(e=>({...e,earningsBefore:new Date(storedOverride)<=new Date(e.date)}));
+      renderExpSelector();
+    } else {
+      try{
+        const er = await fetch(`${PROXY}/finnhub?type=earnings&symbol=${ticker}`);
+        const edata = await er.json();
+        const upcoming = (edata.earningsCalendar||[]).filter(e=>new Date(e.date)>=new Date()).sort((a,b)=>new Date(a.date)-new Date(b.date));
+        if(upcoming.length){
+          state.earningsDate = upcoming[0].date;
+          const el = document.getElementById('earnings-date');
+          if(el) el.value = upcoming[0].date;
+          state.expirations = state.expirations.map(e=>({...e,earningsBefore:new Date(upcoming[0].date)<=new Date(e.date)}));
+          renderExpSelector();
+        }
+      }catch(e){ console.warn(`${ticker}: TS earnings fetch failed — ${e.message}`); }
+    }
+
     setStatus('ok', `${ticker} loaded ✓ — select an expiration to scan`);
-    // No auto-scan — user selects expiration to trigger results
     updateTradePlan();
 
   } catch(e) {
@@ -5065,6 +5108,19 @@ function toggleEarningsOverride() {
 
 function onEarningsChange() {
   state.earningsDate = document.getElementById('earnings-date').value;
+  // Propagate to shared override store (TB reads from this)
+  if(state.ticker){
+    try{
+      const overrides=JSON.parse(localStorage.getItem('earningsOverrides')||'{}');
+      if(state.earningsDate){overrides[state.ticker]=state.earningsDate;}else{delete overrides[state.ticker];}
+      localStorage.setItem('earningsOverrides',JSON.stringify(overrides));
+      // Update TB's live earningsOverrides object and sd cache if TB is loaded
+      if(typeof earningsOverrides!=='undefined'){
+        if(state.earningsDate){earningsOverrides[state.ticker]=state.earningsDate;}else{delete earningsOverrides[state.ticker];}
+      }
+      if(typeof sd!=='undefined'&&sd[state.ticker]){sd[state.ticker].earningsDate=state.earningsDate||null;}
+    }catch(e){}
+  }
   // Update expiration earnings flags
   state.expirations = state.expirations.map(e => ({
     ...e,
@@ -6797,8 +6853,8 @@ function swApp(name){
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradingBrief v7.6.0 — Chunk 6: Light theme nav + Mobile fixes                     ║
-     ║  2026-04-16                                                       ║
+     ║  END TradingBrief v7.7.0 — Earnings override sync TB↔TS                            ║
+     ║  2026-04-18                                                       ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 </body>
 </html>
