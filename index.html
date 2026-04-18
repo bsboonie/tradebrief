@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v7.8.0 — Earnings Calendar in TradeData           ║
+     ║  TRADEBRIEF v7.8.1 — Earnings Calendar + seed dates + collapse           ║
      ║  Date: 2026-04-18                                                ║
      ║  Changes from v7.7.0:                                              ║
      ║    1. Earnings Calendar section in TradeData panel              ║
@@ -18,7 +18,7 @@
 <meta name="theme-color" content="#111827">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>TradeBrief v7.8.0</title>
+<title>TradeBrief v7.8.1</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -1402,8 +1402,11 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
 <div class="td-main">
 
   <!-- 0. Earnings Calendar -->
-  <div class="td-sec">Earnings Calendar</div>
-  <div class="td-card" style="padding:14px;">
+  <div class="td-sec" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;" onclick="ecToggle()">
+    <span>Earnings Calendar</span>
+    <span id="ec-toggle-icon" style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);">▼</span>
+  </div>
+  <div id="ec-wrap" class="td-card" style="padding:14px;">
     <div style="font-size:11px;color:var(--muted);margin-bottom:12px;line-height:1.6;">Enter earnings dates for your universe. Updates all three panels instantly. Dates more than 7 days past are cleared automatically each session.</div>
     <div class="ec-filter-bar">
       <button class="ec-filter-btn active" onclick="ecSetFilter('all',this)">All</button>
@@ -1745,10 +1748,10 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
 
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.8.0</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.8.1</div>
 
 <!-- ══ MOBILE VERSION STAMP (always visible on mobile, bottom-left) ══════ -->
-<div id="mobile-version-stamp" style="display:none;">v7.8.0</div>
+<div id="mobile-version-stamp" style="display:none;">v7.8.1</div>
 
 <!-- ══ MOBILE SCAN BTN (Brief panel only, toggled via swApp) ═════════════ -->
 <div id="mobile-scan-btn-wrap" style="display:none;">
@@ -1866,6 +1869,33 @@ function purgeStaleEarningsOverrides(){
   if(changed)localStorage.setItem('earningsOverrides',JSON.stringify(earningsOverrides));
 }
 purgeStaleEarningsOverrides();
+// Seed known earnings dates on first run (won't overwrite manual overrides)
+(function(){
+  const EC_SEED={
+    'AAL':'2026-04-25','ABBV':'2026-04-29','AGNC':'2026-04-22','AMD':'2026-05-05',
+    'AMGN':'2026-04-29','AMT':'2026-04-29','AMZN':'2026-04-23','BA':'2026-04-23',
+    'BSX':'2026-04-23','CAT':'2026-04-29','CLF':'2026-04-22','CMCSA':'2026-04-24',
+    'CRM':'2026-05-27','CVX':'2026-05-02','DHR':'2026-04-22','DIS':'2026-05-07',
+    'DOW':'2026-04-24','EBAY':'2026-04-29','EQIX':'2026-04-30','ETSY':'2026-04-30',
+    'F':'2026-04-28','FCX':'2026-04-22','GD':'2026-04-23','GE':'2026-04-22',
+    'GM':'2026-04-29','GOLD':'2026-05-07','HCA':'2026-04-22','IBM':'2026-04-23',
+    'INTC':'2026-04-23','IRM':'2026-04-24','ISRG':'2026-04-22','JPM':'2026-07-14',
+    'KO':'2026-04-29','LLY':'2026-04-30','LMT':'2026-04-22','LVS':'2026-04-23',
+    'LYB':'2026-04-25','MCD':'2026-04-28','META':'2026-04-29','MO':'2026-04-29',
+    'MRK':'2026-04-30','MSFT':'2026-04-29','NEE':'2026-04-22','NEM':'2026-04-23',
+    'NOC':'2026-04-23','PFE':'2026-05-05','PG':'2026-04-24','PINS':'2026-05-04',
+    'PLTR':'2026-05-04','PM':'2026-04-22','PYPL':'2026-04-29','RCL':'2026-04-25',
+    'RTX':'2026-04-22','SBUX':'2026-04-29','SHOP':'2026-05-07','SPG':'2026-04-28',
+    'SYK':'2026-04-29','T':'2026-04-23','TMO':'2026-04-23','UBER':'2026-05-06',
+    'UNH':'2026-04-21','UPS':'2026-04-29','VICI':'2026-04-30','VRTX':'2026-04-28',
+    'VZ':'2026-04-22','XOM':'2026-05-01','ZTS':'2026-05-05'
+  };
+  let changed=false;
+  Object.entries(EC_SEED).forEach(([t,d])=>{
+    if(!earningsOverrides[t]){earningsOverrides[t]=d;changed=true;}
+  });
+  if(changed)localStorage.setItem('earningsOverrides',JSON.stringify(earningsOverrides));
+})();
 
 // Write an earnings override and propagate to TS if that ticker is active
 function setEarningsOverride(ticker,dateVal){
@@ -6480,6 +6510,50 @@ window.TD = (function(){
 
 // ── EARNINGS CALENDAR (TradeData tab) ────────────────────────────────────────
 let _ecFilter = 'all';
+let _ecOpen = true;
+
+// Pre-seeded Q2 2026 earnings dates from TradeBrief_EarningsCalendar.xlsx
+const EC_SEED_DATES = {
+  'AAL':'2026-04-25','ABBV':'2026-04-29','AGNC':'2026-04-22','AMD':'2026-05-05',
+  'AMGN':'2026-04-29','AMT':'2026-04-29','AMZN':'2026-04-23','BA':'2026-04-23',
+  'BSX':'2026-04-23','CAT':'2026-04-29','CLF':'2026-04-22','CMCSA':'2026-04-24',
+  'CRM':'2026-05-27','CVX':'2026-05-02','DHR':'2026-04-22','DIS':'2026-05-07',
+  'DOW':'2026-04-24','EBAY':'2026-04-29','EQIX':'2026-04-30','ETSY':'2026-04-30',
+  'F':'2026-04-28','FCX':'2026-04-22','GD':'2026-04-23','GE':'2026-04-22',
+  'GM':'2026-04-29','GOLD':'2026-05-07','HCA':'2026-04-22','IBM':'2026-04-23',
+  'INTC':'2026-04-23','IRM':'2026-04-24','ISRG':'2026-04-22','JPM':'2026-07-14',
+  'KO':'2026-04-29','LLY':'2026-04-30','LMT':'2026-04-22','LVS':'2026-04-23',
+  'LYB':'2026-04-25','MCD':'2026-04-28','META':'2026-04-29','MO':'2026-04-29',
+  'MRK':'2026-04-30','MSFT':'2026-04-29','NEE':'2026-04-22','NEM':'2026-04-23',
+  'NOC':'2026-04-23','PFE':'2026-05-05','PG':'2026-04-24','PINS':'2026-05-04',
+  'PLTR':'2026-05-04','PM':'2026-04-22','PYPL':'2026-04-29','RCL':'2026-04-25',
+  'RTX':'2026-04-22','SBUX':'2026-04-29','SHOP':'2026-05-07','SPG':'2026-04-28',
+  'SYK':'2026-04-29','T':'2026-04-23','TMO':'2026-04-23','UBER':'2026-05-06',
+  'UNH':'2026-04-21','UPS':'2026-04-29','VICI':'2026-04-30','VRTX':'2026-04-28',
+  'VZ':'2026-04-22','XOM':'2026-05-01','ZTS':'2026-05-05'
+};
+
+// Seed dates into override store if not already set (first run only)
+function ecSeedDates(){
+  const overrides = JSON.parse(localStorage.getItem('earningsOverrides')||'{}');
+  let changed = false;
+  Object.entries(EC_SEED_DATES).forEach(([ticker, date])=>{
+    if(!overrides[ticker]){
+      overrides[ticker] = date;
+      if(typeof earningsOverrides!=='undefined') earningsOverrides[ticker] = date;
+      changed = true;
+    }
+  });
+  if(changed) localStorage.setItem('earningsOverrides', JSON.stringify(overrides));
+}
+
+function ecToggle(){
+  _ecOpen = !_ecOpen;
+  const wrap = document.getElementById('ec-wrap');
+  const icon = document.getElementById('ec-toggle-icon');
+  if(wrap){ wrap.style.display = _ecOpen ? 'block' : 'none'; }
+  if(icon){ icon.textContent = _ecOpen ? '▼' : '▶'; }
+}
 
 function ecSetFilter(filter, btn){
   _ecFilter = filter;
@@ -6524,6 +6598,7 @@ function ecClear(ticker){
 }
 
 function ecRender(){
+  ecSeedDates();
   const tbody = document.getElementById('ec-tbody');
   const countEl = document.getElementById('ec-count');
   if(!tbody) return;
@@ -7003,7 +7078,7 @@ function swApp(name){
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradingBrief v7.8.0 — Earnings Calendar in TradeData                          ║
+     ║  END TradingBrief v7.8.1 — Earnings Calendar + seed dates + collapse                          ║
      ║  2026-04-18                                                       ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 </body>
