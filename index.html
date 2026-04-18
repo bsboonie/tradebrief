@@ -1,13 +1,14 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v7.7.0 — Earnings override sync TB↔TS             ║
+     ║  TRADEBRIEF v7.8.0 — Earnings Calendar in TradeData           ║
      ║  Date: 2026-04-18                                                ║
-     ║  Changes from v7.6.0:                                              ║
-     ║    1. Shared earningsOverrides store — single source of truth   ║
-     ║    2. TB override propagates to TS earnings field live           ║
-     ║    3. TS earnings field writes back to shared store              ║
-     ║    4. TS fetchAll pre-populates earnings from override/Finnhub  ║
-     ║    5. Stale date auto-purge — dates >7d past cleared on boot    ║
+     ║  Changes from v7.7.0:                                              ║
+     ║    1. Earnings Calendar section in TradeData panel              ║
+     ║    2. All 123 universe tickers — inline date entry              ║
+     ║    3. Color-coded proximity pills (red/yellow/green)            ║
+     ║    4. Filter by: All / Has Date / No Date / ≤14d                ║
+     ║    5. Sorted by soonest first, undated alphabetically           ║
+     ║    6. Save writes to shared store — TB+TS update instantly      ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 <html lang="en">
 <head>
@@ -17,7 +18,7 @@
 <meta name="theme-color" content="#111827">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>TradeBrief v7.7.0</title>
+<title>TradeBrief v7.8.0</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -1358,6 +1359,29 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
 #panel-data .td-reset-input{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-family:'Space Mono',monospace;font-size:11px;outline:none;width:100px;text-transform:uppercase;}
 #panel-data .td-reset-input:focus{border-color:#FF6EFF;}
 @media(max-width:580px){#panel-data .td-stat-grid{grid-template-columns:repeat(2,1fr);}}
+#panel-data .ec-table{width:100%;border-collapse:collapse;}
+#panel-data .ec-table th{font-family:'Space Mono',monospace;font-size:8px;letter-spacing:1px;color:var(--muted);padding:8px 10px;text-align:left;border-bottom:1px solid var(--border);background:var(--surface2);white-space:nowrap;}
+#panel-data .ec-table td{padding:7px 10px;border-bottom:1px solid var(--border);font-family:'Space Mono',monospace;font-size:11px;vertical-align:middle;}
+#panel-data .ec-table tr:last-child td{border-bottom:none;}
+#panel-data .ec-table tr:hover td{background:rgba(255,110,255,0.03);}
+#panel-data .ec-sym{font-weight:700;font-size:13px;min-width:52px;display:inline-block;}
+#panel-data .ec-pill{padding:2px 9px;border-radius:20px;font-size:9px;font-weight:700;white-space:nowrap;}
+#panel-data .ec-pill.soon{background:rgba(255,71,87,0.15);color:var(--danger);border:1px solid rgba(255,71,87,0.3);}
+#panel-data .ec-pill.coming{background:rgba(255,165,2,0.15);color:var(--warning);border:1px solid rgba(255,165,2,0.3);}
+#panel-data .ec-pill.safe{background:rgba(0,255,157,0.15);color:var(--good);border:1px solid rgba(0,255,157,0.3);}
+#panel-data .ec-pill.none{background:rgba(107,122,153,0.1);color:var(--muted);border:1px solid rgba(107,122,153,0.2);}
+#panel-data .ec-input{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--text);font-family:'Space Mono',monospace;font-size:10px;outline:none;transition:border-color 0.15s;width:130px;}
+#panel-data .ec-input:focus{border-color:#FF6EFF;}
+#panel-data .ec-save{background:none;border:1px solid var(--border);border-radius:5px;padding:3px 9px;font-size:9px;font-family:'Space Mono',monospace;color:var(--muted);cursor:pointer;transition:all 0.2s;white-space:nowrap;}
+#panel-data .ec-save:hover{border-color:#FF6EFF;color:#FF6EFF;}
+#panel-data .ec-clear{background:none;border:none;color:var(--muted);cursor:pointer;font-size:11px;padding:2px 4px;transition:color 0.2s;line-height:1;}
+#panel-data .ec-clear:hover{color:var(--danger);}
+#panel-data .ec-filter-bar{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;align-items:center;}
+#panel-data .ec-filter-btn{background:none;border:1px solid var(--border);border-radius:20px;padding:4px 12px;font-size:10px;font-family:'Space Mono',monospace;color:var(--muted);cursor:pointer;transition:all 0.2s;}
+#panel-data .ec-filter-btn:hover{border-color:#FF6EFF;color:#FF6EFF;}
+#panel-data .ec-filter-btn.active{background:rgba(255,110,255,0.1);border-color:#FF6EFF;color:#FF6EFF;}
+#panel-data .ec-count{font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);margin-left:auto;}
+@media(max-width:580px){#panel-data .ec-input{width:110px;}}
 </style>
 
 <div class="td-header">
@@ -1376,6 +1400,30 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
 </div>
 
 <div class="td-main">
+
+  <!-- 0. Earnings Calendar -->
+  <div class="td-sec">Earnings Calendar</div>
+  <div class="td-card" style="padding:14px;">
+    <div style="font-size:11px;color:var(--muted);margin-bottom:12px;line-height:1.6;">Enter earnings dates for your universe. Updates all three panels instantly. Dates more than 7 days past are cleared automatically each session.</div>
+    <div class="ec-filter-bar">
+      <button class="ec-filter-btn active" onclick="ecSetFilter('all',this)">All</button>
+      <button class="ec-filter-btn" onclick="ecSetFilter('set',this)">Has Date</button>
+      <button class="ec-filter-btn" onclick="ecSetFilter('unset',this)">No Date</button>
+      <button class="ec-filter-btn" onclick="ecSetFilter('soon',this)">≤14d</button>
+      <span class="ec-count" id="ec-count">— tickers</span>
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="ec-table">
+        <thead><tr>
+          <th>TICKER</th>
+          <th>EARNINGS DATE</th>
+          <th>PROXIMITY</th>
+          <th></th>
+        </tr></thead>
+        <tbody id="ec-tbody"></tbody>
+      </table>
+    </div>
+  </div>
 
   <!-- 1. Universe Health -->
   <div class="td-sec">Universe Health</div>
@@ -1697,10 +1745,10 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
 
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.7.0</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.8.0</div>
 
 <!-- ══ MOBILE VERSION STAMP (always visible on mobile, bottom-left) ══════ -->
-<div id="mobile-version-stamp" style="display:none;">v7.7.0</div>
+<div id="mobile-version-stamp" style="display:none;">v7.8.0</div>
 
 <!-- ══ MOBILE SCAN BTN (Brief panel only, toggled via swApp) ═════════════ -->
 <div id="mobile-scan-btn-wrap" style="display:none;">
@@ -6424,10 +6472,111 @@ window.TD = (function(){
     if(_booted)return;
     _booted=true;
     refreshDisplay();
+    ecRender();
   }
 
-  return{boot, refreshDisplay, runCuration, resetRecord, _booted:false};
+  return{boot, refreshDisplay, runCuration, resetRecord, ecRender, _booted:false};
 })();
+
+// ── EARNINGS CALENDAR (TradeData tab) ────────────────────────────────────────
+let _ecFilter = 'all';
+
+function ecSetFilter(filter, btn){
+  _ecFilter = filter;
+  document.querySelectorAll('.ec-filter-btn').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  ecRender();
+}
+
+function ecSave(ticker){
+  const input = document.getElementById('ec-in-'+ticker);
+  if(!input) return;
+  const val = input.value;
+  // Use shared TB utility if available, else write directly
+  if(typeof setEarningsOverride === 'function'){
+    setEarningsOverride(ticker, val||null);
+  } else {
+    const ov = JSON.parse(localStorage.getItem('earningsOverrides')||'{}');
+    if(val){ov[ticker]=val;}else{delete ov[ticker];}
+    localStorage.setItem('earningsOverrides', JSON.stringify(ov));
+    if(typeof earningsOverrides!=='undefined'){
+      if(val){earningsOverrides[ticker]=val;}else{delete earningsOverrides[ticker];}
+    }
+  }
+  // Propagate to TS if that ticker is loaded
+  try{
+    const tsInput = document.getElementById('earnings-date');
+    const tsTicker = (document.getElementById('ticker-input')||{}).value||'';
+    if(tsInput && tsTicker.trim().toUpperCase()===ticker){
+      tsInput.value = val||'';
+      if(typeof onEarningsChange==='function') onEarningsChange();
+    }
+  }catch(e){}
+  // Propagate to TB sd cache
+  if(typeof sd!=='undefined'&&sd[ticker]){ sd[ticker].earningsDate = val||null; }
+  ecRender();
+}
+
+function ecClear(ticker){
+  const input = document.getElementById('ec-in-'+ticker);
+  if(input) input.value = '';
+  ecSave(ticker);
+}
+
+function ecRender(){
+  const tbody = document.getElementById('ec-tbody');
+  const countEl = document.getElementById('ec-count');
+  if(!tbody) return;
+
+  const UNIVERSE_LOCAL = typeof UNIVERSE !== 'undefined' ? UNIVERSE : [];
+  const overrides = JSON.parse(localStorage.getItem('earningsOverrides')||'{}');
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  // Build rows
+  let rows = UNIVERSE_LOCAL.map(ticker => {
+    const dateStr = overrides[ticker]||'';
+    let dte = null, pillClass = 'none', pillText = '—';
+    if(dateStr){
+      const d = new Date(dateStr); d.setHours(0,0,0,0);
+      dte = Math.ceil((d - today)/86400000);
+      if(dte < 0){ pillClass='none'; pillText='Past'; }
+      else if(dte<=14){ pillClass='soon'; pillText=dte+'d'; }
+      else if(dte<=30){ pillClass='coming'; pillText=dte+'d'; }
+      else { pillClass='safe'; pillText=dte+'d'; }
+    }
+    return {ticker, dateStr, dte, pillClass, pillText};
+  });
+
+  // Filter
+  if(_ecFilter==='set')   rows = rows.filter(r=>r.dateStr);
+  if(_ecFilter==='unset') rows = rows.filter(r=>!r.dateStr);
+  if(_ecFilter==='soon')  rows = rows.filter(r=>r.dte!==null&&r.dte>=0&&r.dte<=14);
+
+  // Sort: dated rows first (soonest first), then undated alphabetically
+  rows.sort((a,b)=>{
+    if(a.dateStr&&b.dateStr) return a.dte-b.dte;
+    if(a.dateStr) return -1;
+    if(b.dateStr) return 1;
+    return a.ticker.localeCompare(b.ticker);
+  });
+
+  if(countEl) countEl.textContent = rows.length+' tickers';
+
+  tbody.innerHTML = rows.map(r=>`
+    <tr>
+      <td><span class="ec-sym">${r.ticker}</span></td>
+      <td>
+        <input class="ec-input" id="ec-in-${r.ticker}" type="date" value="${r.dateStr}"
+          onkeydown="if(event.key==='Enter'){ecSave('${r.ticker}');this.blur();}">
+      </td>
+      <td><span class="ec-pill ${r.pillClass}">${r.pillText}</span></td>
+      <td>
+        <button class="ec-save" onclick="ecSave('${r.ticker}')">Save</button>
+        ${r.dateStr ? `<button class="ec-clear" onclick="ecClear('${r.ticker}')" title="Clear date">✕</button>` : ''}
+      </td>
+    </tr>
+  `).join('');
+}
 
 
 function swApp(name){
@@ -6446,6 +6595,7 @@ function swApp(name){
   if(name==='brief'   && window.TB && !window.TB._booted){window.TB.boot(); window.TB._booted=true;}
   if(name==='sheet'   && window.TS && !window.TS._booted){window.TS.boot();  window.TS._booted=true;}
   if(name==='data'    && window.TD && !window.TD._booted){window.TD.boot();  window.TD._booted=true;}
+  if(name==='data'    && typeof ecRender==='function'){ ecRender(); }
   if(name==='log')    { tlRender(); }
   // Pre-load ticker into TS from workflow state
   if(name==='sheet' && window.TS){
@@ -6853,7 +7003,7 @@ function swApp(name){
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradingBrief v7.7.0 — Earnings override sync TB↔TS                            ║
+     ║  END TradingBrief v7.8.0 — Earnings Calendar in TradeData                          ║
      ║  2026-04-18                                                       ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 </body>
