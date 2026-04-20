@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v7.8.5 — Thesis rewrite: co-pilot prompt, memory, adder scale, IVR scoring fix  ║
-     ║  Date: 2026-04-19                                                ║
+     ║  TRADEBRIEF v7.8.6 — Risk Snapshot + Card Layout Reorganization  ║
+     ║  Date: 2026-04-20                                                ║
      ║  Changes from v7.8.4:                                              ║
      ║    1. Reweight calcConfidence: EMA 18, RSI 12, Trend 14, Vol 15   ║
      ║    2. New: Clean Entry/Extension category (ATR multiples, max 15) ║
@@ -18,7 +18,7 @@
 <meta name="theme-color" content="#111827">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>TradeBrief v7.8.5</title>
+<title>TradeBrief v7.8.6</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -1751,10 +1751,10 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
 
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.8.5</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.8.6</div>
 
 <!-- ══ MOBILE VERSION STAMP (always visible on mobile, bottom-left) ══════ -->
-<div id="mobile-version-stamp" style="display:none;">v7.8.5</div>
+<div id="mobile-version-stamp" style="display:none;">v7.8.6</div>
 
 <!-- ══ MOBILE SCAN BTN (Brief panel only, toggled via swApp) ═════════════ -->
 <div id="mobile-scan-btn-wrap" style="display:none;">
@@ -1861,6 +1861,7 @@ let trades=JSON.parse(localStorage.getItem('trades')||'[]');
 let closedTrades=JSON.parse(localStorage.getItem('closedTrades')||'[]');
 let earningsOverrides=JSON.parse(localStorage.getItem('earningsOverrides')||'{}');
 let ivRankOverrides=JSON.parse(localStorage.getItem('ivRankOverrides')||'{}');
+let dividendOverrides=JSON.parse(localStorage.getItem('dividendOverrides')||'{}');
 let thesisMemory=JSON.parse(localStorage.getItem('thesisMemory')||'{}');
 
 // ── EARNINGS OVERRIDE UTILITIES (shared TB↔TS) ──────────────────────────
@@ -2206,8 +2207,8 @@ function buildTop10(){
   const allTickers=[...new Set([...wl,...Object.keys(sd)])];
   let scored=allTickers.map(t=>{
     const d=sd[t];
-    if(!d||d.loading||d.error)return null;// only filter out errors and loading
-    const fundScore=d.investorSignal?d.investorSignal.score:0;
+    if(!d||d.loading||d.error)return null;
+    const volRatioSort=d.volRatio!=null?d.volRatio:0;
 
     // Regime filter: if regime is known, surface only signals aligned with it
     // Shadow-tier or no-record tickers are not regime-filtered (unknowns pass through)
@@ -2231,15 +2232,12 @@ function buildTop10(){
       else siBonus=-10;// below standard: penalty
     }
 
-    return{ticker:t,confidence:(d.confidence||0)+siBonus,direction:d.direction||'—',fundScore,tier};
+    return{ticker:t,confidence:(d.confidence||0)+siBonus,direction:d.direction||'—',volRatioSort,tier};
   }).filter(Boolean).sort((a,b)=>{
-    // Primary: confidence score descending
-    // Tiebreaker: within 3 confidence points, higher fundamental score ranks first
     const diff=Math.abs(a.confidence-b.confidence);
     if(diff>3)return b.confidence-a.confidence;
-    // Within 3 points — use fundamentals as tiebreaker
-    if(a.fundScore!==b.fundScore)return b.fundScore-a.fundScore;
-    return b.confidence-a.confidence;// fallback to confidence if funds equal too
+    if(a.volRatioSort!==b.volRatioSort)return b.volRatioSort-a.volRatioSort;
+    return b.confidence-a.confidence;
   });
 
   top10=scored.filter(s=>!dismissedCards.includes(s.ticker)).slice(0,10).map(s=>s.ticker);
@@ -2288,6 +2286,7 @@ async function runScanner(force){
       volume:q.volume,avgVolume:q.avgVolume,
       rsi14:null,ema8:null,ema21:null,earningsDate:earningsOverrides[ticker]||null,
       signal:'—',reason:'Limited data — price and momentum only',confidence:partialScore,direction:'—',
+      description:q.description||'',
       teasers:[
         {label:'RSI 14',value:'—',note:'Awaiting candle data'},
         {label:'Trend',value:'—',note:'Awaiting candle data'},
@@ -2334,7 +2333,7 @@ async function runScanner(force){
         const conf=calcConfidence(q.price,ema8,ema21,rsi14,q.volume,q.avgVolume,q.changePct,atr14,closes,ivRankOverrides[ticker]??null);
         const ob=S('rsiOb'),os=S('rsiOs');
         sd[ticker]={ticker,price:q.price,change:q.change,changePct:q.changePct,
-          volume:q.volume,avgVolume:q.avgVolume,
+          volume:q.volume,avgVolume:q.avgVolume,description:q.description||'',
           rsi14,ema8,ema21,atr14,earningsDate:earningsOverrides[ticker]||null,
           signal:conf.direction,reason:'Confidence '+conf.score+'/100 — '+(conf.direction==='CALLS'?'Bullish':'Bearish')+' setup'+(conf.againstRegime?' — fighting broader SPY trend. Elevated risk, consider smaller size.':''),
           confidence:conf.score,rawScore:conf.rawScore,againstRegime:conf.againstRegime,volRatio:conf.volRatio,atrNeutral:conf.atrNeutral,direction:conf.direction,
@@ -2399,14 +2398,6 @@ async function runScanner(force){
   };
   console.log('📊 Scan complete:',stats);
   console.log(`Top ${top10.length} tickers:`,top10.map(t=>`${t}(${sd[t]?.confidence||0})`).join(', '));
-
-  // Fetch investor signals for top 10 (Finnhub fundamentals)
-  for(const t of top10){
-    if(sd[t]&&!sd[t].investorSignal){
-      fetchInvestorSignal(t).then(inv=>{if(inv){sd[t].investorSignal=inv;rB();}});
-      await new Promise(r=>setTimeout(r,2000));
-    }
-  }
 }
 
 function updateScanBar(){
@@ -2800,6 +2791,7 @@ async function fetch1(ticker){
     const changePct=parseFloat((q.change_percentage||0).toFixed(2));
     const volume=q.volume||0;
     const avgVolume=q.average_volume||0;
+    const description=q.description||'';
 
     // Candles via Tradier history
     let closes=[];
@@ -2815,7 +2807,7 @@ async function fetch1(ticker){
 
     if(!closes.length){
       const partialScore=calcPartialConfidence(price,changePct);
-      sd[ticker]={ticker,price,change,changePct,volume,avgVolume,rsi14:null,ema8:null,ema21:null,atr14:null,earningsDate:null,
+      sd[ticker]={ticker,price,change,changePct,volume,avgVolume,rsi14:null,ema8:null,ema21:null,atr14:null,earningsDate:null,description,
         signal:'—',reason:'Limited data — price and momentum only',confidence:partialScore,direction:'—',
         teasers:[
           {label:'RSI 14',value:'—',note:'No candle data available'},
@@ -2862,7 +2854,7 @@ async function fetch1(ticker){
         if(upcoming.length)earningsDate=upcoming[0].date;
       }catch(e){console.warn(`${ticker}: earnings fetch error — ${e.message}`);}
     }
-    sd[ticker]={ticker,price,change,changePct,volume,avgVolume,rsi14,ema8,ema21,atr14,earningsDate,signal:conf.direction,reason:'Confidence '+conf.score+'/100 — '+(conf.direction==='CALLS'?'Bullish':'Bearish')+' setup',confidence:conf.score,rawScore:conf.rawScore,againstRegime:conf.againstRegime,volRatio:conf.volRatio,atrNeutral:conf.atrNeutral,direction:conf.direction,teasers,closes,trend,dataSource};
+    sd[ticker]={ticker,price,change,changePct,volume,avgVolume,rsi14,ema8,ema21,atr14,earningsDate,description,signal:conf.direction,reason:'Confidence '+conf.score+'/100 — '+(conf.direction==='CALLS'?'Bullish':'Bearish')+' setup',confidence:conf.score,rawScore:conf.rawScore,againstRegime:conf.againstRegime,volRatio:conf.volRatio,atrNeutral:conf.atrNeutral,direction:conf.direction,teasers,closes,trend,dataSource};
   }catch(e){
     console.warn(`${ticker}: fetch1 error — ${e.message}`);
     sd[ticker]={error:true,msg:e.message};
@@ -3135,63 +3127,50 @@ function renderDataCard(ticker){
   return`<div class="data-card" style="position:relative;${isLimited?' opacity:0.85;':''}">
     <button onclick="dismissCard('${ticker}')" title="Dismiss" style="position:absolute;top:8px;right:10px;background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer;padding:4px;line-height:1;z-index:10;" onmouseover="this.style.color='var(--danger)'" onmouseout="this.style.color='var(--muted)'">✕</button>
     <div class="acc ${tr2}"></div>
-    <div class="card-top">
-      <div class="card-name">
-        <div class="tbadge">${ticker}</div>
-        <div class="cprice ${priceClass}">$${d.price.toFixed(2)}</div>
-      </div>
-      <div><div class="pch ${priceClass}">${chgStr(d)}</div></div>
-      <div class="inds">
-        <div class="ip"><span class="il">RSI 14</span><span class="iv ${rsiClass}">${rsiDisplay}</span></div>
-        <div class="ip"><span class="il">EMA ${parts[0]}</span><span class="iv ${a8}">${ema8Display}</span></div>
-        <div class="ip"><span class="il">EMA ${parts[1]}</span><span class="iv ${a21}">${ema21Display}</span></div>
-        <div class="ip"><span class="il">TREND</span><span class="iv" style="color:${trendColor};font-size:9px;">${trendVal}</span></div>
-        <div class="ip"><span class="il">DAY</span><span class="iv" style="color:${dayColor};">${(d.changePct>=0?'+':'')+d.changePct.toFixed(1)}%</span></div>
-        <div class="ip"><span class="il">EARN</span><span class="iv ${earnPillColor}">${earnPillText}</span></div>
-        <div class="ip" title="Today's volume vs 30-day average"><span class="il">VOL RATIO</span><span class="iv" style="color:${volRatioColor};">${volRatioDisplay}</span></div>
-        ${d.atr14!==null&&d.atr14!==undefined?`<div class="ip"><span class="il">ATR 14</span><span class="iv mid">$${d.atr14.toFixed(2)}</span></div>`:''}
-        ${d.atrNeutral?`<div class="ip" title="Not enough history to calculate ATR — Clean Entry/Extension scored as neutral"><span class="il">ENTRY</span><span class="iv" style="color:var(--warning);font-size:9px;">ATR N/A</span></div>`:''}
-        ${ivRankOverrides[ticker]!=null?`<div class="ip" title="Manual IV Rank override — affects scoring"><span class="il">IVR</span><span class="iv" style="color:${ivRankOverrides[ticker]>=30&&ivRankOverrides[ticker]<=65?'var(--good)':ivRankOverrides[ticker]>75?'var(--danger)':'var(--warning)'};">${ivRankOverrides[ticker]}</span></div>`:''}
-      </div>
-      <div style="margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:2px;padding-right:24px;">
-        <div style="display:flex;align-items:center;gap:6px;">
-          <!-- CHANGE 1 + CHANGE 5: Tappable score with onboarding hint -->
-          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:1px;">
-            <div id="score-display-${ticker}" style="font-family:'Space Mono',monospace;font-size:18px;font-weight:700;color:${scoreColor};cursor:pointer;position:relative;line-height:1;" onclick="toggleScoreBreakdown('${ticker}',event)" title="Tap to see score breakdown">${displayScore}<span style="font-size:9px;color:var(--muted);margin-left:2px;">▾</span></div>
-            ${d.againstRegime?`<div style="font-family:'Space Mono',monospace;font-size:8px;color:#ffa502;text-align:right;line-height:1.2;">⚠ vs SPY regime</div>`:''}
-            ${!localStorage.getItem('tb_score_hint_seen')?`<div id="score-hint-${ticker}" style="font-family:'Space Mono',monospace;font-size:7px;color:var(--muted);text-align:right;line-height:1.2;max-width:90px;">tap score to see breakdown</div>`:''}
-          </div>
+    <div class="card-top" style="flex-wrap:wrap;gap:6px;">
+      <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0;flex-wrap:wrap;">
+        <!-- Row 1: badge · score · ticker · price · change -->
+        <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;">
           <div class="sbadge ${sig}">${sig}</div>
+          <div id="score-display-${ticker}" style="font-family:'Space Mono',monospace;font-size:18px;font-weight:700;color:${scoreColor};cursor:pointer;position:relative;line-height:1;" onclick="toggleScoreBreakdown('${ticker}',event)" title="Tap to see score breakdown">${displayScore}<span style="font-size:9px;color:var(--muted);margin-left:1px;">▾</span></div>
+          <div style="display:flex;flex-direction:column;gap:1px;">
+            <div style="display:flex;align-items:baseline;gap:8px;">
+              <div class="tbadge">${ticker}</div>
+              <div class="cprice ${priceClass}">$${d.price.toFixed(2)}</div>
+              <div class="pch ${priceClass}">${chgStr(d)}</div>
+            </div>
+            <!-- Row 2: regime pill · company name -->
+            <div style="display:flex;align-items:center;gap:6px;margin-top:2px;">
+              ${regimeNote}
+              ${d.description?`<div style="font-size:11px;color:var(--muted);font-family:'DM Sans',sans-serif;">${d.description}</div>`:''}
+            </div>
+            <!-- SI accuracy badge -->
+            ${siBadge?`<div style="margin-top:2px;">${siBadge}</div>`:''}
+          </div>
         </div>
-        <!-- CHANGE 1: Score breakdown popup with regime cap explanation -->
-        <div id="score-breakdown-${ticker}" style="display:none;position:absolute;right:14px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 12px;z-index:100;min-width:240px;box-shadow:0 4px 20px rgba(0,0,0,0.4);margin-top:2px;">
+        <!-- Score breakdown popup -->
+        <div id="score-breakdown-${ticker}" style="display:none;position:absolute;left:14px;top:70px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 12px;z-index:100;min-width:240px;box-shadow:0 4px 20px rgba(0,0,0,0.4);">
           <div style="font-family:'Space Mono',monospace;font-size:8px;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;margin-bottom:6px;">Score Breakdown</div>
-          <!-- CHANGE 5: Onboarding hint at top of first open -->
           <div style="font-size:10px;color:var(--muted);line-height:1.5;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--border);">Technical score = current setup strength. Historical Edge (SI %) = how often this setup worked on this ticker in past tests. Thesis adds conviction.</div>
           ${(()=>{
             const rows=[];
             const hasData=d.ema8!==null&&d.ema8!==undefined;
             if(hasData){
-              // 1. EMA Alignment (0-18)
               const emasStacked=(d.ema8>d.ema21&&d.price>d.ema8&&d.price>d.ema21)||(d.ema8<d.ema21&&d.price<d.ema8&&d.price<d.ema21);
               const emaPts=emasStacked?18:(d.ema8!==d.ema21)?11:4;
               rows.push(`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border);font-family:'Space Mono',monospace;font-size:10px;"><span style="color:var(--muted);">EMA Alignment</span><span style="color:${emaPts>=15?'var(--good)':emaPts>=9?'var(--accent)':'var(--warning)'};">+${emaPts}</span></div>`);
-              // 2. RSI Quality (0-12)
               const rsi=d.rsi14;
               const ob2=parseFloat(S('rsiOb'))||75,os2=parseFloat(S('rsiOs'))||25;
               let rsiPts=1;
               if(rsi!==null){const emaBull=d.ema8>d.ema21;rsiPts=emaBull?(rsi>=45&&rsi<=65?12:rsi>40&&rsi<=70?9:rsi>65?6:rsi>ob2?3:1):(rsi>=35&&rsi<=55?12:rsi>=30&&rsi<60?9:rsi<35?6:rsi<os2?3:1);}
               rows.push(`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border);font-family:'Space Mono',monospace;font-size:10px;"><span style="color:var(--muted);">RSI Quality</span><span style="color:${rsiPts>=9?'var(--good)':rsiPts>=6?'var(--accent)':'var(--warning)'};">+${rsiPts}</span></div>`);
-              // 3. Trend Strength (0-14) sep-based estimate for display
               const sep=Math.abs((d.ema8-d.ema21)/d.ema21)*100;
               const trendPts=sep>3?12:sep>1.5?9:sep>0.5?6:3;
               rows.push(`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border);font-family:'Space Mono',monospace;font-size:10px;"><span style="color:var(--muted);">Trend Strength</span><span style="color:${trendPts>=10?'var(--good)':trendPts>=7?'var(--accent)':'var(--warning)'};">~${trendPts}</span></div>`);
             }
-            // 4. Volume Confirmation (0-15)
             let volPts=7;
             if(d.volRatio!==null&&d.volRatio!==undefined){const bigDay=Math.abs(d.changePct)>=2;volPts=d.volRatio>=2.0?15:d.volRatio>=1.5?10:d.volRatio>=1.0?7:d.volRatio>=0.5?4:(bigDay?1:3);}
             rows.push(`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border);font-family:'Space Mono',monospace;font-size:10px;"><span style="color:var(--muted);">Volume Confirm</span><span style="color:${volPts>=10?'var(--good)':volPts>=6?'var(--accent)':'var(--warning)'};">+${volPts}</span></div>`);
-            // 5. Clean Entry / Extension (0-15)
             if(d.atrNeutral){
               rows.push(`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border);font-family:'Space Mono',monospace;font-size:10px;"><span style="color:var(--muted);">Clean Entry</span><span style="color:var(--warning);">+8 (ATR N/A)</span></div>`);
             } else if(d.atr14&&d.ema8){
@@ -3201,10 +3180,8 @@ function renderDataCard(ticker){
               const extLabel=atrMult<=0.5?'clean':atrMult<=1.0?'modest ext':atrMult<=1.5?'extended':atrMult<=2.0?'chasing':'far extended';
               rows.push(`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border);font-family:'Space Mono',monospace;font-size:10px;"><span style="color:var(--muted);">Clean Entry</span><span style="color:${extPts>=10?'var(--good)':extPts>=5?'var(--accent)':'var(--danger)'};">+${extPts} (${extLabel})</span></div>`);
             }
-            // 6. IV Rank (neutral 6 at scan; full range when override set)
             const ivrVal=ivRankOverrides[ticker]??null;
-            let ivrPtsDisplay=6;
-            let ivrLabel='scan neutral';
+            let ivrPtsDisplay=6,ivrLabel='scan neutral';
             if(ivrVal!=null){
               if(ivrVal<=20){ivrPtsDisplay=12;ivrLabel=`${ivrVal} — very cheap`;}
               else if(ivrVal<=35){ivrPtsDisplay=10;ivrLabel=`${ivrVal} — cheap`;}
@@ -3214,7 +3191,6 @@ function renderDataCard(ticker){
               else{ivrPtsDisplay=0;ivrLabel=`${ivrVal} — very high`;}
             }
             rows.push(`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border);font-family:'Space Mono',monospace;font-size:10px;"><span style="color:var(--muted);">IV Rank</span><span style="color:${ivrPtsDisplay>=9?'var(--good)':ivrPtsDisplay>=6?'var(--muted)':'var(--danger)'};">+${ivrPtsDisplay} (${ivrLabel})</span></div>`);
-            // 7. SPY Regime + SI Edge (bonus only, 0-10)
             if(spyRegime&&d.direction&&d.direction!=='—'){
               const aligned=(d.direction==='CALLS'&&spyRegime==='BULLISH')||(d.direction==='PUTS'&&spyRegime==='BEARISH');
               rows.push(`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border);font-family:'Space Mono',monospace;font-size:10px;"><span style="color:var(--muted);">Regime + SI</span><span style="color:${aligned?'var(--good)':'var(--muted)'};">${aligned?'+10':'+0 (vs regime)'}</span></div>`);
@@ -3229,7 +3205,6 @@ function renderDataCard(ticker){
             }
             const convTotal=d.thesisScore!=null?Math.min(100,displayScore+d.thesisScore):displayScore;
             const convColor=convTotal>=82?'var(--good)':convTotal>=70?'var(--accent)':'var(--warning)';
-            // CHANGE 2: Show full conviction line
             if(d.thesisScore!=null){
               rows.push(`<div style="padding:5px 0 0;font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);border-top:1px solid var(--border);margin-top:2px;">Technical: <span style="color:var(--accent);">${displayScore}</span> | Thesis +${d.thesisScore} → <span style="color:${convColor};font-weight:700;">Conviction: ${convTotal}</span></div>`);
             } else {
@@ -3238,7 +3213,19 @@ function renderDataCard(ticker){
             return rows.join('');
           })()}
         </div>
-        ${siBadge}${regimeNote}
+      </div>
+      <!-- Indicator pills — right side -->
+      <div class="inds" style="margin-left:auto;">
+        <div class="ip"><span class="il">RSI 14</span><span class="iv ${rsiClass}">${rsiDisplay}</span></div>
+        <div class="ip"><span class="il">EMA ${parts[0]}</span><span class="iv ${a8}">${ema8Display}</span></div>
+        <div class="ip"><span class="il">EMA ${parts[1]}</span><span class="iv ${a21}">${ema21Display}</span></div>
+        <div class="ip"><span class="il">TREND</span><span class="iv" style="color:${trendColor};font-size:9px;">${trendVal}</span></div>
+        <div class="ip"><span class="il">DAY</span><span class="iv" style="color:${dayColor};">${(d.changePct>=0?'+':'')+d.changePct.toFixed(1)}%</span></div>
+        <div class="ip"><span class="il">EARN</span><span class="iv ${earnPillColor}">${earnPillText}</span></div>
+        <div class="ip" title="Today's volume vs 30-day average"><span class="il">VOL RATIO</span><span class="iv" style="color:${volRatioColor};">${volRatioDisplay}</span></div>
+        ${d.atr14!==null&&d.atr14!==undefined?`<div class="ip"><span class="il">ATR 14</span><span class="iv mid">$${d.atr14.toFixed(2)}</span></div>`:''}
+        ${d.atrNeutral?`<div class="ip" title="ATR N/A — scored as neutral"><span class="il">ENTRY</span><span class="iv" style="color:var(--warning);font-size:9px;">ATR N/A</span></div>`:''}
+        ${ivRankOverrides[ticker]!=null?`<div class="ip" title="Manual IV Rank override"><span class="il">IVR</span><span class="iv" style="color:${ivRankOverrides[ticker]<=35?'var(--good)':ivRankOverrides[ticker]>=66?'var(--danger)':'var(--warning)'};">${ivRankOverrides[ticker]}</span></div>`:''}
       </div>
     </div>
     <div class="card-mid">
@@ -3257,10 +3244,10 @@ function renderDataCard(ticker){
           <a class="ref-sm" href="https://www.tradingview.com/chart/?symbol=${ticker}" target="_blank" rel="noopener noreferrer" style="text-decoration:none;">📈 TV</a>
         </div>
         <div class="earn-override-section" style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
-          <div class="earn-override-label" style="font-family:'Space Mono',monospace;font-size:9px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;">Earnings Date Override</div>
+          <div class="earn-override-label" style="font-family:'Space Mono',monospace;font-size:9px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;">Earnings Override</div>
           <div class="earn-override-row" style="display:flex;align-items:center;gap:6px;">
             <input class="earn-input" id="earn-in-${ticker}" type="date" value="${earningsOverrides[ticker]||''}" style="max-width:150px;">
-            <button class="earn-save" onclick="saveEarningsOverride('${ticker}')">Override</button>
+            <button class="earn-save" onclick="saveEarningsOverride('${ticker}')">Save</button>
           </div>
           <div class="earn-override-label" style="font-family:'Space Mono',monospace;font-size:9px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;margin-top:4px;">IV Rank Override</div>
           <div class="earn-override-row" style="display:flex;align-items:center;gap:6px;">
@@ -3268,14 +3255,54 @@ function renderDataCard(ticker){
             <button class="earn-save" onclick="saveIVROverride('${ticker}')">Save</button>
             ${ivRankOverrides[ticker]!=null?`<button class="earn-save" style="background:var(--border);color:var(--muted);" onclick="setIVROverride('${ticker}',null);document.getElementById('ivr-in-${ticker}').value='';rB();tb_toast('IV Rank cleared');">✕</button>`:''}
           </div>
+          <div class="earn-override-label" style="font-family:'Space Mono',monospace;font-size:9px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;margin-top:4px;">Dividend Override</div>
+          <div class="earn-override-row" style="display:flex;align-items:center;gap:6px;">
+            <input class="earn-input" id="div-yield-${ticker}" type="number" min="0" step="0.1" placeholder="Yield %" value="${dividendOverrides[ticker]?dividendOverrides[ticker].yield:''}" style="max-width:80px;">
+            <input class="earn-input" id="div-ex-${ticker}" type="date" value="${dividendOverrides[ticker]?dividendOverrides[ticker].exDate:''}" style="max-width:140px;">
+            <button class="earn-save" onclick="saveDividendOverride('${ticker}')">Save</button>
+            ${dividendOverrides[ticker]?`<button class="earn-save" style="background:var(--border);color:var(--muted);" onclick="clearDividendOverride('${ticker}');rB();tb_toast('Dividend cleared.');">✕</button>`:''}
+          </div>
         </div>
       </div>
-      ${d.investorSignal?`<div style="margin-top:8px;display:flex;flex-direction:column;gap:3px;">
-        <div style="font-family:'Space Mono',monospace;font-size:8px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;margin-bottom:2px;">Risk Profile</div>
-        <div class="inv-badge ${d.investorSignal.bclass}">${d.investorSignal.badge}</div>
-        <div class="inv-thesis">${d.investorSignal.thesis}</div>
-        <div style="font-size:9px;color:var(--muted);font-style:italic;margin-top:2px;">Overnight gap risk — not factored into confidence score.</div>
-      </div>`:''}
+      ${(()=>{
+        // ── RISK SNAPSHOT ─────────────────────────────────────────────
+        const lines=[];
+        // Line 1: Entry extension (ATR-based)
+        if(d.atrNeutral){
+          lines.push(`<div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);">Entry &nbsp;<span style="color:var(--muted);">ATR N/A — scored neutral</span></div>`);
+        } else if(d.atr14&&d.atr14>0&&d.ema8){
+          const dist=(d.direction==='CALLS'?(d.price-d.ema8):(d.ema8-d.price));
+          const atrMult=parseFloat((dist/d.atr14).toFixed(2));
+          const entryColor=atrMult<=0.5?'var(--good)':atrMult<=1.0?'var(--accent)':atrMult<=1.5?'var(--warning)':'var(--danger)';
+          const entryLabel=atrMult<=0.5?'clean entry':atrMult<=1.0?'modest extension':atrMult<=1.5?'extended — caution':'chase risk — elevated';
+          lines.push(`<div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);">Entry &nbsp;<span style="color:${entryColor};">${atrMult.toFixed(1)}× ATR — ${entryLabel}</span></div>`);
+        }
+        // Line 2: Earnings proximity
+        if(earnDate&&earnDTE!==null){
+          const eColor=earnDTE<=3?'var(--danger)':earnDTE<=14?'var(--warning)':'var(--good)';
+          const eLabel=earnDTE<=0?'today / past':earnDTE===1?'tomorrow — avoid':'in '+earnDTE+' days';
+          lines.push(`<div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);">Earnings &nbsp;<span style="color:${eColor};">${eLabel}</span></div>`);
+        }
+        // Line 3: IV Rank
+        const ivrSnap=ivRankOverrides[ticker]??null;
+        if(ivrSnap!=null){
+          const iColor=ivrSnap<=35?'var(--good)':ivrSnap>=66?'var(--danger)':'var(--warning)';
+          const iLabel=ivrSnap<=35?'cheap — good for debit':ivrSnap>=66?'expensive — reduces edge':'fair';
+          lines.push(`<div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);">IVR &nbsp;<span style="color:${iColor};">${ivrSnap} — ${iLabel}</span></div>`);
+        }
+        // Line 4: Dividend
+        const divSnap=dividendOverrides[ticker]||null;
+        if(divSnap){
+          const dColor=divSnap.yield>=10?'var(--danger)':divSnap.yield>=5?'var(--warning)':'var(--muted)';
+          const exFmt=divSnap.exDate?new Date(divSnap.exDate+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'}):'—';
+          lines.push(`<div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);">Div &nbsp;<span style="color:${dColor};">${divSnap.yield}% · ex ${exFmt} — watch gap</span></div>`);
+        }
+        if(!lines.length)return '';
+        return `<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:4px;">
+          <div style="font-family:'Space Mono',monospace;font-size:8px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;margin-bottom:2px;">Risk Snapshot</div>
+          ${lines.join('')}
+        </div>`;
+      })()}
     </div>
     <div class="thesis-row" onclick="toggleThesis('${ticker}')">
       <div class="thesis-row-left">
@@ -3622,6 +3649,26 @@ function saveIVROverride(ticker){
   const val=document.getElementById('ivr-in-'+ticker).value;
   setIVROverride(ticker,val);
   rB();tb_toast('IV Rank saved ✓');
+}
+
+// ── DIVIDEND OVERRIDE UTILITIES ────────────────────────────────────────────
+function getDividendOverride(ticker){return dividendOverrides[ticker]||null;}
+function setDividendOverride(ticker,yieldPct,exDate){
+  const y=parseFloat(yieldPct);
+  if(!isNaN(y)&&y>0&&exDate){dividendOverrides[ticker]={yield:y,exDate:exDate};}
+  else{delete dividendOverrides[ticker];}
+  localStorage.setItem('dividendOverrides',JSON.stringify(dividendOverrides));
+}
+function clearDividendOverride(ticker){
+  delete dividendOverrides[ticker];
+  localStorage.setItem('dividendOverrides',JSON.stringify(dividendOverrides));
+}
+function saveDividendOverride(ticker){
+  const yEl=document.getElementById('div-yield-'+ticker);
+  const xEl=document.getElementById('div-ex-'+ticker);
+  if(!yEl||!xEl)return;
+  setDividendOverride(ticker,yEl.value,xEl.value);
+  rB();tb_toast('Dividend saved ✓');
 }
 
 // ── FIREBASE SYNC ─────────────────────────────────────────────────────────
@@ -4018,46 +4065,6 @@ function checkNotifications(){
       sessionStorage.setItem(key,'expiring');
     }
   });
-}
-
-// ── INVESTOR SIGNAL ────────────────────────────────────────────────────────
-async function fetchInvestorSignal(ticker){
-  try{
-    const r=await fetch(`${PROXY}/finnhub?type=fundamentals&symbol=${ticker}`);
-    const data=await r.json();
-    const m=data.metric||{};
-
-    // Score fundamentals
-    let score=0;
-    const pe=m['peBasicExclExtraTTM'];
-    const roe=m['roeTTM'];
-    const revenueGrowth=m['revenueGrowth3Y'];
-    const netMargin=m['netProfitMarginTTM'];
-    const analystR=m['analystRatingBuy']||0;
-    const analystS=m['analystRatingSell']||0;
-    const week52pct=m['52WeekPriceReturnDaily'];
-
-    if(pe&&pe>0&&pe<30)score+=2;
-    else if(pe&&pe>0&&pe<50)score+=1;
-    if(roe&&roe>15)score+=2;
-    else if(roe&&roe>8)score+=1;
-    if(revenueGrowth&&revenueGrowth>10)score+=2;
-    else if(revenueGrowth&&revenueGrowth>0)score+=1;
-    if(netMargin&&netMargin>15)score+=2;
-    else if(netMargin&&netMargin>5)score+=1;
-    const total=analystR+analystS;
-    if(total>0&&analystR/total>0.7)score+=2;
-    else if(total>0&&analystR/total>0.5)score+=1;
-    if(week52pct&&week52pct<-20)score+=1; // potential value
-
-    let badge,bclass,thesis;
-    if(score>=8){badge='🟢 STABLE';bclass='stable';thesis='Low overnight gap risk. Fundamental floor exists — adverse moves tend to be smaller and recoverable.';}
-    else if(score>=5){badge='🔵 MODERATE';bclass='moderate';thesis='Average gap risk. Decent fundamentals provide some cushion against unexpected moves.';}
-    else if(score>=3){badge='🟡 VOLATILE';bclass='volatile';thesis='Elevated gap risk. Weak fundamentals mean larger unexpected moves are more likely.';}
-    else{badge='🔴 HIGH RISK';bclass='highrisk';thesis='Maximum gap risk. No fundamental floor — overnight moves can be sharp and unpredictable.';}
-
-    return{badge,bclass,thesis,score,pe,roe,revenueGrowth,netMargin};
-  }catch(e){return null;}
 }
 
 // ── THESIS BUILDER ─────────────────────────────────────────────────────────
@@ -7251,7 +7258,7 @@ function swApp(name){
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradingBrief v7.8.5 — Thesis rewrite: co-pilot prompt, memory, adder scale, IVR scoring fix  ║
+     ║  END TradingBrief v7.8.6 — Risk Snapshot + Card Layout Reorganization  ║
      ║  2026-04-18                                                       ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 </body>
