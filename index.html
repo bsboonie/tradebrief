@@ -1,12 +1,14 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v7.8.2 — Bug fixes: syncTradesFromLog, earnings, TS mobile  ║
-     ║  Date: 2026-04-18                                                ║
-     ║  Changes from v7.8.1:                                              ║
-     ║    1. Remove undefined syncTradesFromLog() call in fetchLivePrice  ║
-     ║    2. TB cards: fall back to earningsOverrides live at render time  ║
-     ║    3. TS mobile: header padding matches .main card edges at ≤600px  ║
-     ║    6. Save writes to shared store — TB+TS update instantly      ║
+     ║  TRADEBRIEF v7.8.3 — Scoring model reweight (v4.3.2 → debit-spread weights)  ║
+     ║  Date: 2026-04-19                                                ║
+     ║  Changes from v7.8.2:                                              ║
+     ║    1. Reweight calcConfidence: EMA 18, RSI 12, Trend 14, Vol 15   ║
+     ║    2. New: Clean Entry/Extension category (ATR multiples, max 15) ║
+     ║    3. IV Rank slot: neutral 6/12 at scan; full range post-chain   ║
+     ║    4. Regime: bonus-only max +10, no negative penalty             ║
+     ║    5. Conviction thresholds: 82+ Strong, 70-81 Amber, <70 Weak   ║
+     ║    6. ATR N/A guard: neutral 8/15 + card visual cue when no data  ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 <html lang="en">
 <head>
@@ -16,7 +18,7 @@
 <meta name="theme-color" content="#111827">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>TradeBrief v7.8.2</title>
+<title>TradeBrief v7.8.3</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -1746,10 +1748,10 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
 
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.8.2</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.8.3</div>
 
 <!-- ══ MOBILE VERSION STAMP (always visible on mobile, bottom-left) ══════ -->
-<div id="mobile-version-stamp" style="display:none;">v7.8.2</div>
+<div id="mobile-version-stamp" style="display:none;">v7.8.3</div>
 
 <!-- ══ MOBILE SCAN BTN (Brief panel only, toggled via swApp) ═════════════ -->
 <div id="mobile-scan-btn-wrap" style="display:none;">
@@ -1967,98 +1969,137 @@ function getCountdown(){
 }
 
 // ── CONFIDENCE SCORE (0-100) ─────────────────────────────────────────────
-function calcConfidence(price,ema8,ema21,rsi,volume,avgVolume,changePct){
+function calcConfidence(price,ema8,ema21,rsi,volume,avgVolume,changePct,atr14,closes){
+  // ── Scoring model v4.3.2 — debit-spread weighted (reweighted 2026-04-19) ──
+  // Max possible raw: 18+12+14+15+15+12+10+5 = 101 → capped at 100
+  // Conviction thresholds: 82+ Strong | 70-81 Amber | <70 Weak
   let score=0;
   const ob=S('rsiOb'),os=S('rsiOs');
 
-  // 1. EMA alignment (0-25 pts)
-  const emaCrossover=ema8>ema21;// bullish
-  const emaCrossoverBear=ema8<ema21;// bearish
+  // 1. EMA Alignment (0–18 pts)
+  // Full credit: EMA8 > EMA21 AND price above both (or bearish mirror)
+  const emaCrossover=ema8>ema21;
+  const emaCrossoverBear=ema8<ema21;
   const priceAboveBoth=price>ema8&&price>ema21;
   const priceBelowBoth=price<ema8&&price<ema21;
   const emasStacked=emaCrossover&&priceAboveBoth;
   const emasStackedBear=emaCrossoverBear&&priceBelowBoth;
 
-  if(emasStacked||emasStackedBear)score+=25;// full alignment
-  else if(emaCrossover||emaCrossoverBear)score+=15;// crossover but price not fully aligned
-  else score+=5;// no clear crossover
+  if(emasStacked||emasStackedBear)score+=18;
+  else if(emaCrossover||emaCrossoverBear)score+=11;
+  else score+=4;
 
-  // 2. RSI quality (0-20 pts) — reduced from 25, bands scaled proportionally
-  // For calls: 40-65 is ideal. For puts: 35-60 is ideal.
+  // 2. RSI Quality (0–12 pts)
+  // Calls: 45-65 ideal. Puts: 35-55 ideal.
   if(emaCrossover){
-    if(rsi>=40&&rsi<=65)score+=20;// sweet spot for calls
-    else if(rsi>50&&rsi<=ob)score+=16;// decent momentum
-    else if(rsi>65&&rsi<=ob)score+=12;// strong but extended
-    else if(rsi>ob)score+=6;// overbought — still scored, not rejected
-    else if(rsi>=30&&rsi<40)score+=8;// below ideal for calls
-    else score+=2;// oversold with bullish EMA — contradictory
-  } else {
-    if(rsi>=35&&rsi<=60)score+=20;// sweet spot for puts
-    else if(rsi<50&&rsi>=os)score+=16;// decent
-    else if(rsi<35&&rsi>=os)score+=12;// strong but extended
-    else if(rsi<os)score+=6;// oversold — still scored
-    else if(rsi>60&&rsi<=70)score+=8;
-    else score+=2;
-  }
-
-  // 3. Trend strength via EMA separation (0-15 pts)
-  const emaSep=Math.abs((ema8-ema21)/ema21)*100;
-  if(emaSep>3)score+=15;// strong separation
-  else if(emaSep>1.5)score+=10;// moderate
-  else if(emaSep>0.5)score+=6;// weak
-  else score+=2;// flat/crossing
-
-  // 4. Day momentum (0-15 pts)
-  const absPct=Math.abs(changePct);
-  if(absPct>=2&&absPct<=6)score+=15;// solid move, not extreme
-  else if(absPct>=1)score+=10;// decent
-  else if(absPct>=0.3)score+=5;// quiet
-  else score+=2;// flat day
-
-  // 5. Volume confirmation (0-10 pts)
-  let volRatio=null;
-  if(avgVolume&&volume){
-    volRatio=volume/avgVolume;
-    if(volRatio>=1.5)score+=10;// above average volume
-    else if(volRatio>=1.0)score+=7;
-    else if(volRatio>=0.5)score+=4;
+    if(rsi>=45&&rsi<=65)score+=12;
+    else if(rsi>40&&rsi<=70)score+=9;
+    else if(rsi>65&&rsi<=ob)score+=6;
+    else if(rsi>ob)score+=3;
     else score+=1;
   } else {
-    score+=5;// no volume data, neutral
+    if(rsi>=35&&rsi<=55)score+=12;
+    else if(rsi>=30&&rsi<60)score+=9;
+    else if(rsi<35&&rsi>=os)score+=6;
+    else if(rsi<os)score+=3;
+    else score+=1;
   }
 
-  // 6. Budget affordability bonus (0-10 pts)
-  const budget=S('budget');
-  const idealMax=budget*0.4;
-  const okMax=budget*0.8;
-  const stretchMax=budget*1.5;
-  if(price<=idealMax)score+=10;
-  else if(price<=okMax)score+=7;
-  else if(price<=stretchMax)score+=4;
-  else score+=1;
+  // 3. Trend Strength (0–14 pts)
+  // EMA21 slope over last 15 closes + EMA separation combined
+  let trendPts=0;
+  if(closes&&closes.length>=16){
+    const recentCloses=closes.slice(-16);
+    const ema21_now=calcEMA(recentCloses,Math.min(21,recentCloses.length));
+    const ema21_prev=calcEMA(recentCloses.slice(0,-5),Math.min(21,recentCloses.length-5));
+    const slope=(ema21_now-ema21_prev)/ema21_prev*100;// % change over 5 days
+    const emaSep=Math.abs((ema8-ema21)/ema21)*100;
+    const slopeInDir=(emaCrossover&&slope>0)||(emaCrossoverBear&&slope<0);
+    const slopeStrong=Math.abs(slope)>0.5;
+    const slopeModerate=Math.abs(slope)>0.15;
+    if(slopeInDir&&slopeStrong&&emaSep>2)trendPts=14;
+    else if(slopeInDir&&slopeModerate&&emaSep>1)trendPts=10;
+    else if(slopeInDir&&emaSep>0.5)trendPts=7;
+    else if(emaSep>0.5)trendPts=4;
+    else trendPts=2;
+  } else {
+    // Fallback: EMA separation only
+    const emaSep=Math.abs((ema8-ema21)/ema21)*100;
+    if(emaSep>3)trendPts=10;
+    else if(emaSep>1.5)trendPts=7;
+    else if(emaSep>0.5)trendPts=4;
+    else trendPts=2;
+  }
+  score+=trendPts;
 
-  // Determine direction
+  // 4. Volume Confirmation (0–15 pts)
+  // Big % day on low volume is a warning sign — apply heavy penalty path
+  let volRatio=null;
+  let volPts=7;// neutral if no data
+  if(avgVolume&&volume){
+    volRatio=volume/avgVolume;
+    const bigDay=Math.abs(changePct)>=2;
+    if(volRatio>=2.0)volPts=15;
+    else if(volRatio>=1.5)volPts=10;
+    else if(volRatio>=1.0)volPts=7;
+    else if(volRatio>=0.5)volPts=4;
+    else volPts=(bigDay?1:3);// big move on low volume = chasing warning
+  }
+  score+=volPts;
+
+  // 5. Clean Entry / Extension (0–15 pts)
+  // Measures price distance from EMA8 in ATR multiples — catches chasing
+  let extensionPts=8;// neutral when ATR unavailable
+  let atrNeutral=false;
+  const validATR=atr14&&atr14>0;
+  if(validATR){
+    const dist=emaCrossover?(price-ema8):(ema8-price);// positive = extended in signal direction
+    const atrMult=dist/atr14;
+    if(atrMult<=0)extensionPts=15;// price at or below EMA8 (pullback entry — ideal)
+    else if(atrMult<=0.5)extensionPts=15;// very close to EMA8
+    else if(atrMult<=1.0)extensionPts=10;// modest extension
+    else if(atrMult<=1.5)extensionPts=5;// getting extended
+    else if(atrMult<=2.0)extensionPts=2;// chasing
+    else extensionPts=0;// >2 ATR extended — strong chasing penalty
+  } else {
+    atrNeutral=true;// flag for card visual cue
+  }
+  score+=extensionPts;
+
+  // 6. IV Rank Context (0–12 pts)
+  // At scan time: always neutral 6/12 (no IV data available yet)
+  // Full 0-12 range applied post-chain-pull when ivRank is populated on the ticker
+  // See: applyIVRankToScore() called from TradeSheet chain fetch
+  score+=6;
+
+  // Determine direction before regime check
   const direction=emaCrossover?'CALLS':'PUTS';
 
-  // 7. Regime Alignment (0-15 pts, or -10 penalty)
-  // Applied after direction is known. Uses global spyRegime.
+  // 7. SPY Regime + SI Edge (0–10 pts, bonus only — no negative penalty)
+  // Removed the old -10 penalty; fighting regime just loses opportunity points
   let regimePts=0;
   let againstRegime=false;
   if(spyRegime){
     const aligned=(direction==='CALLS'&&spyRegime==='BULLISH')||(direction==='PUTS'&&spyRegime==='BEARISH');
-    if(aligned){ regimePts=15; }
-    else{ regimePts=-10; againstRegime=true; }
+    if(aligned){ regimePts=10; }
+    else{ regimePts=0; againstRegime=true; }// no penalty, just no bonus
+  } else {
+    regimePts=5;// neutral market — partial credit
   }
-  // regime is neutral (spyRegime null) → 0 pts, no penalty
   score+=regimePts;
 
-  // Raw technical score (pre-cap), capped at 100
+  // 8. Thesis Adder (+5 — placeholder until Chunk 2 thesis rewrite)
+  // Will be upgraded to +8–15 dynamic range with thesis memory in v7.9.x
+  // Applied externally via thesisScore on sd[ticker] — not added here
+  // (kept as comment to document the reserved slot)
+
+  // Raw score capped at 100
   const rawScore=Math.min(100,Math.max(0,score));
 
-  // Adjusted score: if fighting regime, cap at 75
-  const adjustedScore=againstRegime?Math.min(75,rawScore):rawScore;
+  // No regime cap anymore — against-regime tickers just score lower naturally
+  const adjustedScore=rawScore;
 
-  return{score:adjustedScore,rawScore,direction,againstRegime,volRatio};
+  return{score:adjustedScore,rawScore,direction,againstRegime,volRatio,atrNeutral};
 }
 
 // Partial confidence for tickers with price only (no candle/EMA/RSI data)
@@ -2229,13 +2270,13 @@ async function runScanner(force){
         const rsi14=calcRSI(closes,14);
         const atr14=calcATR(candles,14);
         const trend=trendStrength(closes,ema8,ema21,rsi14);
-        const conf=calcConfidence(q.price,ema8,ema21,rsi14,q.volume,q.avgVolume,q.changePct);
+        const conf=calcConfidence(q.price,ema8,ema21,rsi14,q.volume,q.avgVolume,q.changePct,atr14,closes);
         const ob=S('rsiOb'),os=S('rsiOs');
         sd[ticker]={ticker,price:q.price,change:q.change,changePct:q.changePct,
           volume:q.volume,avgVolume:q.avgVolume,
           rsi14,ema8,ema21,atr14,earningsDate:earningsOverrides[ticker]||null,
           signal:conf.direction,reason:'Confidence '+conf.score+'/100 — '+(conf.direction==='CALLS'?'Bullish':'Bearish')+' setup'+(conf.againstRegime?' — fighting broader SPY trend. Elevated risk, consider smaller size.':''),
-          confidence:conf.score,rawScore:conf.rawScore,againstRegime:conf.againstRegime,volRatio:conf.volRatio,direction:conf.direction,
+          confidence:conf.score,rawScore:conf.rawScore,againstRegime:conf.againstRegime,volRatio:conf.volRatio,atrNeutral:conf.atrNeutral,direction:conf.direction,
           teasers:[
             {label:'RSI 14',value:rsi14.toFixed(1),note:rsi14<os?'Oversold — bounce potential':rsi14>ob?'Overbought — caution':'Healthy momentum range'},
             {label:'Trend',value:q.price>ema8&&q.price>ema21?'BULLISH':'BEARISH',note:q.price>ema8&&q.price>ema21?'Price above both EMAs':'Price below key EMAs'},
@@ -2356,11 +2397,12 @@ function reSignalAll(){
       return;
     }
     if(d.rsi14===null||d.ema8===null)return;// safety check
-    const conf=calcConfidence(d.price,d.ema8,d.ema21,d.rsi14,d.volume||0,d.avgVolume||0,d.changePct||0);
+    const conf=calcConfidence(d.price,d.ema8,d.ema21,d.rsi14,d.volume||0,d.avgVolume||0,d.changePct||0,d.atr14||null,d.closes||null);
     d.confidence=conf.score;
     d.rawScore=conf.rawScore;
     d.againstRegime=conf.againstRegime;
     d.volRatio=conf.volRatio;
+    d.atrNeutral=conf.atrNeutral;
     d.direction=conf.direction;
     d.signal=conf.direction;
     d.reason=`Confidence ${conf.score}/100 — ${conf.direction==='CALLS'?'Bullish':'Bearish'} setup${conf.againstRegime?' — fighting broader SPY trend. Elevated risk, consider smaller size.':''}`;
@@ -2741,7 +2783,7 @@ async function fetch1(ticker){
     const rsi14=calcRSI(closes,14);
     const atr14=calcATR(candles,14);
     const trend=trendStrength(closes,ema8,ema21,rsi14);
-    const conf=calcConfidence(price,ema8,ema21,rsi14,volume,avgVolume,changePct);
+    const conf=calcConfidence(price,ema8,ema21,rsi14,volume,avgVolume,changePct,atr14,closes);
     const ob=S('rsiOb'),os=S('rsiOs');
     const teasers=[
       {label:'RSI 14',value:rsi14.toFixed(1),note:rsi14<os?'Oversold — bounce potential':rsi14>ob?'Overbought — caution':'Healthy momentum range'},
@@ -2759,7 +2801,7 @@ async function fetch1(ticker){
         if(upcoming.length)earningsDate=upcoming[0].date;
       }catch(e){console.warn(`${ticker}: earnings fetch error — ${e.message}`);}
     }
-    sd[ticker]={ticker,price,change,changePct,volume,avgVolume,rsi14,ema8,ema21,atr14,earningsDate,signal:conf.direction,reason:'Confidence '+conf.score+'/100 — '+(conf.direction==='CALLS'?'Bullish':'Bearish')+' setup',confidence:conf.score,rawScore:conf.rawScore,againstRegime:conf.againstRegime,volRatio:conf.volRatio,direction:conf.direction,teasers,closes,trend,dataSource};
+    sd[ticker]={ticker,price,change,changePct,volume,avgVolume,rsi14,ema8,ema21,atr14,earningsDate,signal:conf.direction,reason:'Confidence '+conf.score+'/100 — '+(conf.direction==='CALLS'?'Bullish':'Bearish')+' setup',confidence:conf.score,rawScore:conf.rawScore,againstRegime:conf.againstRegime,volRatio:conf.volRatio,atrNeutral:conf.atrNeutral,direction:conf.direction,teasers,closes,trend,dataSource};
   }catch(e){
     console.warn(`${ticker}: fetch1 error — ${e.message}`);
     sd[ticker]={error:true,msg:e.message};
@@ -3015,16 +3057,16 @@ function renderDataCard(ticker){
   const regimeNote=(spyRegime&&d.direction&&d.direction!=='—')
     ?((d.direction==='CALLS'&&spyRegime==='BULLISH')||(d.direction==='PUTS'&&spyRegime==='BEARISH')
       ?`<span style="font-family:'Space Mono',monospace;font-size:8px;color:#4ade80;border:1px solid #4ade8044;border-radius:8px;padding:1px 6px;margin-left:4px;">✓ regime</span>`
-      :`<span style="font-family:'Space Mono',monospace;font-size:8px;color:#ffa502;border:1px solid #ffa50244;border-radius:8px;padding:1px 6px;margin-left:4px;" title="Raw technical score: ${d.rawScore||d.confidence} → capped at 75 (fighting SPY regime)">⚠ vs regime · capped 75</span>`)
+      :`<span style="font-family:'Space Mono',monospace;font-size:8px;color:#ffa502;border:1px solid #ffa50244;border-radius:8px;padding:1px 6px;margin-left:4px;" title="Signal opposes SPY regime — no regime bonus applied">⚠ vs regime</span>`)
     :'';
 
   // Score display: adjusted score is the big number; raw shown in tooltip if capped
   const displayScore=d.confidence||0;
   const rawScore=d.rawScore||displayScore;
   const scoreTooltip=d.againstRegime
-    ?`title="Regime-adjusted score. Raw technical strength: ${rawScore}/100 — capped at 75 because signal fights SPY regime (higher risk today)."`
+    ?`title="Signal opposes SPY regime — no regime bonus applied (raw: ${rawScore})"`
     :`title="Confidence score: ${displayScore}/100 — ${d.direction==='CALLS'?'Bullish':'Bearish'} technical setup"`;
-  const scoreColor=displayScore>=70?'var(--good)':displayScore>=45?'var(--accent)':'var(--warning)';
+  const scoreColor=displayScore>=82?'var(--good)':displayScore>=70?'var(--accent)':'var(--warning)';
 
   // Earnings color for pill
   const earnPillDTEColor=earnDTE!==null&&earnDTE<=14?'var(--danger)':earnDTE!==null&&earnDTE<=30?'var(--warning)':'var(--accent)';
@@ -3047,13 +3089,14 @@ function renderDataCard(ticker){
         <div class="ip"><span class="il">EARN</span><span class="iv ${earnPillColor}">${earnPillText}</span></div>
         <div class="ip" title="Today's volume vs 30-day average"><span class="il">VOL RATIO</span><span class="iv" style="color:${volRatioColor};">${volRatioDisplay}</span></div>
         ${d.atr14!==null&&d.atr14!==undefined?`<div class="ip"><span class="il">ATR 14</span><span class="iv mid">$${d.atr14.toFixed(2)}</span></div>`:''}
+        ${d.atrNeutral?`<div class="ip" title="Not enough history to calculate ATR — Clean Entry/Extension scored as neutral"><span class="il">ENTRY</span><span class="iv" style="color:var(--warning);font-size:9px;">ATR N/A</span></div>`:''}
       </div>
       <div style="margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:2px;padding-right:24px;">
         <div style="display:flex;align-items:center;gap:6px;">
           <!-- CHANGE 1 + CHANGE 5: Tappable score with onboarding hint -->
           <div style="display:flex;flex-direction:column;align-items:flex-end;gap:1px;">
             <div id="score-display-${ticker}" style="font-family:'Space Mono',monospace;font-size:18px;font-weight:700;color:${scoreColor};cursor:pointer;position:relative;line-height:1;" onclick="toggleScoreBreakdown('${ticker}',event)" title="Tap to see score breakdown">${displayScore}<span style="font-size:9px;color:var(--muted);margin-left:2px;">▾</span></div>
-            ${d.againstRegime?`<div style="font-family:'Space Mono',monospace;font-size:8px;color:#ffa502;text-align:right;line-height:1.2;">⚠ capped · vs SPY trend</div>`:''}
+            ${d.againstRegime?`<div style="font-family:'Space Mono',monospace;font-size:8px;color:#ffa502;text-align:right;line-height:1.2;">⚠ vs SPY regime</div>`:''}
             ${!localStorage.getItem('tb_score_hint_seen')?`<div id="score-hint-${ticker}" style="font-family:'Space Mono',monospace;font-size:7px;color:var(--muted);text-align:right;line-height:1.2;max-width:90px;">tap score to see breakdown</div>`:''}
           </div>
           <div class="sbadge ${sig}">${sig}</div>
@@ -3067,29 +3110,41 @@ function renderDataCard(ticker){
             const rows=[];
             const hasData=d.ema8!==null&&d.ema8!==undefined;
             if(hasData){
+              // 1. EMA Alignment (0-18)
               const emasStacked=(d.ema8>d.ema21&&d.price>d.ema8&&d.price>d.ema21)||(d.ema8<d.ema21&&d.price<d.ema8&&d.price<d.ema21);
-              const emaPts=emasStacked?25:(d.ema8!==d.ema21)?15:5;
-              rows.push(`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border);font-family:'Space Mono',monospace;font-size:10px;"><span style="color:var(--muted);">EMA Alignment</span><span style="color:${emaPts>=20?'var(--good)':emaPts>=12?'var(--accent)':'var(--warning)'};">+${emaPts}</span></div>`);
+              const emaPts=emasStacked?18:(d.ema8!==d.ema21)?11:4;
+              rows.push(`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border);font-family:'Space Mono',monospace;font-size:10px;"><span style="color:var(--muted);">EMA Alignment</span><span style="color:${emaPts>=15?'var(--good)':emaPts>=9?'var(--accent)':'var(--warning)'};">+${emaPts}</span></div>`);
+              // 2. RSI Quality (0-12)
               const rsi=d.rsi14;
-              let rsiPts=2;
-              if(rsi!==null){const emaBull=d.ema8>d.ema21;rsiPts=emaBull?(rsi>=40&&rsi<=65?20:rsi>50?16:rsi>65?12:rsi>70?6:8):(rsi>=35&&rsi<=60?20:rsi<50?16:rsi<35?12:rsi<30?6:8);}
-              rows.push(`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border);font-family:'Space Mono',monospace;font-size:10px;"><span style="color:var(--muted);">RSI Quality</span><span style="color:${rsiPts>=16?'var(--good)':rsiPts>=10?'var(--accent)':'var(--warning)'};">+${rsiPts}</span></div>`);
+              const ob2=parseFloat(S('rsiOb'))||75,os2=parseFloat(S('rsiOs'))||25;
+              let rsiPts=1;
+              if(rsi!==null){const emaBull=d.ema8>d.ema21;rsiPts=emaBull?(rsi>=45&&rsi<=65?12:rsi>40&&rsi<=70?9:rsi>65?6:rsi>ob2?3:1):(rsi>=35&&rsi<=55?12:rsi>=30&&rsi<60?9:rsi<35?6:rsi<os2?3:1);}
+              rows.push(`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border);font-family:'Space Mono',monospace;font-size:10px;"><span style="color:var(--muted);">RSI Quality</span><span style="color:${rsiPts>=9?'var(--good)':rsiPts>=6?'var(--accent)':'var(--warning)'};">+${rsiPts}</span></div>`);
+              // 3. Trend Strength (0-14) sep-based estimate for display
               const sep=Math.abs((d.ema8-d.ema21)/d.ema21)*100;
-              const sepPts=sep>3?15:sep>1.5?10:sep>0.5?6:2;
-              rows.push(`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border);font-family:'Space Mono',monospace;font-size:10px;"><span style="color:var(--muted);">Trend Strength</span><span style="color:${sepPts>=12?'var(--good)':sepPts>=8?'var(--accent)':'var(--warning)'};">+${sepPts}</span></div>`);
+              const trendPts=sep>3?12:sep>1.5?9:sep>0.5?6:3;
+              rows.push(`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border);font-family:'Space Mono',monospace;font-size:10px;"><span style="color:var(--muted);">Trend Strength</span><span style="color:${trendPts>=10?'var(--good)':trendPts>=7?'var(--accent)':'var(--warning)'};">~${trendPts}</span></div>`);
             }
-            const absPct=Math.abs(d.changePct);
-            const momPts=absPct>=2&&absPct<=6?15:absPct>=1?10:absPct>=0.3?5:2;
-            rows.push(`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border);font-family:'Space Mono',monospace;font-size:10px;"><span style="color:var(--muted);">Day Momentum</span><span style="color:${momPts>=12?'var(--good)':momPts>=8?'var(--accent)':'var(--warning)'};">+${momPts}</span></div>`);
+            // 4. Volume Confirmation (0-15)
+            let volPts=7;
+            if(d.volRatio!==null&&d.volRatio!==undefined){const bigDay=Math.abs(d.changePct)>=2;volPts=d.volRatio>=2.0?15:d.volRatio>=1.5?10:d.volRatio>=1.0?7:d.volRatio>=0.5?4:(bigDay?1:3);}
+            rows.push(`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border);font-family:'Space Mono',monospace;font-size:10px;"><span style="color:var(--muted);">Volume Confirm</span><span style="color:${volPts>=10?'var(--good)':volPts>=6?'var(--accent)':'var(--warning)'};">+${volPts}</span></div>`);
+            // 5. Clean Entry / Extension (0-15)
+            if(d.atrNeutral){
+              rows.push(`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border);font-family:'Space Mono',monospace;font-size:10px;"><span style="color:var(--muted);">Clean Entry</span><span style="color:var(--warning);">+8 (ATR N/A)</span></div>`);
+            } else if(d.atr14&&d.ema8){
+              const dist=(d.direction==='CALLS'?(d.price-d.ema8):(d.ema8-d.price));
+              const atrMult=dist/d.atr14;
+              const extPts=atrMult<=0.5?15:atrMult<=1.0?10:atrMult<=1.5?5:atrMult<=2.0?2:0;
+              const extLabel=atrMult<=0.5?'clean':atrMult<=1.0?'modest ext':atrMult<=1.5?'extended':atrMult<=2.0?'chasing':'far extended';
+              rows.push(`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border);font-family:'Space Mono',monospace;font-size:10px;"><span style="color:var(--muted);">Clean Entry</span><span style="color:${extPts>=10?'var(--good)':extPts>=5?'var(--accent)':'var(--danger)'};">+${extPts} (${extLabel})</span></div>`);
+            }
+            // 6. IV Rank (neutral 6 at scan time)
+            rows.push(`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border);font-family:'Space Mono',monospace;font-size:10px;"><span style="color:var(--muted);">IV Rank</span><span style="color:var(--muted);">+6 (scan neutral)</span></div>`);
+            // 7. SPY Regime + SI Edge (bonus only, 0-10)
             if(spyRegime&&d.direction&&d.direction!=='—'){
               const aligned=(d.direction==='CALLS'&&spyRegime==='BULLISH')||(d.direction==='PUTS'&&spyRegime==='BEARISH');
-              const regimePts=aligned?15:-10;
-              // CHANGE 1: Show raw→capped explanation when against regime
-              if(!aligned&&d.rawScore&&d.rawScore!==displayScore){
-                rows.push(`<div style="padding:4px 0 3px;border-bottom:1px solid var(--border);font-family:'Space Mono',monospace;font-size:10px;"><div style="display:flex;justify-content:space-between;"><span style="color:var(--muted);">SPY Regime</span><span style="color:var(--danger);">-10</span></div><div style="font-size:9px;color:#ffa502;margin-top:2px;">Raw: ${d.rawScore} → Capped at ${displayScore} (fighting SPY trend)</div></div>`);
-              } else {
-                rows.push(`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border);font-family:'Space Mono',monospace;font-size:10px;"><span style="color:var(--muted);">SPY Regime</span><span style="color:${aligned?'var(--good)':'var(--danger)'};">${aligned?'+15':'-10'}</span></div>`);
-              }
+              rows.push(`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border);font-family:'Space Mono',monospace;font-size:10px;"><span style="color:var(--muted);">Regime + SI</span><span style="color:${aligned?'var(--good)':'var(--muted)'};">${aligned?'+10':'+0 (vs regime)'}</span></div>`);
             }
             const siRec=window.SI?window.SI.getRecord(ticker):null;
             if(siRec&&siRec.totalSamples>=window.SI.MIN_FULL_SAMPLES){
@@ -3100,7 +3155,7 @@ function renderDataCard(ticker){
               rows.push(`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border);font-family:'Space Mono',monospace;font-size:10px;"><span style="color:var(--muted);">Thesis</span><span style="color:#bf8cff;">+${d.thesisScore}</span></div>`);
             }
             const convTotal=d.thesisScore!=null?Math.min(100,displayScore+d.thesisScore):displayScore;
-            const convColor=convTotal>=70?'var(--good)':convTotal>=45?'var(--accent)':'var(--warning)';
+            const convColor=convTotal>=82?'var(--good)':convTotal>=70?'var(--accent)':'var(--warning)';
             // CHANGE 2: Show full conviction line
             if(d.thesisScore!=null){
               rows.push(`<div style="padding:5px 0 0;font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);border-top:1px solid var(--border);margin-top:2px;">Technical + Regime: <span style="color:var(--accent);">${displayScore}</span> | Thesis +${d.thesisScore} → <span style="color:${convColor};font-weight:700;">Conviction: ${convTotal}</span></div>`);
@@ -7075,7 +7130,7 @@ function swApp(name){
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradingBrief v7.8.2 — Bug fixes: syncTradesFromLog, earnings, TS mobile  ║
+     ║  END TradingBrief v7.8.3 — Scoring model reweight (debit-spread weights)  ║
      ║  2026-04-18                                                       ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 </body>
