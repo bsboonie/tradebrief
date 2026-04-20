@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v7.8.4 — IVR override, signed trend, chasing penalty, UH collapse, earn clear fix  ║
+     ║  TRADEBRIEF v7.8.5 — Thesis rewrite: co-pilot prompt, memory, adder scale, IVR scoring fix  ║
      ║  Date: 2026-04-19                                                ║
-     ║  Changes from v7.8.3:                                              ║
+     ║  Changes from v7.8.4:                                              ║
      ║    1. Reweight calcConfidence: EMA 18, RSI 12, Trend 14, Vol 15   ║
      ║    2. New: Clean Entry/Extension category (ATR multiples, max 15) ║
      ║    3. IV Rank slot: neutral 6/12 at scan; full range post-chain   ║
@@ -18,7 +18,7 @@
 <meta name="theme-color" content="#111827">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>TradeBrief v7.8.4</title>
+<title>TradeBrief v7.8.5</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -1751,10 +1751,10 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
 
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.8.4</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.8.5</div>
 
 <!-- ══ MOBILE VERSION STAMP (always visible on mobile, bottom-left) ══════ -->
-<div id="mobile-version-stamp" style="display:none;">v7.8.4</div>
+<div id="mobile-version-stamp" style="display:none;">v7.8.5</div>
 
 <!-- ══ MOBILE SCAN BTN (Brief panel only, toggled via swApp) ═════════════ -->
 <div id="mobile-scan-btn-wrap" style="display:none;">
@@ -1861,6 +1861,7 @@ let trades=JSON.parse(localStorage.getItem('trades')||'[]');
 let closedTrades=JSON.parse(localStorage.getItem('closedTrades')||'[]');
 let earningsOverrides=JSON.parse(localStorage.getItem('earningsOverrides')||'{}');
 let ivRankOverrides=JSON.parse(localStorage.getItem('ivRankOverrides')||'{}');
+let thesisMemory=JSON.parse(localStorage.getItem('thesisMemory')||'{}');
 
 // ── EARNINGS OVERRIDE UTILITIES (shared TB↔TS) ──────────────────────────
 // Purge stored dates more than 7 days in the past (quarter rollover protection)
@@ -1931,6 +1932,24 @@ function setIVROverride(ticker,val){
   }catch(e){}
   // Update sd so scoring reflects new IVR immediately
   if(sd[ticker])sd[ticker].ivRankOverride=isNaN(n)?null:n;
+}
+// ── THESIS MEMORY ─────────────────────────────────────────────────────────
+function saveThesisMemory(ticker,recommendationText,price,targetZone){
+  thesisMemory[ticker.toUpperCase()]={
+    text:recommendationText,
+    targetZone:targetZone||null,// e.g. "10.58-10.65" extracted from recommendation
+    date:new Date().toISOString().split('T')[0],
+    lastPrice:price
+  };
+  localStorage.setItem('thesisMemory',JSON.stringify(thesisMemory));
+}
+function getThesisMemory(ticker){
+  return thesisMemory[ticker.toUpperCase()]||null;
+}
+function extractTargetZone(text){
+  // Extract price zones like "$10.58-$10.65" or "10.58–10.65" from recommendation text
+  const m=text.match(/\$?([\d.]+)\s*[-–]\s*\$?([\d.]+)/);
+  return m?`${m[1]}-${m[2]}`:null;
 }
 let sd={};
 let cfg=JSON.parse(localStorage.getItem('cfg')||'{}');
@@ -2100,16 +2119,17 @@ function calcConfidence(price,ema8,ema21,rsi,volume,avgVolume,changePct,atr14,cl
   score+=extensionPts;
 
   // 6. IV Rank Context (0–12 pts)
+  // Debit-spread logic: LOW IV = cheap options = better edge for buyers
   // At scan time: neutral 6/12 when no override. Full range when ivRankOverride is set.
-  let ivrPts=6;// default neutral
+  let ivrPts=6;// default neutral (no override)
   if(ivRankOverride!=null&&ivRankOverride>=0&&ivRankOverride<=100){
     const ivr=ivRankOverride;
-    if(ivr>=30&&ivr<=65)ivrPts=12;// ideal range for debit spreads
-    else if(ivr>=20&&ivr<30)ivrPts=9;// slightly low but workable
-    else if(ivr>65&&ivr<=75)ivrPts=7;// elevated but not extreme
-    else if(ivr>75&&ivr<=85)ivrPts=3;// high IV — expensive options
-    else if(ivr>85)ivrPts=0;// very high IV — avoid debit spreads
-    else ivrPts=4;// <20, very low IV — cheap but no movement expected
+    if(ivr<=20)ivrPts=12;        // very cheap — exceptional for debit buyers
+    else if(ivr<=35)ivrPts=10;   // cheap — good edge
+    else if(ivr<=50)ivrPts=8;    // moderate — workable
+    else if(ivr<=65)ivrPts=5;    // elevated — paying up somewhat
+    else if(ivr<=80)ivrPts=2;    // high — expensive options
+    else ivrPts=0;               // very high — poor debit entry
   }
   score+=ivrPts;
 
@@ -3186,12 +3206,12 @@ function renderDataCard(ticker){
             let ivrPtsDisplay=6;
             let ivrLabel='scan neutral';
             if(ivrVal!=null){
-              if(ivrVal>=30&&ivrVal<=65){ivrPtsDisplay=12;ivrLabel=`${ivrVal} — ideal`;}
-              else if(ivrVal>=20&&ivrVal<30){ivrPtsDisplay=9;ivrLabel=`${ivrVal} — low`;}
-              else if(ivrVal>65&&ivrVal<=75){ivrPtsDisplay=7;ivrLabel=`${ivrVal} — elevated`;}
-              else if(ivrVal>75&&ivrVal<=85){ivrPtsDisplay=3;ivrLabel=`${ivrVal} — high`;}
-              else if(ivrVal>85){ivrPtsDisplay=0;ivrLabel=`${ivrVal} — very high`;}
-              else{ivrPtsDisplay=4;ivrLabel=`${ivrVal} — very low`;}
+              if(ivrVal<=20){ivrPtsDisplay=12;ivrLabel=`${ivrVal} — very cheap`;}
+              else if(ivrVal<=35){ivrPtsDisplay=10;ivrLabel=`${ivrVal} — cheap`;}
+              else if(ivrVal<=50){ivrPtsDisplay=8;ivrLabel=`${ivrVal} — moderate`;}
+              else if(ivrVal<=65){ivrPtsDisplay=5;ivrLabel=`${ivrVal} — elevated`;}
+              else if(ivrVal<=80){ivrPtsDisplay=2;ivrLabel=`${ivrVal} — high`;}
+              else{ivrPtsDisplay=0;ivrLabel=`${ivrVal} — very high`;}
             }
             rows.push(`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border);font-family:'Space Mono',monospace;font-size:10px;"><span style="color:var(--muted);">IV Rank</span><span style="color:${ivrPtsDisplay>=9?'var(--good)':ivrPtsDisplay>=6?'var(--muted)':'var(--danger)'};">+${ivrPtsDisplay} (${ivrLabel})</span></div>`);
             // 7. SPY Regime + SI Edge (bonus only, 0-10)
@@ -3211,7 +3231,7 @@ function renderDataCard(ticker){
             const convColor=convTotal>=82?'var(--good)':convTotal>=70?'var(--accent)':'var(--warning)';
             // CHANGE 2: Show full conviction line
             if(d.thesisScore!=null){
-              rows.push(`<div style="padding:5px 0 0;font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);border-top:1px solid var(--border);margin-top:2px;">Technical + Regime: <span style="color:var(--accent);">${displayScore}</span> | Thesis +${d.thesisScore} → <span style="color:${convColor};font-weight:700;">Conviction: ${convTotal}</span></div>`);
+              rows.push(`<div style="padding:5px 0 0;font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);border-top:1px solid var(--border);margin-top:2px;">Technical: <span style="color:var(--accent);">${displayScore}</span> | Thesis +${d.thesisScore} → <span style="color:${convColor};font-weight:700;">Conviction: ${convTotal}</span></div>`);
             } else {
               rows.push(`<div style="display:flex;justify-content:space-between;padding:4px 0 0;font-family:'Space Mono',monospace;font-size:11px;font-weight:700;"><span style="color:var(--text);">Overall</span><span style="color:${convColor};">${convTotal}</span></div>`);
             }
@@ -3276,7 +3296,7 @@ function renderDataCard(ticker){
         <div class="thesis-score-row">
           <span class="thesis-score-big" style="color:${d.thesisVerdict==='STRONG'?'var(--good)':d.thesisVerdict==='SKIP'?'var(--danger)':'var(--warning)'};">${d.thesisVerdict}</span>
           <div class="thesis-conviction">
-            Technical + Regime: <span>${d.confidence}</span> &nbsp;|&nbsp; Thesis <span style="color:#bf8cff;">+${d.thesisScore}</span> → Overall Conviction: <span style="color:${Math.min(100,(d.confidence||0)+d.thesisScore)>=70?'var(--good)':Math.min(100,(d.confidence||0)+d.thesisScore)>=45?'var(--accent)':'var(--warning)'};">${Math.min(100, (d.confidence||0) + d.thesisScore)}</span>
+            Technical: <span>${d.confidence}</span> &nbsp;|&nbsp; Thesis <span style="color:#bf8cff;">+${d.thesisScore}</span> → Conviction: <span style="color:${Math.min(100,(d.confidence||0)+d.thesisScore)>=82?'var(--good)':Math.min(100,(d.confidence||0)+d.thesisScore)>=70?'var(--accent)':'var(--warning)'};">${Math.min(100, (d.confidence||0) + d.thesisScore)}</span>
           </div>
         </div>
         <div class="thesis-breakdown" id="thesis-breakdown-${ticker}">${d.thesisBreakdown}</div>
@@ -4085,41 +4105,61 @@ const _thesisInFlight={};
 async function analyzeThesis(ticker){
   const d=sd[ticker];
   if(!d)return;
-  if(_thesisInFlight[ticker])return;// prevent concurrent calls
+  if(_thesisInFlight[ticker])return;
   _thesisInFlight[ticker]=true;
   const loadEl=document.getElementById('thesis-loading-'+ticker);
   const resultEl=document.getElementById('thesis-result-'+ticker);
-
-  // UI: loading state
   if(loadEl)loadEl.style.display='flex';
   if(resultEl){resultEl.innerHTML='';resultEl.classList.remove('active');}
 
-  // Regime context
   const regimeStr=spyRegime?spyRegime:'Unknown';
   const regimeAligned=(d.direction==='CALLS'&&spyRegime==='BULLISH')||(d.direction==='PUTS'&&spyRegime==='BEARISH');
-  const regimeStatus=spyRegime?(regimeAligned?'Aligned with SPY regime':'AGAINST SPY regime — higher risk'):'SPY regime unknown';
-
-  // SI data
+  const regimeStatus=spyRegime?(regimeAligned?'Aligned with SPY regime':'Against SPY regime — consider smaller size'):'SPY regime unknown';
   const siRec=window.SI?window.SI._getRecord&&window.SI._getRecord(ticker):null;
-  const siStr=siRec&&siRec.totalSamples>=10?`SI accuracy: ${siRec.accuracy}% over ${siRec.totalSamples} samples (${siRec.tier} tier)`:'SI: insufficient data';
+  const siStr=siRec&&siRec.totalSamples>=10?`Historical edge: ${siRec.accuracy}% accuracy over ${siRec.totalSamples} samples (${siRec.tier} tier)`:'Historical edge: insufficient data yet';
 
-  const systemPrompt=`You are an independent, skeptical options trade analyst. Your job is to evaluate whether the technical data supports a trade — NOT to validate the signal. Be honest. If the setup is weak, say so even if the confidence score is high.
+  // Prior thesis memory injection
+  const prior=getThesisMemory(ticker);
+  let priorMemoryStr='';
+  if(prior){
+    let zoneStatus='N/A';
+    if(prior.targetZone){
+      const parts=prior.targetZone.split('-').map(Number);
+      const lo=parts[0],hi=parts[1];
+      if(d.price>=lo&&d.price<=hi)zoneStatus=`Price is NOW IN the target zone ($${lo}–$${hi}) — prior condition may be met`;
+      else if(d.price<lo)zoneStatus=`Price ($${d.price.toFixed(2)}) still below prior wait zone ($${lo}–$${hi})`;
+      else zoneStatus=`Price ($${d.price.toFixed(2)}) has moved above prior zone ($${lo}–$${hi})`;
+    }
+    priorMemoryStr=`
+PRIOR ANALYSIS MEMORY:
+Date: ${prior.date} | Price then: $${prior.lastPrice}
+Prior recommendation: "${prior.text}"${prior.targetZone?`
+Target/wait zone from prior analysis: $${prior.targetZone}`:''}
+Current price vs prior zone: ${zoneStatus}`;
+  }
 
-You will receive technical data for a stock and produce a structured analysis. Do NOT assume the signal is correct. Look at what the data actually shows.
+  const systemPrompt=`You are a supportive but honest options trade co-pilot. Your job is to help the trader find the best way to act on a technical signal — not to talk them out of it.
 
-Scoring verdict:
-- STRONG (score 8-10): Setup is clean, timing is good, risk is manageable, signal is credible
-- MARGINAL (score 4-7): Some positive elements but meaningful concerns exist
-- SKIP (score 0-3): Setup is weak, extended, or risk outweighs reward
+TONE RULES:
+- Lead with what the setup DOES support. Acknowledge the confidence score and directional bias explicitly in your SETUP section.
+- Be a co-pilot, not a devil's advocate. If the signal is strong, say so clearly using words like SOLID, STRONG, or HIGH-CONVICTION.
+- Only recommend "wait" or "skip" when there is a genuine, specific reason (e.g., earnings in <7 days, price extended >2 ATR from EMA8, IV extremely high). Never default to wait.
+- When recommending patience, always give a specific entry zone or price level — not vague guidance.
+- RISK section: 2 sentences max. Real risks only (extension, earnings, IV, sector). Do not pad with generic caveats.
+- If prior memory exists for this ticker, reference it explicitly — tell the trader whether the prior condition has been met.
+
+SCORING VERDICTS:
+- STRONG (8–10): Setup is clean, timing is good, signal is credible. Use for confidence ≥75 with no major red flags.
+- MARGINAL (3–7): Reasonable setup but meaningful concern exists. Score 5–7 if overall positive, 3–4 if cautious.
+- SKIP (0–2): Genuine red flag — earnings imminent, extreme extension, or contradictory signals.
 
 Return ONLY valid JSON, no markdown, no backticks:
 {
   "verdict": "STRONG"|"MARGINAL"|"SKIP",
   "score": <integer 0-10>,
-  "setup": "<2-3 sentences: what the technicals actually show — be specific and honest>",
-  "risk": "<2-3 sentences: what could go wrong and how serious — do not sugarcoat>",
-  "timing": "<1-2 sentences: is this a clean entry or is it chasing / early?>",
-  "recommendation": "<1 direct sentence: what a disciplined trader should do here>"
+  "setup": "<2-3 sentences: lead with the score and signal strength, then describe what the technicals show>",
+  "risk": "<max 2 sentences: specific real risks only>",
+  "recommendation": "<1 direct actionable sentence — include a specific entry zone or price level when relevant>"
 }`;
 
   const userMsg=`Ticker: ${ticker}
@@ -4130,12 +4170,11 @@ Day move: ${(d.changePct>=0?'+':'')+d.changePct.toFixed(2)}%
 RSI 14: ${d.rsi14!==null?d.rsi14.toFixed(1):'N/A'}
 EMA 8: $${d.ema8!==null?d.ema8.toFixed(2):'N/A'}
 EMA 21: $${d.ema21!==null?d.ema21.toFixed(2):'N/A'}
-Trend: ${d.trend||'N/A'}
 ATR 14: ${d.atr14!==null?'$'+d.atr14.toFixed(2):'N/A'}
 Volume ratio: ${d.volRatio!==null?d.volRatio.toFixed(1)+'x avg':'N/A'}
 Earnings: ${d.earningsDate||'Unknown'}${d.earnDTE!==null?' ('+d.earnDTE+'d away)':''}
 SPY regime: ${regimeStr} — ${regimeStatus}
-${siStr}`;
+${siStr}${priorMemoryStr}`;
 
   try{
     const res=await fetch(PROXY+'/anthropic',{
@@ -4154,11 +4193,27 @@ ${siStr}`;
     }catch(e){throw new Error('Could not parse response: '+raw.slice(0,80));}
 
     const verdict=(parsed.verdict||'MARGINAL').toUpperCase();
-    const score=Math.max(0,Math.min(10,parseInt(parsed.score)||5));
-    const conviction=Math.min(100,(d.confidence||0)+score);
-    const verdictColor=verdict==='STRONG'?'var(--good)':verdict==='SKIP'?'var(--danger)':'var(--warning)';
+    const rawScore=Math.max(0,Math.min(10,parseInt(parsed.score)||5));
 
-    // Build breakdown HTML
+    // Thesis adder step function
+    let thesisAdder;
+    if(rawScore>=8)thesisAdder=15;
+    else if(rawScore>=5)thesisAdder=10;
+    else if(rawScore>=3)thesisAdder=8;
+    else thesisAdder=0;
+
+    const conviction=Math.min(100,(d.confidence||0)+thesisAdder);
+    const verdictColor=verdict==='STRONG'?'var(--good)':verdict==='SKIP'?'var(--danger)':'var(--warning)';
+    const verdictLabel=verdict==='STRONG'?'STRONG':rawScore>=5?'MARGINAL+':rawScore>=3?'MARGINAL':'SKIP';
+
+    // Save thesis memory
+    const recText=parsed.recommendation||'';
+    const targetZone=extractTargetZone(recText);
+    saveThesisMemory(ticker,recText,d.price,targetZone);
+
+    // Prior memory display line
+    const priorLine=prior?`<div style="font-size:10px;color:var(--muted);font-style:italic;padding:6px 0 2px;border-top:1px solid var(--border);margin-top:4px;">📎 Prior (${prior.date}): "${prior.text}"</div>`:'';
+
     const breakdown=`
       <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px;">
         <div style="background:var(--surface2);border-radius:6px;padding:9px 11px;border-left:3px solid var(--accent);">
@@ -4169,30 +4224,25 @@ ${siStr}`;
           <div style="font-family:'Space Mono',monospace;font-size:8px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;margin-bottom:4px;">Risk</div>
           <div style="font-size:12px;line-height:1.6;color:var(--text);">${parsed.risk||''}</div>
         </div>
-        <div style="background:var(--surface2);border-radius:6px;padding:9px 11px;border-left:3px solid var(--warning);">
-          <div style="font-family:'Space Mono',monospace;font-size:8px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;margin-bottom:4px;">Timing</div>
-          <div style="font-size:12px;line-height:1.6;color:var(--text);">${parsed.timing||''}</div>
-        </div>
         <div style="background:var(--surface2);border-radius:6px;padding:9px 11px;border-left:3px solid ${verdictColor};">
           <div style="font-family:'Space Mono',monospace;font-size:8px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;margin-bottom:4px;">Recommendation</div>
-          <div style="font-size:12px;line-height:1.6;font-weight:600;color:${verdictColor};">${parsed.recommendation||''}</div>
+          <div style="font-size:12px;line-height:1.6;font-weight:600;color:${verdictColor};">${recText}</div>
         </div>
+        ${priorLine}
       </div>`;
 
-    // Store on sd state
-    d.thesisScore=score;
-    d.thesisVerdict=verdict;
+    d.thesisScore=thesisAdder;
+    d.thesisVerdict=verdictLabel;
     d.thesisBreakdown=breakdown;
 
-    // Re-query DOM fresh in case of re-render during async call
     const freshResult=document.getElementById('thesis-result-'+ticker);
     const freshLoad=document.getElementById('thesis-loading-'+ticker);
     if(freshResult){
       freshResult.innerHTML=`
         <div class="thesis-score-row">
-          <span class="thesis-score-big" style="color:${verdictColor};">${verdict}</span>
+          <span class="thesis-score-big" style="color:${verdictColor};">${verdictLabel}</span>
           <div class="thesis-conviction">
-            Technical + Regime: <span>${d.confidence||0}</span> &nbsp;|&nbsp; Thesis <span style="color:#bf8cff;">+${score}</span> → Overall Conviction: <span style="color:${conviction>=70?'var(--good)':conviction>=45?'var(--accent)':'var(--warning)'};">${conviction}</span>
+            Technical: <span>${d.confidence||0}</span> &nbsp;|&nbsp; Thesis <span style="color:#bf8cff;">+${thesisAdder}</span> → Conviction: <span style="color:${conviction>=82?'var(--good)':conviction>=70?'var(--accent)':'var(--warning)'};">${conviction}</span>
           </div>
         </div>
         ${breakdown}
@@ -4204,46 +4254,31 @@ ${siStr}`;
     }
     if(freshLoad)freshLoad.style.display='none';
 
-    // Update thesis row pill
     const pillParent=document.querySelector('#thesis-chev-'+ticker)?.closest('.thesis-row')?.querySelector('.thesis-row-left');
     if(pillParent){
       const existingPill=pillParent.querySelector('.thesis-pill');
-      const pillText=`${verdict} · +${score}/10`;
-      if(existingPill){existingPill.textContent=pillText;}
+      const pillText=`${verdictLabel} · +${thesisAdder}`;
+      if(existingPill){existingPill.textContent=pillText;existingPill.style.color=verdictColor;}
       else{
         const notScored=pillParent.querySelector('span:not(.thesis-label-sm)');
         if(notScored)notScored.remove();
         const newPill=document.createElement('span');
         newPill.className='thesis-pill';
-        newPill.style.color=verdict==='STRONG'?'var(--good)':verdict==='SKIP'?'var(--danger)':'var(--warning)';
+        newPill.style.color=verdictColor;
         newPill.textContent=pillText;
         pillParent.appendChild(newPill);
       }
     }
 
-    tb_toast(`✓ ${verdict} — Conviction: ${conviction}`);
+    tb_toast(`✓ ${verdictLabel} — Conviction: ${conviction}`);
+    if(sd[ticker])sd[ticker].thesisScore=thesisAdder;
 
-    // Persist thesis score in sd so conviction survives re-renders
-    if(sd[ticker])sd[ticker].thesisScore=score;
-    // Update the headline score number in the card to show conviction total
     const scoreEl=document.getElementById('score-display-'+ticker);
     if(scoreEl){
-      const convColor=conviction>=70?'var(--good)':conviction>=45?'var(--accent)':'var(--warning)';
+      const convColor=conviction>=82?'var(--good)':conviction>=70?'var(--accent)':'var(--warning)';
       scoreEl.style.color=convColor;
       const textNode=scoreEl.childNodes[0];
       if(textNode&&textNode.nodeType===3)textNode.textContent=conviction;
-    }
-    // Also rebuild the score breakdown popup with updated thesis row
-    const bdEl=document.getElementById('score-breakdown-'+ticker);
-    if(bdEl){
-      // Re-render will happen naturally on next rB() — force it
-      // For now just update the Overall line
-      const rows=bdEl.querySelectorAll('div');
-      const overallRow=rows[rows.length-1];
-      if(overallRow){
-        const span=overallRow.querySelector('span:last-child');
-        if(span){span.textContent=conviction;span.style.color=conviction>=70?'var(--good)':conviction>=45?'var(--accent)':'var(--warning)';}
-      }
     }
 
   }catch(e){
@@ -7216,7 +7251,7 @@ function swApp(name){
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradingBrief v7.8.4 — IVR override, signed trend, chasing penalty, UH collapse, earn clear fix  ║
+     ║  END TradingBrief v7.8.5 — Thesis rewrite: co-pilot prompt, memory, adder scale, IVR scoring fix  ║
      ║  2026-04-18                                                       ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 </body>
