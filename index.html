@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v7.8.3 — Scoring model reweight (v4.3.2 → debit-spread weights)  ║
+     ║  TRADEBRIEF v7.8.4 — IVR override, signed trend, chasing penalty, UH collapse, earn clear fix  ║
      ║  Date: 2026-04-19                                                ║
-     ║  Changes from v7.8.2:                                              ║
+     ║  Changes from v7.8.3:                                              ║
      ║    1. Reweight calcConfidence: EMA 18, RSI 12, Trend 14, Vol 15   ║
      ║    2. New: Clean Entry/Extension category (ATR multiples, max 15) ║
      ║    3. IV Rank slot: neutral 6/12 at scan; full range post-chain   ║
@@ -18,7 +18,7 @@
 <meta name="theme-color" content="#111827">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>TradeBrief v7.8.3</title>
+<title>TradeBrief v7.8.4</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -1429,8 +1429,11 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
   </div>
 
   <!-- 1. Universe Health -->
-  <div class="td-sec">Universe Health</div>
-  <div class="td-card">
+  <div class="td-sec" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;" onclick="uhToggle()">
+    <span>Universe Health</span>
+    <span id="uh-toggle-icon" style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);">▼</span>
+  </div>
+  <div id="uh-wrap" class="td-card">
     <div class="td-stat-grid" id="td-health-grid">
       <div class="td-stat"><div class="td-stat-label">Total Tickers</div><div class="td-stat-val" id="td-total">—</div><div class="td-stat-sub">in candidate pool</div></div>
       <div class="td-stat"><div class="td-stat-label">With Records</div><div class="td-stat-val" id="td-with-records">—</div><div class="td-stat-sub">tested at least once</div></div>
@@ -1748,10 +1751,10 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
 
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.8.3</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.8.4</div>
 
 <!-- ══ MOBILE VERSION STAMP (always visible on mobile, bottom-left) ══════ -->
-<div id="mobile-version-stamp" style="display:none;">v7.8.3</div>
+<div id="mobile-version-stamp" style="display:none;">v7.8.4</div>
 
 <!-- ══ MOBILE SCAN BTN (Brief panel only, toggled via swApp) ═════════════ -->
 <div id="mobile-scan-btn-wrap" style="display:none;">
@@ -1857,6 +1860,7 @@ let wl=JSON.parse(localStorage.getItem('wl')||'["WULF","PR","HOOD","VST"]');
 let trades=JSON.parse(localStorage.getItem('trades')||'[]');
 let closedTrades=JSON.parse(localStorage.getItem('closedTrades')||'[]');
 let earningsOverrides=JSON.parse(localStorage.getItem('earningsOverrides')||'{}');
+let ivRankOverrides=JSON.parse(localStorage.getItem('ivRankOverrides')||'{}');
 
 // ── EARNINGS OVERRIDE UTILITIES (shared TB↔TS) ──────────────────────────
 // Purge stored dates more than 7 days in the past (quarter rollover protection)
@@ -1892,14 +1896,15 @@ purgeStaleEarningsOverrides();
   };
   let changed=false;
   Object.entries(EC_SEED).forEach(([t,d])=>{
-    if(!earningsOverrides[t]){earningsOverrides[t]=d;changed=true;}
+    // Only seed if key is completely absent — respect explicit null (cleared) and existing overrides
+    if(!(t in earningsOverrides)){earningsOverrides[t]=d;changed=true;}
   });
   if(changed)localStorage.setItem('earningsOverrides',JSON.stringify(earningsOverrides));
 })();
 
 // Write an earnings override and propagate to TS if that ticker is active
 function setEarningsOverride(ticker,dateVal){
-  if(dateVal){earningsOverrides[ticker]=dateVal;}else{delete earningsOverrides[ticker];}
+  if(dateVal){earningsOverrides[ticker]=dateVal;}else{earningsOverrides[ticker]=null;}// null = explicitly cleared; seeder won't re-seed
   localStorage.setItem('earningsOverrides',JSON.stringify(earningsOverrides));
   // Propagate to TS earnings-date field if same ticker is loaded there
   try{
@@ -1910,6 +1915,22 @@ function setEarningsOverride(ticker,dateVal){
       if(typeof onEarningsChange==='function')onEarningsChange();
     }
   }catch(e){}
+}
+function setIVROverride(ticker,val){
+  const n=parseFloat(val);
+  if(!isNaN(n)&&n>=0&&n<=100){ivRankOverrides[ticker]=n;}
+  else{delete ivRankOverrides[ticker];}
+  localStorage.setItem('ivRankOverrides',JSON.stringify(ivRankOverrides));
+  // Propagate to TS ivr-val field if same ticker is loaded there
+  try{
+    const tsInput=document.getElementById('ivr-val');
+    const tsTicker=(document.getElementById('ticker-input')||{}).value||'';
+    if(tsInput&&tsTicker.trim().toUpperCase()===ticker.toUpperCase()){
+      if(!isNaN(n)&&n>=0&&n<=100){tsInput.value=n.toFixed(1);}
+    }
+  }catch(e){}
+  // Update sd so scoring reflects new IVR immediately
+  if(sd[ticker])sd[ticker].ivRankOverride=isNaN(n)?null:n;
 }
 let sd={};
 let cfg=JSON.parse(localStorage.getItem('cfg')||'{}');
@@ -1969,7 +1990,7 @@ function getCountdown(){
 }
 
 // ── CONFIDENCE SCORE (0-100) ─────────────────────────────────────────────
-function calcConfidence(price,ema8,ema21,rsi,volume,avgVolume,changePct,atr14,closes){
+function calcConfidence(price,ema8,ema21,rsi,volume,avgVolume,changePct,atr14,closes,ivRankOverride){
   // ── Scoring model v4.3.2 — debit-spread weighted (reweighted 2026-04-19) ──
   // Max possible raw: 18+12+14+15+15+12+10+5 = 101 → capped at 100
   // Conviction thresholds: 82+ Strong | 70-81 Amber | <70 Weak
@@ -2005,8 +2026,9 @@ function calcConfidence(price,ema8,ema21,rsi,volume,avgVolume,changePct,atr14,cl
     else score+=1;
   }
 
-  // 3. Trend Strength (0–14 pts)
-  // EMA21 slope over last 15 closes + EMA separation combined
+  // 3. Trend Strength (−14 to +14 pts — SIGNED)
+  // Positive when slope/structure confirms the signal direction; negative when it contradicts.
+  // CALLS with bearish structure → negative penalty. PUTS with bullish structure → negative penalty.
   let trendPts=0;
   if(closes&&closes.length>=16){
     const recentCloses=closes.slice(-16);
@@ -2015,17 +2037,25 @@ function calcConfidence(price,ema8,ema21,rsi,volume,avgVolume,changePct,atr14,cl
     const slope=(ema21_now-ema21_prev)/ema21_prev*100;// % change over 5 days
     const emaSep=Math.abs((ema8-ema21)/ema21)*100;
     const slopeInDir=(emaCrossover&&slope>0)||(emaCrossoverBear&&slope<0);
+    const slopeAgainstDir=(emaCrossover&&slope<0)||(emaCrossoverBear&&slope>0);
     const slopeStrong=Math.abs(slope)>0.5;
     const slopeModerate=Math.abs(slope)>0.15;
+    const priceAgainstSignal=(emaCrossover&&priceBelowBoth)||(emaCrossoverBear&&priceAboveBoth);
     if(slopeInDir&&slopeStrong&&emaSep>2)trendPts=14;
     else if(slopeInDir&&slopeModerate&&emaSep>1)trendPts=10;
     else if(slopeInDir&&emaSep>0.5)trendPts=7;
-    else if(emaSep>0.5)trendPts=4;
-    else trendPts=2;
+    else if(emaSep>0.5&&!slopeAgainstDir)trendPts=4;
+    else if(slopeAgainstDir&&emaSep>2&&priceAgainstSignal)trendPts=-14;// strong contradiction
+    else if(slopeAgainstDir&&emaSep>1)trendPts=-8;// moderate contradiction
+    else if(slopeAgainstDir)trendPts=-4;// weak contradiction
+    else trendPts=2;// flat/neutral
   } else {
-    // Fallback: EMA separation only
+    // Fallback: EMA separation only (no slope available)
     const emaSep=Math.abs((ema8-ema21)/ema21)*100;
-    if(emaSep>3)trendPts=10;
+    const priceAgainstSignal=(emaCrossover&&priceBelowBoth)||(emaCrossoverBear&&priceAboveBoth);
+    if(priceAgainstSignal&&emaSep>2)trendPts=-10;
+    else if(priceAgainstSignal&&emaSep>1)trendPts=-5;
+    else if(emaSep>3)trendPts=10;
     else if(emaSep>1.5)trendPts=7;
     else if(emaSep>0.5)trendPts=4;
     else trendPts=2;
@@ -2061,16 +2091,27 @@ function calcConfidence(price,ema8,ema21,rsi,volume,avgVolume,changePct,atr14,cl
     else if(atrMult<=1.5)extensionPts=5;// getting extended
     else if(atrMult<=2.0)extensionPts=2;// chasing
     else extensionPts=0;// >2 ATR extended — strong chasing penalty
+    // Extra penalty: big day (>5% move) on low ATR (< 1% of price) = volatility spike / gap chase
+    const bigDayChase=Math.abs(changePct)>=5&&(atr14/price)<0.01;
+    if(bigDayChase)extensionPts=Math.max(0,extensionPts-5);
   } else {
     atrNeutral=true;// flag for card visual cue
   }
   score+=extensionPts;
 
   // 6. IV Rank Context (0–12 pts)
-  // At scan time: always neutral 6/12 (no IV data available yet)
-  // Full 0-12 range applied post-chain-pull when ivRank is populated on the ticker
-  // See: applyIVRankToScore() called from TradeSheet chain fetch
-  score+=6;
+  // At scan time: neutral 6/12 when no override. Full range when ivRankOverride is set.
+  let ivrPts=6;// default neutral
+  if(ivRankOverride!=null&&ivRankOverride>=0&&ivRankOverride<=100){
+    const ivr=ivRankOverride;
+    if(ivr>=30&&ivr<=65)ivrPts=12;// ideal range for debit spreads
+    else if(ivr>=20&&ivr<30)ivrPts=9;// slightly low but workable
+    else if(ivr>65&&ivr<=75)ivrPts=7;// elevated but not extreme
+    else if(ivr>75&&ivr<=85)ivrPts=3;// high IV — expensive options
+    else if(ivr>85)ivrPts=0;// very high IV — avoid debit spreads
+    else ivrPts=4;// <20, very low IV — cheap but no movement expected
+  }
+  score+=ivrPts;
 
   // Determine direction before regime check
   const direction=emaCrossover?'CALLS':'PUTS';
@@ -2270,7 +2311,7 @@ async function runScanner(force){
         const rsi14=calcRSI(closes,14);
         const atr14=calcATR(candles,14);
         const trend=trendStrength(closes,ema8,ema21,rsi14);
-        const conf=calcConfidence(q.price,ema8,ema21,rsi14,q.volume,q.avgVolume,q.changePct,atr14,closes);
+        const conf=calcConfidence(q.price,ema8,ema21,rsi14,q.volume,q.avgVolume,q.changePct,atr14,closes,ivRankOverrides[ticker]??null);
         const ob=S('rsiOb'),os=S('rsiOs');
         sd[ticker]={ticker,price:q.price,change:q.change,changePct:q.changePct,
           volume:q.volume,avgVolume:q.avgVolume,
@@ -2397,7 +2438,7 @@ function reSignalAll(){
       return;
     }
     if(d.rsi14===null||d.ema8===null)return;// safety check
-    const conf=calcConfidence(d.price,d.ema8,d.ema21,d.rsi14,d.volume||0,d.avgVolume||0,d.changePct||0,d.atr14||null,d.closes||null);
+    const conf=calcConfidence(d.price,d.ema8,d.ema21,d.rsi14,d.volume||0,d.avgVolume||0,d.changePct||0,d.atr14||null,d.closes||null,ivRankOverrides[ticker]??null);
     d.confidence=conf.score;
     d.rawScore=conf.rawScore;
     d.againstRegime=conf.againstRegime;
@@ -2783,7 +2824,7 @@ async function fetch1(ticker){
     const rsi14=calcRSI(closes,14);
     const atr14=calcATR(candles,14);
     const trend=trendStrength(closes,ema8,ema21,rsi14);
-    const conf=calcConfidence(price,ema8,ema21,rsi14,volume,avgVolume,changePct,atr14,closes);
+    const conf=calcConfidence(price,ema8,ema21,rsi14,volume,avgVolume,changePct,atr14,closes,ivRankOverrides[ticker]??null);
     const ob=S('rsiOb'),os=S('rsiOs');
     const teasers=[
       {label:'RSI 14',value:rsi14.toFixed(1),note:rsi14<os?'Oversold — bounce potential':rsi14>ob?'Overbought — caution':'Healthy momentum range'},
@@ -3090,6 +3131,7 @@ function renderDataCard(ticker){
         <div class="ip" title="Today's volume vs 30-day average"><span class="il">VOL RATIO</span><span class="iv" style="color:${volRatioColor};">${volRatioDisplay}</span></div>
         ${d.atr14!==null&&d.atr14!==undefined?`<div class="ip"><span class="il">ATR 14</span><span class="iv mid">$${d.atr14.toFixed(2)}</span></div>`:''}
         ${d.atrNeutral?`<div class="ip" title="Not enough history to calculate ATR — Clean Entry/Extension scored as neutral"><span class="il">ENTRY</span><span class="iv" style="color:var(--warning);font-size:9px;">ATR N/A</span></div>`:''}
+        ${ivRankOverrides[ticker]!=null?`<div class="ip" title="Manual IV Rank override — affects scoring"><span class="il">IVR</span><span class="iv" style="color:${ivRankOverrides[ticker]>=30&&ivRankOverrides[ticker]<=65?'var(--good)':ivRankOverrides[ticker]>75?'var(--danger)':'var(--warning)'};">${ivRankOverrides[ticker]}</span></div>`:''}
       </div>
       <div style="margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:2px;padding-right:24px;">
         <div style="display:flex;align-items:center;gap:6px;">
@@ -3139,8 +3181,19 @@ function renderDataCard(ticker){
               const extLabel=atrMult<=0.5?'clean':atrMult<=1.0?'modest ext':atrMult<=1.5?'extended':atrMult<=2.0?'chasing':'far extended';
               rows.push(`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border);font-family:'Space Mono',monospace;font-size:10px;"><span style="color:var(--muted);">Clean Entry</span><span style="color:${extPts>=10?'var(--good)':extPts>=5?'var(--accent)':'var(--danger)'};">+${extPts} (${extLabel})</span></div>`);
             }
-            // 6. IV Rank (neutral 6 at scan time)
-            rows.push(`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border);font-family:'Space Mono',monospace;font-size:10px;"><span style="color:var(--muted);">IV Rank</span><span style="color:var(--muted);">+6 (scan neutral)</span></div>`);
+            // 6. IV Rank (neutral 6 at scan; full range when override set)
+            const ivrVal=ivRankOverrides[ticker]??null;
+            let ivrPtsDisplay=6;
+            let ivrLabel='scan neutral';
+            if(ivrVal!=null){
+              if(ivrVal>=30&&ivrVal<=65){ivrPtsDisplay=12;ivrLabel=`${ivrVal} — ideal`;}
+              else if(ivrVal>=20&&ivrVal<30){ivrPtsDisplay=9;ivrLabel=`${ivrVal} — low`;}
+              else if(ivrVal>65&&ivrVal<=75){ivrPtsDisplay=7;ivrLabel=`${ivrVal} — elevated`;}
+              else if(ivrVal>75&&ivrVal<=85){ivrPtsDisplay=3;ivrLabel=`${ivrVal} — high`;}
+              else if(ivrVal>85){ivrPtsDisplay=0;ivrLabel=`${ivrVal} — very high`;}
+              else{ivrPtsDisplay=4;ivrLabel=`${ivrVal} — very low`;}
+            }
+            rows.push(`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border);font-family:'Space Mono',monospace;font-size:10px;"><span style="color:var(--muted);">IV Rank</span><span style="color:${ivrPtsDisplay>=9?'var(--good)':ivrPtsDisplay>=6?'var(--muted)':'var(--danger)'};">+${ivrPtsDisplay} (${ivrLabel})</span></div>`);
             // 7. SPY Regime + SI Edge (bonus only, 0-10)
             if(spyRegime&&d.direction&&d.direction!=='—'){
               const aligned=(d.direction==='CALLS'&&spyRegime==='BULLISH')||(d.direction==='PUTS'&&spyRegime==='BEARISH');
@@ -3188,6 +3241,12 @@ function renderDataCard(ticker){
           <div class="earn-override-row" style="display:flex;align-items:center;gap:6px;">
             <input class="earn-input" id="earn-in-${ticker}" type="date" value="${earningsOverrides[ticker]||''}" style="max-width:150px;">
             <button class="earn-save" onclick="saveEarningsOverride('${ticker}')">Override</button>
+          </div>
+          <div class="earn-override-label" style="font-family:'Space Mono',monospace;font-size:9px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;margin-top:4px;">IV Rank Override</div>
+          <div class="earn-override-row" style="display:flex;align-items:center;gap:6px;">
+            <input class="earn-input" id="ivr-in-${ticker}" type="number" min="0" max="100" step="1" placeholder="0–100" value="${ivRankOverrides[ticker]!=null?ivRankOverrides[ticker]:''}" style="max-width:90px;">
+            <button class="earn-save" onclick="saveIVROverride('${ticker}')">Save</button>
+            ${ivRankOverrides[ticker]!=null?`<button class="earn-save" style="background:var(--border);color:var(--muted);" onclick="setIVROverride('${ticker}',null);document.getElementById('ivr-in-${ticker}').value='';rB();tb_toast('IV Rank cleared');">✕</button>`:''}
           </div>
         </div>
       </div>
@@ -3539,6 +3598,11 @@ function saveEarningsOverride(ticker){
   fbSyncAll();
   rB();tb_toast('Earnings date saved ✓');
 }
+function saveIVROverride(ticker){
+  const val=document.getElementById('ivr-in-'+ticker).value;
+  setIVROverride(ticker,val);
+  rB();tb_toast('IV Rank saved ✓');
+}
 
 // ── FIREBASE SYNC ─────────────────────────────────────────────────────────
 async function fbSyncAll(){
@@ -3735,6 +3799,11 @@ function select(ticker){
   // Flow ticker directly into TS
   sessionStorage.setItem('tbSelectedTicker',ticker);
   sessionStorage.setItem('tbSelectedDirection',d.signal==='CALLS'?'BULLISH':d.signal==='PUTS'?'BEARISH':'');
+  if(ivRankOverrides[ticker]!=null){
+    sessionStorage.setItem('tbSelectedIVR',ivRankOverrides[ticker]);
+  } else {
+    sessionStorage.removeItem('tbSelectedIVR');
+  }
   setTimeout(()=>{ swApp('sheet'); },50);
 }
 
@@ -6564,6 +6633,7 @@ window.TD = (function(){
 // ── EARNINGS CALENDAR (TradeData tab) ────────────────────────────────────────
 let _ecFilter = 'all';
 let _ecOpen = true;
+let _uhOpen = true;
 
 // Pre-seeded Q2 2026 earnings dates from TradeBrief_EarningsCalendar.xlsx
 const EC_SEED_DATES = {
@@ -6606,6 +6676,13 @@ function ecToggle(){
   const icon = document.getElementById('ec-toggle-icon');
   if(wrap){ wrap.style.display = _ecOpen ? 'block' : 'none'; }
   if(icon){ icon.textContent = _ecOpen ? '▼' : '▶'; }
+}
+function uhToggle(){
+  _uhOpen = !_uhOpen;
+  const wrap = document.getElementById('uh-wrap');
+  const icon = document.getElementById('uh-toggle-icon');
+  if(wrap){ wrap.style.display = _uhOpen ? 'block' : 'none'; }
+  if(icon){ icon.textContent = _uhOpen ? '▼' : '▶'; }
 }
 
 function ecSetFilter(filter, btn){
@@ -6735,6 +6812,8 @@ function swApp(name){
         // Clear handoff keys so future cold-opens start blank
         sessionStorage.removeItem('tbSelectedTicker');
         sessionStorage.removeItem('tbSelectedDirection');
+        const handoffIVR=sessionStorage.getItem('tbSelectedIVR');
+        sessionStorage.removeItem('tbSelectedIVR');
         window.TS.fetchTicker(t);
         // Show directional bias badge if direction known
         const badge=document.getElementById('ts-direction-badge');
@@ -6742,6 +6821,13 @@ function swApp(name){
           badge.textContent=dir==='BULLISH'?'▲ BULLISH':'▼ BEARISH';
           badge.style.color=dir==='BULLISH'?'var(--good)':'var(--danger)';
           badge.style.display='inline-flex';
+        }
+        // Pre-populate IVR field if override was set on this ticker
+        if(handoffIVR!=null){
+          setTimeout(()=>{
+            const ivrEl=document.getElementById('ivr-val');
+            if(ivrEl){ivrEl.value=parseFloat(handoffIVR).toFixed(1);}
+          },300);
         }
       },100);
     } else {
@@ -7130,7 +7216,7 @@ function swApp(name){
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradingBrief v7.8.3 — Scoring model reweight (debit-spread weights)  ║
+     ║  END TradingBrief v7.8.4 — IVR override, signed trend, chasing penalty, UH collapse, earn clear fix  ║
      ║  2026-04-18                                                       ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 </body>
