@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v7.8.6 — Risk Snapshot + Card Layout Reorganization  ║
+     ║  TRADEBRIEF v7.8.7 — Card layout polish: TV pill, inline overrides, pill spacing  ║
      ║  Date: 2026-04-20                                                ║
      ║  Changes from v7.8.4:                                              ║
      ║    1. Reweight calcConfidence: EMA 18, RSI 12, Trend 14, Vol 15   ║
@@ -18,7 +18,7 @@
 <meta name="theme-color" content="#111827">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>TradeBrief v7.8.6</title>
+<title>TradeBrief v7.8.7</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -1751,10 +1751,10 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
 
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.8.6</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.8.7</div>
 
 <!-- ══ MOBILE VERSION STAMP (always visible on mobile, bottom-left) ══════ -->
-<div id="mobile-version-stamp" style="display:none;">v7.8.6</div>
+<div id="mobile-version-stamp" style="display:none;">v7.8.7</div>
 
 <!-- ══ MOBILE SCAN BTN (Brief panel only, toggled via swApp) ═════════════ -->
 <div id="mobile-scan-btn-wrap" style="display:none;">
@@ -3214,8 +3214,9 @@ function renderDataCard(ticker){
           })()}
         </div>
       </div>
-      <!-- Indicator pills — right side -->
-      <div class="inds" style="margin-left:auto;">
+      <!-- Indicator pills — right side, padded to clear ✕ button -->
+      <div class="inds" style="margin-left:auto;padding-right:32px;">
+        <a class="ip" href="https://www.tradingview.com/chart/?symbol=${ticker}" target="_blank" rel="noopener noreferrer" style="text-decoration:none;cursor:pointer;" title="Open in TradingView"><span class="il">CHART</span><span class="iv" style="color:var(--accent);">📈 TV</span></a>
         <div class="ip"><span class="il">RSI 14</span><span class="iv ${rsiClass}">${rsiDisplay}</span></div>
         <div class="ip"><span class="il">EMA ${parts[0]}</span><span class="iv ${a8}">${ema8Display}</span></div>
         <div class="ip"><span class="il">EMA ${parts[1]}</span><span class="iv ${a21}">${ema21Display}</span></div>
@@ -3238,29 +3239,35 @@ function renderDataCard(ticker){
           <div class="tnote">${earnDTE!==null?(earnDTE<=0?'Today / Past':earnDTE<=7?'⚠️ Too close — avoid new positions':earnDTE+'d away — '+(earnRisky?'⚠️ RISKY':'✅ Safe')):'No data'}</div>
         </div>
       </div>
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-top:10px;gap:8px;">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-top:10px;gap:8px;flex-wrap:wrap;">
         <div style="display:flex;align-items:center;gap:6px;">
           <button class="sel-btn" onclick="select('${ticker}')"${isLimited?' disabled title="Need full data to select"':''}>${isLimited?'⏳':'⬇ Select'}</button>
-          <a class="ref-sm" href="https://www.tradingview.com/chart/?symbol=${ticker}" target="_blank" rel="noopener noreferrer" style="text-decoration:none;">📈 TV</a>
         </div>
-        <div class="earn-override-section" style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
-          <div class="earn-override-label" style="font-family:'Space Mono',monospace;font-size:9px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;">Earnings Override</div>
-          <div class="earn-override-row" style="display:flex;align-items:center;gap:6px;">
-            <input class="earn-input" id="earn-in-${ticker}" type="date" value="${earningsOverrides[ticker]||''}" style="max-width:150px;">
-            <button class="earn-save" onclick="saveEarningsOverride('${ticker}')">Save</button>
+        <!-- Inline override row: Dividend | IV Rank | Earnings Date -->
+        <div style="display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;">
+          <div style="display:flex;flex-direction:column;gap:3px;">
+            <div style="font-family:'Space Mono',monospace;font-size:8px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;">Dividend</div>
+            <div style="display:flex;align-items:center;gap:4px;">
+              <input class="earn-input" id="div-yield-${ticker}" type="number" min="0" step="0.1" placeholder="Yield %" value="${dividendOverrides[ticker]?dividendOverrides[ticker].yield:''}" style="width:70px;">
+              <input class="earn-input" id="div-ex-${ticker}" type="date" value="${dividendOverrides[ticker]?dividendOverrides[ticker].exDate:''}" style="width:128px;">
+              <button class="earn-save" onclick="saveDividendOverride('${ticker}')">Save</button>
+              ${dividendOverrides[ticker]?`<button class="earn-save" style="background:var(--border);color:var(--muted);" onclick="clearDividendOverride('${ticker}');rB();tb_toast('Dividend cleared.');">✕</button>`:''}
+            </div>
           </div>
-          <div class="earn-override-label" style="font-family:'Space Mono',monospace;font-size:9px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;margin-top:4px;">IV Rank Override</div>
-          <div class="earn-override-row" style="display:flex;align-items:center;gap:6px;">
-            <input class="earn-input" id="ivr-in-${ticker}" type="number" min="0" max="100" step="1" placeholder="0–100" value="${ivRankOverrides[ticker]!=null?ivRankOverrides[ticker]:''}" style="max-width:90px;">
-            <button class="earn-save" onclick="saveIVROverride('${ticker}')">Save</button>
-            ${ivRankOverrides[ticker]!=null?`<button class="earn-save" style="background:var(--border);color:var(--muted);" onclick="setIVROverride('${ticker}',null);document.getElementById('ivr-in-${ticker}').value='';rB();tb_toast('IV Rank cleared');">✕</button>`:''}
+          <div style="display:flex;flex-direction:column;gap:3px;">
+            <div style="font-family:'Space Mono',monospace;font-size:8px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;">IV Rank</div>
+            <div style="display:flex;align-items:center;gap:4px;">
+              <input class="earn-input" id="ivr-in-${ticker}" type="number" min="0" max="100" step="1" placeholder="0–100" value="${ivRankOverrides[ticker]!=null?ivRankOverrides[ticker]:''}" style="width:70px;">
+              <button class="earn-save" onclick="saveIVROverride('${ticker}')">Save</button>
+              ${ivRankOverrides[ticker]!=null?`<button class="earn-save" style="background:var(--border);color:var(--muted);" onclick="setIVROverride('${ticker}',null);document.getElementById('ivr-in-${ticker}').value='';rB();tb_toast('IV Rank cleared.');">✕</button>`:''}
+            </div>
           </div>
-          <div class="earn-override-label" style="font-family:'Space Mono',monospace;font-size:9px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;margin-top:4px;">Dividend Override</div>
-          <div class="earn-override-row" style="display:flex;align-items:center;gap:6px;">
-            <input class="earn-input" id="div-yield-${ticker}" type="number" min="0" step="0.1" placeholder="Yield %" value="${dividendOverrides[ticker]?dividendOverrides[ticker].yield:''}" style="max-width:80px;">
-            <input class="earn-input" id="div-ex-${ticker}" type="date" value="${dividendOverrides[ticker]?dividendOverrides[ticker].exDate:''}" style="max-width:140px;">
-            <button class="earn-save" onclick="saveDividendOverride('${ticker}')">Save</button>
-            ${dividendOverrides[ticker]?`<button class="earn-save" style="background:var(--border);color:var(--muted);" onclick="clearDividendOverride('${ticker}');rB();tb_toast('Dividend cleared.');">✕</button>`:''}
+          <div style="display:flex;flex-direction:column;gap:3px;">
+            <div style="font-family:'Space Mono',monospace;font-size:8px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;">Earnings Date</div>
+            <div style="display:flex;align-items:center;gap:4px;">
+              <input class="earn-input" id="earn-in-${ticker}" type="date" value="${earningsOverrides[ticker]||''}" style="width:128px;">
+              <button class="earn-save" onclick="saveEarningsOverride('${ticker}')">Save</button>
+            </div>
           </div>
         </div>
       </div>
@@ -7258,7 +7265,7 @@ function swApp(name){
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradingBrief v7.8.6 — Risk Snapshot + Card Layout Reorganization  ║
+     ║  END TradingBrief v7.8.7 — Card layout polish: TV pill, inline overrides, pill spacing  ║
      ║  2026-04-18                                                       ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 </body>
