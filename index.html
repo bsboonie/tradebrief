@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v7.9.1 — PUTS pill color fix, auto-populate thesis recommendations on scan complete  ║
+     ║  TRADEBRIEF v7.9.2 — Grid reorder: Volume top-right, Select in grid, Overrides open first  ║
      ║  Date: 2026-04-20                                                ║
      ║  Changes from v7.8.4:                                              ║
      ║    1. Reweight calcConfidence: EMA 18, RSI 12, Trend 14, Vol 15   ║
@@ -18,7 +18,7 @@
 <meta name="theme-color" content="#111827">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>TradeBrief v7.9.1</title>
+<title>TradeBrief v7.9.2</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -1751,10 +1751,10 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
 
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.9.1</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.9.2</div>
 
 <!-- ══ MOBILE VERSION STAMP (always visible on mobile, bottom-left) ══════ -->
-<div id="mobile-version-stamp" style="display:none;">v7.9.1</div>
+<div id="mobile-version-stamp" style="display:none;">v7.9.2</div>
 
 <!-- ══ MOBILE SCAN BTN (Brief panel only, toggled via swApp) ═════════════ -->
 <div id="mobile-scan-btn-wrap" style="display:none;">
@@ -3323,7 +3323,6 @@ function renderDataCard(ticker){
           {label:'RSI 14',value:rsiVal,color:rsiColor,sub:rsiLabel},
           {label:'EMA 8',value:ema8Display,color:ema8Color,sub:ema8Sub},
           {label:'EMA 21',value:ema21Display,color:ema21Color,sub:ema21Sub},
-          {label:'ATR 14',value:atr14?'$'+atr14.toFixed(2):'—',color:'#e8edf5',sub:'Volatility'},
           {label:'Volume',value:volRatio!=null?volRatio.toFixed(1)+'×':'—',color:volColor,sub:volLabel},
           {label:'Entry',value:entryAtrMult!==null?entryAtrMult+'× ATR':'—',color:entryColor,sub:entryLabel},
           {label:'IV Rank',value:ivrVal!=null?ivrVal.toFixed(1):'—',color:ivrColor,sub:ivrLabel},
@@ -3333,79 +3332,27 @@ function renderDataCard(ticker){
           <div style="font-family:'Space Mono',monospace;font-size:16px;font-weight:700;color:${cell.color};margin-top:3px;">${cell.value}</div>
           <div style="font-size:10px;color:#4a5670;margin-top:1px;">${cell.sub}</div>
         </div>`).join('')}
+        <div style="padding:10px 14px;border-right:1px solid rgba(120,170,220,0.09);border-bottom:1px solid rgba(120,170,220,0.09);display:flex;align-items:center;justify-content:center;">
+          <button class="sel-btn" onclick="select('${ticker}')"${isLimited?' disabled title="Need full data to select"':''}
+            style="width:100%;padding:10px 0;font-size:12px;">${isLimited?'⏳ Limited':'⬇ Select'}</button>
+        </div>
       </div>
     </div>
 
     <!-- ⑤ ACCORDIONS -->
     <div style="padding-left:3px;">
 
-      <!-- THESIS accordion (existing logic preserved) -->
-      <div style="background:rgba(120,170,220,0.09);height:1px;"></div>
-      <div style="background:#111827;">
-        <div class="thesis-row" onclick="toggleThesis('${ticker}')" style="width:100%;padding:11px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;">
-          <span style="color:#6b7a99;font-size:9px;">▾</span>
-          <span style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:#6b7a99;">Thesis</span>
-          <span style="flex:1;"></span>
-          ${d.thesisScore!=null?`<span style="font-family:'Space Mono',monospace;font-size:10px;color:#6b7a99;">${d.thesisVerdict||'—'} · +${d.thesisScore}/10</span>`:`<span style="font-family:'Space Mono',monospace;font-size:10px;color:#6b7a99;">— not analyzed</span>`}
-          <span class="thesis-chevron${d.thesisScore!=null?' open':''}" id="thesis-chev-${ticker}" style="display:none;">▾</span>
-        </div>
-        <div class="thesis-panel${d.thesisScore!=null?' open':''}" id="thesis-panel-${ticker}">
-          <div class="thesis-loading" id="thesis-loading-${ticker}" style="display:none;align-items:center;gap:6px;padding:10px 34px;">
-            <span style="width:6px;height:6px;border-radius:50%;background:#bf8cff;display:inline-block;animation:blink 1.2s infinite;"></span>
-            <span style="width:6px;height:6px;border-radius:50%;background:#bf8cff;display:inline-block;animation:blink 1.2s 0.2s infinite;"></span>
-            <span style="width:6px;height:6px;border-radius:50%;background:#bf8cff;display:inline-block;animation:blink 1.2s 0.4s infinite;"></span>
-            <span style="margin-left:4px;font-family:'Space Mono',monospace;font-size:10px;color:#6b7a99;">Analyzing setup...</span>
-          </div>
-          <div class="thesis-result${d.thesisScore!=null&&d.thesisBreakdown?' active':''}" id="thesis-result-${ticker}">
-            ${d.thesisScore!=null&&d.thesisBreakdown?`
-            <div style="padding:2px 14px 14px 34px;">
-              <div class="thesis-score-row">
-                <span class="thesis-score-big" style="color:${d.thesisVerdict==='STRONG'?'var(--good)':d.thesisVerdict==='SKIP'?'var(--danger)':'var(--warning)'};">${d.thesisVerdict}</span>
-                <div class="thesis-conviction">
-                  Technical: <span>${d.confidence}</span> &nbsp;|&nbsp; Thesis <span style="color:#bf8cff;">+${d.thesisScore}</span> → Conviction: <span style="color:${conviction>=82?'var(--good)':conviction>=70?'var(--accent)':'var(--warning)'};font-weight:700;">${conviction}</span>
-                </div>
-              </div>
-              <div class="thesis-breakdown" id="thesis-breakdown-${ticker}">${d.thesisBreakdown}</div>
-              <div style="margin-top:8px;">
-                <button class="thesis-analyze-btn" onclick="fetchThesisNews('${ticker}')" id="thesis-news-btn-${ticker}">📰 Get News</button>
-                <div id="thesis-news-${ticker}" style="margin-top:8px;"></div>
-              </div>
-            </div>`:''
-            }
-          </div>
-        </div>
-      </div>
 
-      <!-- SCORE BREAKDOWN accordion -->
+      <!-- OVERRIDES accordion (Dividend / IVR / Earnings) — open by default -->
       <div style="background:rgba(120,170,220,0.09);height:1px;"></div>
       <div style="background:#111827;">
-        <button onclick="toggleScoreBreakdown('${ticker}',event)" style="width:100%;padding:11px 14px;text-align:left;cursor:pointer;background:transparent;border:none;color:#e8edf5;display:flex;align-items:center;gap:10px;font-family:'DM Sans',sans-serif;transition:background .12s;" onmouseover="this.style.background='rgba(120,170,220,0.04)'" onmouseout="this.style.background='transparent'">
-          <span style="color:#6b7a99;font-size:9px;">▾</span>
-          <span style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:#6b7a99;">Score Breakdown</span>
-          <span style="flex:1;"></span>
-          <span style="font-family:'Space Mono',monospace;font-size:11px;color:#4a5670;">${displayScore} → ${conviction}</span>
-        </button>
-        <div id="score-breakdown-${ticker}" style="display:none;padding:2px 14px 14px 14px;">
-          <div style="display:flex;flex-direction:column;gap:1px;background:rgba(120,170,220,0.09);border-radius:3px;overflow:hidden;">
-            ${scoreRowsHtml}
-          </div>
-          <div style="display:flex;justify-content:space-between;padding:9px 10px;background:#111827;font-family:'Space Mono',monospace;font-size:11px;margin-top:1px;">
-            <span style="color:#6b7a99;">Technical <span style="color:#00d4ff;font-weight:700;">${displayScore}</span>${d.thesisScore!=null?` + Thesis <span style="color:#bf8cff;font-weight:700;">+${d.thesisScore}</span>`:''}</span>
-            <span style="color:#00ff9d;font-weight:700;">→ Conviction ${conviction}</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- OVERRIDES accordion (Dividend / IVR / Earnings) -->
-      <div style="background:rgba(120,170,220,0.09);height:1px;"></div>
-      <div style="background:#111827;">
-        <button onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'" style="width:100%;padding:11px 14px;text-align:left;cursor:pointer;background:transparent;border:none;color:#e8edf5;display:flex;align-items:center;gap:10px;font-family:'DM Sans',sans-serif;" onmouseover="this.style.background='rgba(120,170,220,0.04)'" onmouseout="this.style.background='transparent'">
+        <button onclick="const p=this.nextElementSibling;p.style.display=p.style.display==='none'?'block':'none'" style="width:100%;padding:11px 14px;text-align:left;cursor:pointer;background:transparent;border:none;color:#e8edf5;display:flex;align-items:center;gap:10px;font-family:'DM Sans',sans-serif;" onmouseover="this.style.background='rgba(120,170,220,0.04)'" onmouseout="this.style.background='transparent'">
           <span style="color:#6b7a99;font-size:9px;">▾</span>
           <span style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:#6b7a99;">Overrides</span>
           <span style="flex:1;"></span>
           <span style="font-family:'Space Mono',monospace;font-size:10px;color:#4a5670;">${[ivrVal!=null?'IVR':'',earnDate?'Earnings':'',divSnap?'Div':''].filter(Boolean).join(' · ')||'none set'}</span>
         </button>
-        <div style="display:none;padding:2px 14px 14px 26px;">
+        <div style="display:block;padding:2px 14px 14px 26px;">
           <div style="display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;">
             <div style="display:flex;flex-direction:column;gap:3px;">
               <div style="font-family:'Space Mono',monospace;font-size:8px;letter-spacing:1px;color:#6b7a99;text-transform:uppercase;">Dividend</div>
@@ -3463,10 +3410,62 @@ function renderDataCard(ticker){
               ${lines.join('')}
             </div>`;
           })()}
-          <!-- SI badge + Select button -->
-          <div style="display:flex;align-items:center;gap:10px;margin-top:12px;padding-top:10px;border-top:1px solid rgba(120,170,220,0.09);">
-            <button class="sel-btn" onclick="select('${ticker}')"${isLimited?' disabled title="Need full data to select"':''}>${isLimited?'⏳':'⬇ Select'}</button>
-            ${siBadge?`<div>${siBadge}${srcNote}</div>`:(srcNote||'')}
+          <!-- Select button moved to detail grid -->
+        </div>
+      </div>
+      <!-- THESIS accordion -->
+      <div style="background:rgba(120,170,220,0.09);height:1px;"></div>
+      <div style="background:#111827;">
+        <div class="thesis-row" onclick="toggleThesis('${ticker}')" style="width:100%;padding:11px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;">
+          <span style="color:#6b7a99;font-size:9px;">▾</span>
+          <span style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:#6b7a99;">Thesis</span>
+          <span style="flex:1;"></span>
+          ${d.thesisScore!=null?`<span style="font-family:'Space Mono',monospace;font-size:10px;color:#6b7a99;">${d.thesisVerdict||'—'} · +${d.thesisScore}/10</span>`:`<span style="font-family:'Space Mono',monospace;font-size:10px;color:#6b7a99;">— not analyzed</span>`}
+          <span class="thesis-chevron${d.thesisScore!=null?' open':''}" id="thesis-chev-${ticker}" style="display:none;">▾</span>
+        </div>
+        <div class="thesis-panel${d.thesisScore!=null?' open':''}" id="thesis-panel-${ticker}">
+          <div class="thesis-loading" id="thesis-loading-${ticker}" style="display:none;align-items:center;gap:6px;padding:10px 34px;">
+            <span style="width:6px;height:6px;border-radius:50%;background:#bf8cff;display:inline-block;animation:blink 1.2s infinite;"></span>
+            <span style="width:6px;height:6px;border-radius:50%;background:#bf8cff;display:inline-block;animation:blink 1.2s 0.2s infinite;"></span>
+            <span style="width:6px;height:6px;border-radius:50%;background:#bf8cff;display:inline-block;animation:blink 1.2s 0.4s infinite;"></span>
+            <span style="margin-left:4px;font-family:'Space Mono',monospace;font-size:10px;color:#6b7a99;">Analyzing setup...</span>
+          </div>
+          <div class="thesis-result${d.thesisScore!=null&&d.thesisBreakdown?' active':''}" id="thesis-result-${ticker}">
+            ${d.thesisScore!=null&&d.thesisBreakdown?`
+            <div style="padding:2px 14px 14px 34px;">
+              <div class="thesis-score-row">
+                <span class="thesis-score-big" style="color:${d.thesisVerdict==='STRONG'?'var(--good)':d.thesisVerdict==='SKIP'?'var(--danger)':'var(--warning)'};">${d.thesisVerdict}</span>
+                <div class="thesis-conviction">
+                  Technical: <span>${d.confidence}</span> &nbsp;|&nbsp; Thesis <span style="color:#bf8cff;">+${d.thesisScore}</span> → Conviction: <span style="color:${conviction>=82?'var(--good)':conviction>=70?'var(--accent)':'var(--warning)'};font-weight:700;">${conviction}</span>
+                </div>
+              </div>
+              <div class="thesis-breakdown" id="thesis-breakdown-${ticker}">${d.thesisBreakdown}</div>
+              <div style="margin-top:8px;">
+                <button class="thesis-analyze-btn" onclick="fetchThesisNews('${ticker}')" id="thesis-news-btn-${ticker}">📰 Get News</button>
+                <div id="thesis-news-${ticker}" style="margin-top:8px;"></div>
+              </div>
+            </div>`:''
+            }
+          </div>
+        </div>
+      </div>
+
+      <!-- SCORE BREAKDOWN accordion -->
+      <div style="background:rgba(120,170,220,0.09);height:1px;"></div>
+      <div style="background:#111827;">
+        <button onclick="toggleScoreBreakdown('${ticker}',event)" style="width:100%;padding:11px 14px;text-align:left;cursor:pointer;background:transparent;border:none;color:#e8edf5;display:flex;align-items:center;gap:10px;font-family:'DM Sans',sans-serif;transition:background .12s;" onmouseover="this.style.background='rgba(120,170,220,0.04)'" onmouseout="this.style.background='transparent'">
+          <span style="color:#6b7a99;font-size:9px;">▾</span>
+          <span style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:#6b7a99;">Score Breakdown</span>
+          <span style="flex:1;"></span>
+          <span style="font-family:'Space Mono',monospace;font-size:11px;color:#4a5670;">${displayScore} → ${conviction}</span>
+        </button>
+        <div id="score-breakdown-${ticker}" style="display:none;padding:2px 14px 14px 14px;">
+          <div style="display:flex;flex-direction:column;gap:1px;background:rgba(120,170,220,0.09);border-radius:3px;overflow:hidden;">
+            ${scoreRowsHtml}
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:9px 10px;background:#111827;font-family:'Space Mono',monospace;font-size:11px;margin-top:1px;">
+            <span style="color:#6b7a99;">Technical <span style="color:#00d4ff;font-weight:700;">${displayScore}</span>${d.thesisScore!=null?` + Thesis <span style="color:#bf8cff;font-weight:700;">+${d.thesisScore}</span>`:''}</span>
+            <span style="color:#00ff9d;font-weight:700;">→ Conviction ${conviction}</span>
           </div>
         </div>
       </div>
@@ -7425,7 +7424,7 @@ function swApp(name){
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradingBrief v7.9.1 — PUTS pill color fix, auto-populate thesis recommendations on scan complete  ║
+     ║  END TradingBrief v7.9.2 — Grid reorder: Volume top-right, Select in grid, Overrides open first  ║
      ║  2026-04-18                                                       ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 </body>
