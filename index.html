@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v7.8.7 — Card layout polish: TV pill, inline overrides, pill spacing  ║
+     ║  TRADEBRIEF v7.9.0 — CardStacked UI: new card design with mini chart, recommendation block, conviction gauge  ║
      ║  Date: 2026-04-20                                                ║
      ║  Changes from v7.8.4:                                              ║
      ║    1. Reweight calcConfidence: EMA 18, RSI 12, Trend 14, Vol 15   ║
@@ -18,7 +18,7 @@
 <meta name="theme-color" content="#111827">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>TradeBrief v7.8.7</title>
+<title>TradeBrief v7.9.0</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -1751,10 +1751,10 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
 
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.8.7</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.9.0</div>
 
 <!-- ══ MOBILE VERSION STAMP (always visible on mobile, bottom-left) ══════ -->
-<div id="mobile-version-stamp" style="display:none;">v7.8.7</div>
+<div id="mobile-version-stamp" style="display:none;">v7.9.0</div>
 
 <!-- ══ MOBILE SCAN BTN (Brief panel only, toggled via swApp) ═════════════ -->
 <div id="mobile-scan-btn-wrap" style="display:none;">
@@ -3074,273 +3074,410 @@ function renderDataCard(ticker){
   const isLimited=d.dataSource==='limited';
   const sig=d.signal||'—';
   const tr2=sig==='CALLS'?'bullish':sig==='PUTS'?'bearish':'neutral';
-  const priceClass=pc(d.change);
   const hasEMA=d.ema8!==null&&d.ema8!==undefined;
-  const a8=hasEMA?(d.price>d.ema8?'low':'high'):'mid';
-  const a21=hasEMA?(d.price>d.ema21?'low':'high'):'mid';
-  const parts=S('ema').split(',');
-  const teas=(d.teasers||[]).map(t=>`<div class="tstat"><div class="tlabel">${t.label}</div><div class="tval">${t.value}</div><div class="tnote">${t.note}</div></div>`).join('');
-  const srcNote=isLimited?'<span class="limited-badge" style="margin-left:8px;">LIMITED</span>':d.dataSource==='estimated'?'<span style="font-size:9px;color:var(--warning);margin-left:8px;">~ estimated</span>':'';
+
+  // Score / conviction
+  const displayScore=d.confidence||0;
+  const thesisAdder=d.thesisScore||0;
+  const conviction=d.thesisScore!=null?Math.min(100,displayScore+thesisAdder):displayScore;
+  const convColor=conviction>=82?'#00ff9d':conviction>=70?'#ffa502':'#ff4757';
+  const scoreColor=displayScore>=82?'#00ff9d':displayScore>=70?'#00d4ff':'#ffa502';
+
+  // Thesis tag
+  const thesisTag=d.thesisVerdict||null;
+  const thesisTagColor=thesisTag==='STRONG'?'#00ff9d':thesisTag==='SKIP'?'#ff4757':'#ffa502';
+  const thesisTagBorder=thesisTag==='STRONG'?'rgba(0,255,157,0.4)':thesisTag==='SKIP'?'rgba(255,71,87,0.4)':'rgba(255,165,2,0.4)';
+  const thesisTagBg=thesisTag==='STRONG'?'rgba(0,255,157,0.08)':thesisTag==='SKIP'?'rgba(255,71,87,0.08)':'rgba(255,165,2,0.08)';
+
+  // Price / change
+  const priceColor=d.change>=0?'#00ff9d':'#ff4757';
+  const changeSign=d.changePct>=0?'+':'';
+
+  // Trend / regime
   const trendVal=hasEMA?(d.price>d.ema8&&d.price>d.ema21?'BULLISH':'BEARISH'):'—';
-  const trendColor=trendVal==='BULLISH'?'var(--good)':trendVal==='BEARISH'?'var(--danger)':'var(--muted)';
-  const dayColor=d.changePct>=0?'var(--good)':'var(--danger)';
-  const earnDate=d.earningsDate||earningsOverrides[ticker]||null;
-  const earnDTE=earnDate?Math.ceil((new Date(earnDate)-new Date())/86400000):null;
-  const earnPillColor=earnDTE!==null?(earnDTE<=14?'high':earnDTE<=30?'mid':'low'):'mid';
-  const earnPillText=earnDTE!==null?(earnDTE<=0?'NOW':earnDTE+'d'):'—';
-  const earnRisky=earnDate?trades.some(t=>t.ticker===ticker&&new Date(earnDate)<=new Date(t.exp)):false;
+  const trendColor=trendVal==='BULLISH'?'#00ff9d':trendVal==='BEARISH'?'#ff4757':'#6b7a99';
+  const trendBg=trendVal==='BULLISH'?'rgba(0,255,157,0.08)':trendVal==='BEARISH'?'rgba(255,71,87,0.08)':'rgba(107,122,153,0.08)';
+  const trendBorder=trendVal==='BULLISH'?'rgba(0,255,157,0.25)':trendVal==='BEARISH'?'rgba(255,71,87,0.25)':'rgba(107,122,153,0.2)';
 
-  // Indicator pills — show dashes for limited data
-  const rsiDisplay=d.rsi14!==null&&d.rsi14!==undefined?d.rsi14.toFixed(1):'—';
-  const rsiClass=d.rsi14!==null&&d.rsi14!==undefined?rc(d.rsi14):'mid';
-  const ema8Display=hasEMA?'$'+d.ema8.toFixed(2):'—';
-  const ema21Display=hasEMA?'$'+d.ema21.toFixed(2):'—';
-
-  // Volume ratio pill
-  const volRatioDisplay=(d.volRatio!==null&&d.volRatio!==undefined)
-    ?d.volRatio.toFixed(1)+'×':'—';
-  const volRatioColor=(d.volRatio!==null&&d.volRatio!==undefined)
-    ?(d.volRatio>=1.5?'var(--good)':d.volRatio>=1.0?'var(--accent)':'var(--muted)')
-    :'var(--muted)';
-
-  // SI accuracy badge
-  const siBadge=window.SI?window.SI.getAccuracyBadgeHTML(ticker):'';
-
-  // Regime alignment indicator — reflects cap when against regime
-  const regimeNote=(spyRegime&&d.direction&&d.direction!=='—')
-    ?((d.direction==='CALLS'&&spyRegime==='BULLISH')||(d.direction==='PUTS'&&spyRegime==='BEARISH')
-      ?`<span style="font-family:'Space Mono',monospace;font-size:8px;color:#4ade80;border:1px solid #4ade8044;border-radius:8px;padding:1px 6px;margin-left:4px;">✓ regime</span>`
-      :`<span style="font-family:'Space Mono',monospace;font-size:8px;color:#ffa502;border:1px solid #ffa50244;border-radius:8px;padding:1px 6px;margin-left:4px;" title="Signal opposes SPY regime — no regime bonus applied">⚠ vs regime</span>`)
+  const regimeAligned=(spyRegime&&d.direction)
+    ?((d.direction==='CALLS'&&spyRegime==='BULLISH')||(d.direction==='PUTS'&&spyRegime==='BEARISH'))
+    :null;
+  const regimePillHtml=regimeAligned!==null
+    ?`<span style="display:inline-flex;align-items:center;gap:4px;padding:4px 9px;border-radius:4px;font-family:'Space Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.2px;white-space:nowrap;background:${regimeAligned?'rgba(0,255,157,0.08)':'rgba(255,165,2,0.08)'};color:${regimeAligned?'#00ff9d':'#ffa502'};border:1px solid ${regimeAligned?'rgba(0,255,157,0.25)':'rgba(255,165,2,0.25)'};">${regimeAligned?'✓':'\u26a0'} SPY ${regimeAligned?'aligned':'vs regime'}</span>`
     :'';
 
-  // Score display: adjusted score is the big number; raw shown in tooltip if capped
-  const displayScore=d.confidence||0;
-  const rawScore=d.rawScore||displayScore;
-  const scoreTooltip=d.againstRegime
-    ?`title="Signal opposes SPY regime — no regime bonus applied (raw: ${rawScore})"`
-    :`title="Confidence score: ${displayScore}/100 — ${d.direction==='CALLS'?'Bullish':'Bearish'} technical setup"`;
-  const scoreColor=displayScore>=82?'var(--good)':displayScore>=70?'var(--accent)':'var(--warning)';
+  // Earnings
+  const earnDate=d.earningsDate||earningsOverrides[ticker]||null;
+  const earnDTE=earnDate?Math.ceil((new Date(earnDate)-new Date())/86400000):null;
+  const earnDaysColor=earnDTE!==null?(earnDTE<=3?'#ff4757':earnDTE<=14?'#ffa502':'#6b7a99'):'#6b7a99';
 
-  // Earnings color for pill
-  const earnPillDTEColor=earnDTE!==null&&earnDTE<=14?'var(--danger)':earnDTE!==null&&earnDTE<=30?'var(--warning)':'var(--accent)';
+  // IVR
+  const ivrVal=ivRankOverrides[ticker]??null;
+  const ivrColor=ivrVal!=null?(ivrVal<=35?'#00ff9d':ivrVal>=66?'#ff4757':'#ffa502'):'#6b7a99';
+  const ivrLabel=ivrVal!=null?(ivrVal<=35?'Cheap · debit':ivrVal>=66?'Expensive':'Fair'):'—';
 
-  return`<div class="data-card" style="position:relative;${isLimited?' opacity:0.85;':''}">
-    <button onclick="dismissCard('${ticker}')" title="Dismiss" style="position:absolute;top:8px;right:10px;background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer;padding:4px;line-height:1;z-index:10;" onmouseover="this.style.color='var(--danger)'" onmouseout="this.style.color='var(--muted)'">✕</button>
-    <div class="acc ${tr2}"></div>
-    <div class="card-top" style="flex-wrap:wrap;gap:6px;">
-      <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0;flex-wrap:wrap;">
-        <!-- Row 1: badge · score · ticker · price · change -->
-        <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;">
-          <div class="sbadge ${sig}">${sig}</div>
-          <div id="score-display-${ticker}" style="font-family:'Space Mono',monospace;font-size:18px;font-weight:700;color:${scoreColor};cursor:pointer;position:relative;line-height:1;" onclick="toggleScoreBreakdown('${ticker}',event)" title="Tap to see score breakdown">${displayScore}<span style="font-size:9px;color:var(--muted);margin-left:1px;">▾</span></div>
+  // ATR / entry
+  const atr14=d.atr14||null;
+  let entryAtrMult=null,entryLabel='—',entryColor='#6b7a99';
+  if(atr14&&atr14>0&&hasEMA){
+    const dist=(d.direction==='CALLS'?(d.price-d.ema8):(d.ema8-d.price));
+    entryAtrMult=parseFloat((dist/atr14).toFixed(1));
+    entryColor=entryAtrMult<=0.5?'#00ff9d':entryAtrMult<=1.0?'#00d4ff':entryAtrMult<=1.5?'#ffa502':'#ff4757';
+    entryLabel=entryAtrMult<=0.5?'Clean':entryAtrMult<=1.0?'Modest':entryAtrMult<=1.5?'Extended':'Chase risk';
+  } else if(d.atrNeutral){
+    entryLabel='ATR N/A';entryColor='#6b7a99';
+  }
+
+  // Volume
+  const volRatio=d.volRatio||null;
+  const volColor=volRatio!=null?(volRatio>=2.0?'#ffa502':volRatio>=1.5?'#00ff9d':volRatio>=1.0?'#00d4ff':'#6b7a99'):'#6b7a99';
+  const volLabel=volRatio!=null?(volRatio>=2.0?'Spike \uD83D\uDD25':volRatio>=1.5?'Elevated':'Normal'):'—';
+
+  // RSI
+  const rsiVal=d.rsi14!=null?d.rsi14.toFixed(1):'—';
+  const rsiColor=d.rsi14!=null?(d.rsi14>=70?'#ff4757':d.rsi14<=30?'#00ff9d':d.rsi14>=55?'#00d4ff':d.rsi14<=45?'#ffa502':'#00ff9d'):'#6b7a99';
+  const rsiLabel=d.rsi14!=null?(d.rsi14>=70?'Overbought':d.rsi14<=30?'Oversold':d.rsi14>=55?'Bullish zone':d.rsi14<=45?'Bearish zone':'Neutral'):'—';
+
+  // EMA displays
+  const ema8Display=hasEMA?'$'+d.ema8.toFixed(2):'—';
+  const ema21Display=hasEMA?'$'+d.ema21.toFixed(2):'—';
+  const ema8Color=hasEMA?(d.price>d.ema8?'#00ff9d':'#ff4757'):'#6b7a99';
+  const ema21Color=hasEMA?(d.price>d.ema21?'#00ff9d':'#ff4757'):'#6b7a99';
+  const ema8Sub=hasEMA?(d.price>d.ema8?'Price above':'Price below'):'—';
+  const ema21Sub=hasEMA?(d.price>d.ema21?'Price above':'Price below'):'—';
+
+  // Recommendation text from thesisMemory
+  const mem=getThesisMemory(ticker);
+  const recText=mem&&mem.text?mem.text:null;
+
+  // Prior note — stored as priorRec on sd
+  const priorRec=d.priorRec||null;
+
+  // Mini price chart — 14 closing prices from sd[ticker].closes
+  const pts=(d.closes||[]).slice(-14);
+  let chartSvg='';
+  if(pts.length>=2){
+    const allVals=[...pts];
+    if(hasEMA){allVals.push(d.ema8,d.ema21);}
+    const minV=Math.min(...allVals)-atr14*0.5||Math.min(...allVals)*0.995;
+    const maxV=Math.max(...allVals)+atr14*0.5||Math.max(...allVals)*1.005;
+    const W=900,H=120,pad=6;
+    const scaleY=v=>H-pad-((v-minV)/(maxV-minV||1))*(H-pad*2);
+    const scaleX=i=>pad+(i/(pts.length-1))*(W-pad*2);
+    const linePath=pts.map((v,i)=>(i===0?'M':'L')+scaleX(i)+','+scaleY(v)).join(' ');
+    const fillPath=linePath+' L'+scaleX(pts.length-1)+','+H+' L'+scaleX(0)+','+H+' Z';
+    const lineColor=pts[pts.length-1]>=pts[0]?'#00ff9d':'#ff4757';
+    const e8y=hasEMA?scaleY(d.ema8):null;
+    const e21y=hasEMA?scaleY(d.ema21):null;
+    chartSvg=`<svg width="100%" height="100%" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="display:block;">
+      <defs>
+        <linearGradient id="csfill-${ticker}" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="${lineColor}" stop-opacity="0.18"/>
+          <stop offset="100%" stop-color="${lineColor}" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      ${e8y!==null?`<line x1="0" y1="${e8y}" x2="${W}" y2="${e8y}" stroke="#ffa502" stroke-dasharray="3 4" stroke-width="1" opacity="0.7"/>`:''}
+      ${e21y!==null?`<line x1="0" y1="${e21y}" x2="${W}" y2="${e21y}" stroke="#00d4ff" stroke-dasharray="3 4" stroke-width="1" opacity="0.6"/>`:''}
+      <path d="${fillPath}" fill="url(#csfill-${ticker})"/>
+      <path d="${linePath}" stroke="${lineColor}" stroke-width="1.8" fill="none"/>
+      <circle cx="${scaleX(pts.length-1)}" cy="${scaleY(pts[pts.length-1])}" r="4" fill="${lineColor}"/>
+      ${e8y!==null?`<text x="${W-6}" y="${e8y-4}" font-size="11" fill="#ffa502" text-anchor="end" font-family="Space Mono,monospace" font-weight="700">EMA8 ${d.ema8.toFixed(2)}</text>`:''}
+      ${e21y!==null?`<text x="${W-6}" y="${e21y+13}" font-size="11" fill="#00d4ff" text-anchor="end" font-family="Space Mono,monospace" font-weight="700">EMA21 ${d.ema21.toFixed(2)}</text>`:''}
+    </svg>`;
+  }
+
+  // Score breakdown rows (same logic as before, reused)
+  const scoreRows=(()=>{
+    const rows=[];
+    if(hasEMA){
+      const emasStacked=(d.ema8>d.ema21&&d.price>d.ema8&&d.price>d.ema21)||(d.ema8<d.ema21&&d.price<d.ema8&&d.price<d.ema21);
+      const emaPts=emasStacked?18:(d.ema8!==d.ema21)?11:4;
+      rows.push({label:'EMA Alignment',val:emaPts,note:''});
+      const rsi=d.rsi14;
+      const ob2=parseFloat(S('rsiOb'))||75,os2=parseFloat(S('rsiOs'))||25;
+      let rsiPts=1;
+      if(rsi!==null){const emaBull=d.ema8>d.ema21;rsiPts=emaBull?(rsi>=45&&rsi<=65?12:rsi>40&&rsi<=70?9:rsi>65?6:rsi>ob2?3:1):(rsi>=35&&rsi<=55?12:rsi>=30&&rsi<60?9:rsi<35?6:rsi<os2?3:1);}
+      rows.push({label:'RSI Quality',val:rsiPts,note:''});
+      const sep=Math.abs((d.ema8-d.ema21)/d.ema21)*100;
+      const trendPts=sep>3?12:sep>1.5?9:sep>0.5?6:3;
+      rows.push({label:'Trend Strength',val:trendPts,note:''});
+    }
+    let volPts=7;
+    if(volRatio!==null){const bigDay=Math.abs(d.changePct)>=2;volPts=volRatio>=2.0?15:volRatio>=1.5?10:volRatio>=1.0?7:volRatio>=0.5?4:(bigDay?1:3);}
+    rows.push({label:'Volume Confirm',val:volPts,note:''});
+    if(d.atrNeutral){rows.push({label:'Clean Entry',val:8,note:'ATR N/A'});}
+    else if(atr14&&hasEMA){
+      const dist=(d.direction==='CALLS'?(d.price-d.ema8):(d.ema8-d.price));
+      const atrMult=dist/atr14;
+      const extPts=atrMult<=0.5?15:atrMult<=1.0?10:atrMult<=1.5?5:atrMult<=2.0?2:0;
+      const extLabel=atrMult<=0.5?'clean':atrMult<=1.0?'modest':atrMult<=1.5?'extended':'chasing';
+      rows.push({label:'Clean Entry',val:extPts,note:extLabel});
+    }
+    if(ivrVal!=null){
+      let ivrPts=6;
+      if(ivrVal<=20)ivrPts=12;else if(ivrVal<=35)ivrPts=10;else if(ivrVal<=50)ivrPts=8;else if(ivrVal<=65)ivrPts=5;else if(ivrVal<=80)ivrPts=2;else ivrPts=0;
+      rows.push({label:'IV Rank',val:ivrPts,note:ivrVal+' — '+(ivrVal<=35?'cheap':ivrVal>=66?'expensive':'moderate')});
+    }
+    if(spyRegime&&d.direction&&d.direction!=='—'){
+      const aligned=(d.direction==='CALLS'&&spyRegime==='BULLISH')||(d.direction==='PUTS'&&spyRegime==='BEARISH');
+      rows.push({label:'Regime + SI',val:aligned?10:0,note:aligned?'aligned':'vs regime'});
+    }
+    const siRec=window.SI?window.SI.getRecord(ticker):null;
+    if(siRec&&siRec.totalSamples>=window.SI.MIN_FULL_SAMPLES){
+      const siBonus=siRec.accuracy>=window.SI.PROMOTED_ACCURACY?15:siRec.accuracy>=window.SI.STANDARD_ACCURACY?8:-10;
+      rows.push({label:'SI Edge Bonus',val:siBonus,note:''});
+    }
+    if(d.thesisScore!=null)rows.push({label:'Thesis',val:d.thesisScore,note:'',isPurple:true});
+    return rows;
+  })();
+
+  const scoreRowsHtml=scoreRows.map(r=>{
+    const c=r.isPurple?'#bf8cff':(r.val>0?'#00ff9d':r.val===0?'#6b7a99':'#ff4757');
+    return`<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;background:#0f1624;font-size:12px;">
+      <span style="color:#6b7a99;">${r.label}${r.note?`<span style="color:#4a5670;font-weight:400;margin-left:6px;">(${r.note})</span>`:''}</span>
+      <span style="font-family:'Space Mono',monospace;font-weight:700;color:${c};">${r.val>0?'+':''}${r.val}</span>
+    </div>`;
+  }).join('<div style="height:1px;background:rgba(120,170,220,0.09);"></div>');
+
+  // Dividend
+  const divSnap=dividendOverrides[ticker]||null;
+  const divExFmt=divSnap&&divSnap.exDate?new Date(divSnap.exDate+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'}):'—';
+  const divColor=divSnap?(divSnap.yield>=10?'#ff4757':divSnap.yield>=5?'#ffa502':'#6b7a99'):'#6b7a99';
+
+  // SI badge
+  const siBadge=window.SI?window.SI.getAccuracyBadgeHTML(ticker):'';
+
+  // srcNote for limited data
+  const srcNote=isLimited?'<span style="font-family:\'Space Mono\',monospace;font-size:9px;font-weight:700;padding:2px 8px;border-radius:12px;background:rgba(107,122,153,0.15);color:#6b7a99;border:1px solid rgba(107,122,153,0.3);margin-left:8px;">LIMITED</span>':'';
+
+  return`<div style="background:#111827;border:1px solid rgba(120,170,220,0.18);position:relative;margin-bottom:9px;color:#e8edf5;font-family:'DM Sans',sans-serif;">
+    <!-- Left accent rail -->
+    <div style="position:absolute;left:0;top:0;bottom:0;width:3px;background:${convColor};box-shadow:0 0 12px ${convColor}55;z-index:1;"></div>
+
+    <!-- ① HEADER STRIP -->
+    <div style="display:flex;align-items:stretch;border-bottom:1px solid rgba(120,170,220,0.18);padding-left:3px;">
+      <!-- Score cluster -->
+      <div style="padding:14px 18px;display:flex;align-items:center;gap:12px;background:linear-gradient(90deg,rgba(0,212,255,0.06),transparent);border-right:1px solid rgba(120,170,220,0.09);">
+        <span style="display:inline-flex;align-items:center;padding:4px 9px;border-radius:4px;font-family:'Space Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.5px;white-space:nowrap;background:rgba(0,255,157,0.08);color:#00ff9d;border:1px solid rgba(0,255,157,0.25);">${sig}</span>
+        <div id="score-display-${ticker}" style="font-family:'Space Mono',monospace;font-size:34px;font-weight:700;color:${scoreColor};line-height:1;letter-spacing:-1px;cursor:pointer;" onclick="toggleScoreBreakdown('${ticker}',event)" title="Tap to see score breakdown">${displayScore}<span style="font-size:11px;color:#6b7a99;margin-left:2px;">▾</span></div>
+        <!-- Conviction gauge -->
+        <div style="display:flex;align-items:center;gap:8px;margin-left:4px;">
+          <svg width="44" height="28" viewBox="0 0 40 24">
+            <path d="M 2 20 A 18 18 0 0 1 38 20" stroke="rgba(120,170,220,0.09)" stroke-width="3" fill="none" stroke-linecap="round"/>
+            <path d="M 2 20 A 18 18 0 0 1 38 20" stroke="${convColor}" stroke-width="3" fill="none" stroke-linecap="round" stroke-dasharray="${Math.max(0,Math.min(100,conviction))/100*56.5} 56.5"/>
+          </svg>
           <div style="display:flex;flex-direction:column;gap:1px;">
-            <div style="display:flex;align-items:baseline;gap:8px;">
-              <div class="tbadge">${ticker}</div>
-              <div class="cprice ${priceClass}">$${d.price.toFixed(2)}</div>
-              <div class="pch ${priceClass}">${chgStr(d)}</div>
-            </div>
-            <!-- Row 2: regime pill · company name -->
-            <div style="display:flex;align-items:center;gap:6px;margin-top:2px;">
-              ${regimeNote}
-              ${d.description?`<div style="font-size:11px;color:var(--muted);font-family:'DM Sans',sans-serif;">${d.description}</div>`:''}
-            </div>
-            <!-- SI accuracy badge -->
-            ${siBadge?`<div style="margin-top:2px;">${siBadge}</div>`:''}
+            <span style="font-family:'Space Mono',monospace;font-size:9px;color:#6b7a99;letter-spacing:0.8px;">CONV</span>
+            <span style="font-family:'Space Mono',monospace;font-size:14px;font-weight:700;color:${convColor};line-height:1;">${conviction}</span>
           </div>
         </div>
-        <!-- Score breakdown popup -->
-        <div id="score-breakdown-${ticker}" style="display:none;position:absolute;left:14px;top:70px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 12px;z-index:100;min-width:240px;box-shadow:0 4px 20px rgba(0,0,0,0.4);">
-          <div style="font-family:'Space Mono',monospace;font-size:8px;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;margin-bottom:6px;">Score Breakdown</div>
-          <div style="font-size:10px;color:var(--muted);line-height:1.5;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--border);">Technical score = current setup strength. Historical Edge (SI %) = how often this setup worked on this ticker in past tests. Thesis adds conviction.</div>
+      </div>
+      <!-- Ticker + company -->
+      <div style="padding:14px 18px;border-right:1px solid rgba(120,170,220,0.09);display:flex;flex-direction:column;justify-content:center;">
+        <div style="font-family:'Space Mono',monospace;font-size:20px;font-weight:700;letter-spacing:0.5px;">${ticker}</div>
+        <div style="font-size:10px;color:#6b7a99;">${d.description||''}</div>
+      </div>
+      <!-- Price + pills -->
+      <div style="padding:14px 18px;flex:1;display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+        <div>
+          <div style="font-family:'Space Mono',monospace;font-size:22px;font-weight:700;color:${priceColor};line-height:1;">$${d.price.toFixed(2)}</div>
+          <div style="font-family:'Space Mono',monospace;font-size:10px;color:${priceColor};margin-top:3px;">${d.change>=0?'+':''}${d.change.toFixed(2)} · ${changeSign}${d.changePct.toFixed(2)}%</div>
+        </div>
+        <div style="flex:1;"></div>
+        ${thesisTag?`<span style="display:inline-flex;align-items:center;padding:4px 9px;border-radius:4px;font-family:'Space Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.2px;white-space:nowrap;background:${thesisTagBg};color:${thesisTagColor};border:1px solid ${thesisTagBorder};">${thesisTag} +${thesisAdder}</span>`:''}
+        <span style="display:inline-flex;align-items:center;padding:4px 9px;border-radius:4px;font-family:'Space Mono',monospace;font-size:10px;font-weight:700;white-space:nowrap;background:${trendBg};color:${trendColor};border:1px solid ${trendBorder};">${trendVal}</span>
+        ${regimePillHtml}
+        <!-- X dismiss button -->
+        <button onclick="dismissCard('${ticker}')" title="Dismiss" style="display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;background:none;border:1px solid rgba(120,170,220,0.18);border-radius:4px;color:#6b7a99;font-size:14px;cursor:pointer;transition:all 0.15s;flex-shrink:0;" onmouseover="this.style.color='#ff4757';this.style.borderColor='rgba(255,71,87,0.4)'" onmouseout="this.style.color='#6b7a99';this.style.borderColor='rgba(120,170,220,0.18)'">✕</button>
+      </div>
+    </div>
+
+    <!-- ② PRICE CHART -->
+    ${pts.length>=2?`<div style="padding:14px 22px 10px 26px;border-bottom:1px solid rgba(120,170,220,0.09);background:linear-gradient(180deg,rgba(0,0,0,0.08),transparent);">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+        <span style="font-family:'Space Mono',monospace;font-size:9px;color:#6b7a99;letter-spacing:1.2px;">PRICE · ${pts.length}D</span>
+        <div style="flex:1;height:1px;background:rgba(120,170,220,0.09);"></div>
+        ${hasEMA?`<span style="font-family:'Space Mono',monospace;font-size:9px;color:#4a5670;letter-spacing:0.6px;">EMA8 <span style="color:#ffa502;">${d.ema8.toFixed(2)}</span> · EMA21 <span style="color:#00d4ff;">${d.ema21.toFixed(2)}</span></span>`:''}
+      </div>
+      <div style="height:120px;">${chartSvg}</div>
+    </div>`:''}
+
+    <!-- ③ RECOMMENDATION -->
+    <div style="padding:14px 22px 0 26px;">
+      <div style="padding:12px 14px;border-radius:6px;border:1px solid rgba(0,255,157,0.3);background:linear-gradient(180deg,rgba(0,255,157,0.05),rgba(0,255,157,0.02));position:relative;overflow:hidden;">
+        <div style="position:absolute;left:0;top:0;bottom:0;width:2px;background:#00ff9d;"></div>
+        <div style="font-family:'Space Mono',monospace;font-size:10px;color:#00ff9d;letter-spacing:1.2px;margin-bottom:6px;">RECOMMENDATION</div>
+        <div style="font-size:13px;line-height:1.55;color:#e8edf5;">
+          ${recText||`<span style="color:#6b7a99;font-style:italic;">Run thesis analysis to generate recommendation →</span>`}
+        </div>
+      </div>
+    </div>
+
+    <!-- ④ DETAIL GRID -->
+    <div style="padding:14px 0 0 3px;">
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid rgba(120,170,220,0.09);">
+        ${[
+          {label:'RSI 14',value:rsiVal,color:rsiColor,sub:rsiLabel},
+          {label:'EMA 8',value:ema8Display,color:ema8Color,sub:ema8Sub},
+          {label:'EMA 21',value:ema21Display,color:ema21Color,sub:ema21Sub},
+          {label:'ATR 14',value:atr14?'$'+atr14.toFixed(2):'—',color:'#e8edf5',sub:'Volatility'},
+          {label:'Volume',value:volRatio!=null?volRatio.toFixed(1)+'×':'—',color:volColor,sub:volLabel},
+          {label:'Entry',value:entryAtrMult!==null?entryAtrMult+'× ATR':'—',color:entryColor,sub:entryLabel},
+          {label:'IV Rank',value:ivrVal!=null?ivrVal.toFixed(1):'—',color:ivrColor,sub:ivrLabel},
+          {label:'Earnings',value:earnDTE!==null?(earnDTE<=0?'NOW':earnDTE+'d'):'—',color:earnDaysColor,sub:earnDate||'Unknown'},
+        ].map(cell=>`<div style="padding:10px 14px;border-right:1px solid rgba(120,170,220,0.09);border-bottom:1px solid rgba(120,170,220,0.09);">
+          <div style="font-family:'Space Mono',monospace;font-size:9px;color:#6b7a99;letter-spacing:0.8px;text-transform:uppercase;">${cell.label}</div>
+          <div style="font-family:'Space Mono',monospace;font-size:16px;font-weight:700;color:${cell.color};margin-top:3px;">${cell.value}</div>
+          <div style="font-size:10px;color:#4a5670;margin-top:1px;">${cell.sub}</div>
+        </div>`).join('')}
+      </div>
+    </div>
+
+    <!-- ⑤ ACCORDIONS -->
+    <div style="padding-left:3px;">
+
+      <!-- THESIS accordion (existing logic preserved) -->
+      <div style="background:rgba(120,170,220,0.09);height:1px;"></div>
+      <div style="background:#111827;">
+        <div class="thesis-row" onclick="toggleThesis('${ticker}')" style="width:100%;padding:11px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;">
+          <span style="color:#6b7a99;font-size:9px;">▾</span>
+          <span style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:#6b7a99;">Thesis</span>
+          <span style="flex:1;"></span>
+          ${d.thesisScore!=null?`<span style="font-family:'Space Mono',monospace;font-size:10px;color:#6b7a99;">${d.thesisVerdict||'—'} · +${d.thesisScore}/10</span>`:`<span style="font-family:'Space Mono',monospace;font-size:10px;color:#6b7a99;">— not analyzed</span>`}
+          <span class="thesis-chevron${d.thesisScore!=null?' open':''}" id="thesis-chev-${ticker}" style="display:none;">▾</span>
+        </div>
+        <div class="thesis-panel${d.thesisScore!=null?' open':''}" id="thesis-panel-${ticker}">
+          <div class="thesis-loading" id="thesis-loading-${ticker}" style="display:none;align-items:center;gap:6px;padding:10px 34px;">
+            <span style="width:6px;height:6px;border-radius:50%;background:#bf8cff;display:inline-block;animation:blink 1.2s infinite;"></span>
+            <span style="width:6px;height:6px;border-radius:50%;background:#bf8cff;display:inline-block;animation:blink 1.2s 0.2s infinite;"></span>
+            <span style="width:6px;height:6px;border-radius:50%;background:#bf8cff;display:inline-block;animation:blink 1.2s 0.4s infinite;"></span>
+            <span style="margin-left:4px;font-family:'Space Mono',monospace;font-size:10px;color:#6b7a99;">Analyzing setup...</span>
+          </div>
+          <div class="thesis-result${d.thesisScore!=null&&d.thesisBreakdown?' active':''}" id="thesis-result-${ticker}">
+            ${d.thesisScore!=null&&d.thesisBreakdown?`
+            <div style="padding:2px 14px 14px 34px;">
+              <div class="thesis-score-row">
+                <span class="thesis-score-big" style="color:${d.thesisVerdict==='STRONG'?'var(--good)':d.thesisVerdict==='SKIP'?'var(--danger)':'var(--warning)'};">${d.thesisVerdict}</span>
+                <div class="thesis-conviction">
+                  Technical: <span>${d.confidence}</span> &nbsp;|&nbsp; Thesis <span style="color:#bf8cff;">+${d.thesisScore}</span> → Conviction: <span style="color:${conviction>=82?'var(--good)':conviction>=70?'var(--accent)':'var(--warning)'};font-weight:700;">${conviction}</span>
+                </div>
+              </div>
+              <div class="thesis-breakdown" id="thesis-breakdown-${ticker}">${d.thesisBreakdown}</div>
+              <div style="margin-top:8px;">
+                <button class="thesis-analyze-btn" onclick="fetchThesisNews('${ticker}')" id="thesis-news-btn-${ticker}">📰 Get News</button>
+                <div id="thesis-news-${ticker}" style="margin-top:8px;"></div>
+              </div>
+            </div>`:''
+            }
+          </div>
+        </div>
+      </div>
+
+      <!-- SCORE BREAKDOWN accordion -->
+      <div style="background:rgba(120,170,220,0.09);height:1px;"></div>
+      <div style="background:#111827;">
+        <button onclick="toggleScoreBreakdown('${ticker}',event)" style="width:100%;padding:11px 14px;text-align:left;cursor:pointer;background:transparent;border:none;color:#e8edf5;display:flex;align-items:center;gap:10px;font-family:'DM Sans',sans-serif;transition:background .12s;" onmouseover="this.style.background='rgba(120,170,220,0.04)'" onmouseout="this.style.background='transparent'">
+          <span style="color:#6b7a99;font-size:9px;">▾</span>
+          <span style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:#6b7a99;">Score Breakdown</span>
+          <span style="flex:1;"></span>
+          <span style="font-family:'Space Mono',monospace;font-size:11px;color:#4a5670;">${displayScore} → ${conviction}</span>
+        </button>
+        <div id="score-breakdown-${ticker}" style="display:none;padding:2px 14px 14px 14px;">
+          <div style="display:flex;flex-direction:column;gap:1px;background:rgba(120,170,220,0.09);border-radius:3px;overflow:hidden;">
+            ${scoreRowsHtml}
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:9px 10px;background:#111827;font-family:'Space Mono',monospace;font-size:11px;margin-top:1px;">
+            <span style="color:#6b7a99;">Technical <span style="color:#00d4ff;font-weight:700;">${displayScore}</span>${d.thesisScore!=null?` + Thesis <span style="color:#bf8cff;font-weight:700;">+${d.thesisScore}</span>`:''}</span>
+            <span style="color:#00ff9d;font-weight:700;">→ Conviction ${conviction}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- OVERRIDES accordion (Dividend / IVR / Earnings) -->
+      <div style="background:rgba(120,170,220,0.09);height:1px;"></div>
+      <div style="background:#111827;">
+        <button onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'" style="width:100%;padding:11px 14px;text-align:left;cursor:pointer;background:transparent;border:none;color:#e8edf5;display:flex;align-items:center;gap:10px;font-family:'DM Sans',sans-serif;" onmouseover="this.style.background='rgba(120,170,220,0.04)'" onmouseout="this.style.background='transparent'">
+          <span style="color:#6b7a99;font-size:9px;">▾</span>
+          <span style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:#6b7a99;">Overrides</span>
+          <span style="flex:1;"></span>
+          <span style="font-family:'Space Mono',monospace;font-size:10px;color:#4a5670;">${[ivrVal!=null?'IVR':'',earnDate?'Earnings':'',divSnap?'Div':''].filter(Boolean).join(' · ')||'none set'}</span>
+        </button>
+        <div style="display:none;padding:2px 14px 14px 26px;">
+          <div style="display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;">
+            <div style="display:flex;flex-direction:column;gap:3px;">
+              <div style="font-family:'Space Mono',monospace;font-size:8px;letter-spacing:1px;color:#6b7a99;text-transform:uppercase;">Dividend</div>
+              <div style="display:flex;align-items:center;gap:4px;">
+                <input class="earn-input" id="div-yield-${ticker}" type="number" min="0" step="0.1" placeholder="Yield %" value="${divSnap?divSnap.yield:''}" style="width:70px;">
+                <input class="earn-input" id="div-ex-${ticker}" type="date" value="${divSnap?divSnap.exDate:''}" style="width:128px;">
+                <button class="earn-save" onclick="saveDividendOverride('${ticker}')">Save</button>
+                ${divSnap?`<button class="earn-save" style="background:var(--border);color:var(--muted);" onclick="clearDividendOverride('${ticker}');rB();tb_toast('Dividend cleared.');">✕</button>`:''}
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:3px;">
+              <div style="font-family:'Space Mono',monospace;font-size:8px;letter-spacing:1px;color:#6b7a99;text-transform:uppercase;">IV Rank</div>
+              <div style="display:flex;align-items:center;gap:4px;">
+                <input class="earn-input" id="ivr-in-${ticker}" type="number" min="0" max="100" step="1" placeholder="0–100" value="${ivrVal!=null?ivrVal:''}" style="width:70px;">
+                <button class="earn-save" onclick="saveIVROverride('${ticker}')">Save</button>
+                ${ivrVal!=null?`<button class="earn-save" style="background:var(--border);color:var(--muted);" onclick="setIVROverride('${ticker}',null);document.getElementById('ivr-in-${ticker}').value='';rB();tb_toast('IV Rank cleared.');">✕</button>`:''}
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:3px;">
+              <div style="font-family:'Space Mono',monospace;font-size:8px;letter-spacing:1px;color:#6b7a99;text-transform:uppercase;">Earnings Date</div>
+              <div style="display:flex;align-items:center;gap:4px;">
+                <input class="earn-input" id="earn-in-${ticker}" type="date" value="${earningsOverrides[ticker]||''}" style="width:128px;">
+                <button class="earn-save" onclick="saveEarningsOverride('${ticker}')">Save</button>
+              </div>
+            </div>
+          </div>
+          <!-- Risk Snapshot inline -->
           ${(()=>{
-            const rows=[];
-            const hasData=d.ema8!==null&&d.ema8!==undefined;
-            if(hasData){
-              const emasStacked=(d.ema8>d.ema21&&d.price>d.ema8&&d.price>d.ema21)||(d.ema8<d.ema21&&d.price<d.ema8&&d.price<d.ema21);
-              const emaPts=emasStacked?18:(d.ema8!==d.ema21)?11:4;
-              rows.push(`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border);font-family:'Space Mono',monospace;font-size:10px;"><span style="color:var(--muted);">EMA Alignment</span><span style="color:${emaPts>=15?'var(--good)':emaPts>=9?'var(--accent)':'var(--warning)'};">+${emaPts}</span></div>`);
-              const rsi=d.rsi14;
-              const ob2=parseFloat(S('rsiOb'))||75,os2=parseFloat(S('rsiOs'))||25;
-              let rsiPts=1;
-              if(rsi!==null){const emaBull=d.ema8>d.ema21;rsiPts=emaBull?(rsi>=45&&rsi<=65?12:rsi>40&&rsi<=70?9:rsi>65?6:rsi>ob2?3:1):(rsi>=35&&rsi<=55?12:rsi>=30&&rsi<60?9:rsi<35?6:rsi<os2?3:1);}
-              rows.push(`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border);font-family:'Space Mono',monospace;font-size:10px;"><span style="color:var(--muted);">RSI Quality</span><span style="color:${rsiPts>=9?'var(--good)':rsiPts>=6?'var(--accent)':'var(--warning)'};">+${rsiPts}</span></div>`);
-              const sep=Math.abs((d.ema8-d.ema21)/d.ema21)*100;
-              const trendPts=sep>3?12:sep>1.5?9:sep>0.5?6:3;
-              rows.push(`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border);font-family:'Space Mono',monospace;font-size:10px;"><span style="color:var(--muted);">Trend Strength</span><span style="color:${trendPts>=10?'var(--good)':trendPts>=7?'var(--accent)':'var(--warning)'};">~${trendPts}</span></div>`);
-            }
-            let volPts=7;
-            if(d.volRatio!==null&&d.volRatio!==undefined){const bigDay=Math.abs(d.changePct)>=2;volPts=d.volRatio>=2.0?15:d.volRatio>=1.5?10:d.volRatio>=1.0?7:d.volRatio>=0.5?4:(bigDay?1:3);}
-            rows.push(`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border);font-family:'Space Mono',monospace;font-size:10px;"><span style="color:var(--muted);">Volume Confirm</span><span style="color:${volPts>=10?'var(--good)':volPts>=6?'var(--accent)':'var(--warning)'};">+${volPts}</span></div>`);
-            if(d.atrNeutral){
-              rows.push(`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border);font-family:'Space Mono',monospace;font-size:10px;"><span style="color:var(--muted);">Clean Entry</span><span style="color:var(--warning);">+8 (ATR N/A)</span></div>`);
-            } else if(d.atr14&&d.ema8){
+            const lines=[];
+            if(d.atrNeutral){lines.push(`<div style="font-family:'Space Mono',monospace;font-size:10px;color:#6b7a99;">Entry <span style="color:#6b7a99;">ATR N/A — scored neutral</span></div>`);}
+            else if(atr14&&atr14>0&&hasEMA){
               const dist=(d.direction==='CALLS'?(d.price-d.ema8):(d.ema8-d.price));
-              const atrMult=dist/d.atr14;
-              const extPts=atrMult<=0.5?15:atrMult<=1.0?10:atrMult<=1.5?5:atrMult<=2.0?2:0;
-              const extLabel=atrMult<=0.5?'clean':atrMult<=1.0?'modest ext':atrMult<=1.5?'extended':atrMult<=2.0?'chasing':'far extended';
-              rows.push(`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border);font-family:'Space Mono',monospace;font-size:10px;"><span style="color:var(--muted);">Clean Entry</span><span style="color:${extPts>=10?'var(--good)':extPts>=5?'var(--accent)':'var(--danger)'};">+${extPts} (${extLabel})</span></div>`);
+              const atrMult=parseFloat((dist/atr14).toFixed(2));
+              const eC=atrMult<=0.5?'#00ff9d':atrMult<=1.0?'#00d4ff':atrMult<=1.5?'#ffa502':'#ff4757';
+              const eL=atrMult<=0.5?'clean entry':atrMult<=1.0?'modest extension':atrMult<=1.5?'extended — caution':'chase risk — elevated';
+              lines.push(`<div style="font-family:'Space Mono',monospace;font-size:10px;color:#6b7a99;">Entry <span style="color:${eC};">${atrMult.toFixed(1)}× ATR — ${eL}</span></div>`);
             }
-            const ivrVal=ivRankOverrides[ticker]??null;
-            let ivrPtsDisplay=6,ivrLabel='scan neutral';
+            if(earnDate&&earnDTE!==null){
+              const eColor=earnDTE<=3?'#ff4757':earnDTE<=14?'#ffa502':'#00ff9d';
+              const eLabel=earnDTE<=0?'today / past':earnDTE===1?'tomorrow — avoid':'in '+earnDTE+' days';
+              lines.push(`<div style="font-family:'Space Mono',monospace;font-size:10px;color:#6b7a99;">Earnings <span style="color:${eColor};">${eLabel}</span></div>`);
+            }
             if(ivrVal!=null){
-              if(ivrVal<=20){ivrPtsDisplay=12;ivrLabel=`${ivrVal} — very cheap`;}
-              else if(ivrVal<=35){ivrPtsDisplay=10;ivrLabel=`${ivrVal} — cheap`;}
-              else if(ivrVal<=50){ivrPtsDisplay=8;ivrLabel=`${ivrVal} — moderate`;}
-              else if(ivrVal<=65){ivrPtsDisplay=5;ivrLabel=`${ivrVal} — elevated`;}
-              else if(ivrVal<=80){ivrPtsDisplay=2;ivrLabel=`${ivrVal} — high`;}
-              else{ivrPtsDisplay=0;ivrLabel=`${ivrVal} — very high`;}
+              const iC=ivrVal<=35?'#00ff9d':ivrVal>=66?'#ff4757':'#ffa502';
+              const iL=ivrVal<=35?'cheap — good for debit':ivrVal>=66?'expensive — reduces edge':'fair';
+              lines.push(`<div style="font-family:'Space Mono',monospace;font-size:10px;color:#6b7a99;">IVR <span style="color:${iC};">${ivrVal} — ${iL}</span></div>`);
             }
-            rows.push(`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border);font-family:'Space Mono',monospace;font-size:10px;"><span style="color:var(--muted);">IV Rank</span><span style="color:${ivrPtsDisplay>=9?'var(--good)':ivrPtsDisplay>=6?'var(--muted)':'var(--danger)'};">+${ivrPtsDisplay} (${ivrLabel})</span></div>`);
-            if(spyRegime&&d.direction&&d.direction!=='—'){
-              const aligned=(d.direction==='CALLS'&&spyRegime==='BULLISH')||(d.direction==='PUTS'&&spyRegime==='BEARISH');
-              rows.push(`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border);font-family:'Space Mono',monospace;font-size:10px;"><span style="color:var(--muted);">Regime + SI</span><span style="color:${aligned?'var(--good)':'var(--muted)'};">${aligned?'+10':'+0 (vs regime)'}</span></div>`);
+            if(divSnap){
+              const dC=divSnap.yield>=10?'#ff4757':divSnap.yield>=5?'#ffa502':'#6b7a99';
+              lines.push(`<div style="font-family:'Space Mono',monospace;font-size:10px;color:#6b7a99;">Div <span style="color:${dC};">${divSnap.yield}% · ex ${divExFmt} — watch gap</span></div>`);
             }
-            const siRec=window.SI?window.SI.getRecord(ticker):null;
-            if(siRec&&siRec.totalSamples>=window.SI.MIN_FULL_SAMPLES){
-              const siBonus=siRec.accuracy>=window.SI.PROMOTED_ACCURACY?15:siRec.accuracy>=window.SI.STANDARD_ACCURACY?8:-10;
-              rows.push(`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border);font-family:'Space Mono',monospace;font-size:10px;"><span style="color:var(--muted);">SI Edge Bonus</span><span style="color:${siBonus>0?'var(--good)':'var(--danger)'};">${siBonus>0?'+':''}${siBonus}</span></div>`);
-            }
-            if(d.thesisScore!=null){
-              rows.push(`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border);font-family:'Space Mono',monospace;font-size:10px;"><span style="color:var(--muted);">Thesis</span><span style="color:#bf8cff;">+${d.thesisScore}</span></div>`);
-            }
-            const convTotal=d.thesisScore!=null?Math.min(100,displayScore+d.thesisScore):displayScore;
-            const convColor=convTotal>=82?'var(--good)':convTotal>=70?'var(--accent)':'var(--warning)';
-            if(d.thesisScore!=null){
-              rows.push(`<div style="padding:5px 0 0;font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);border-top:1px solid var(--border);margin-top:2px;">Technical: <span style="color:var(--accent);">${displayScore}</span> | Thesis +${d.thesisScore} → <span style="color:${convColor};font-weight:700;">Conviction: ${convTotal}</span></div>`);
-            } else {
-              rows.push(`<div style="display:flex;justify-content:space-between;padding:4px 0 0;font-family:'Space Mono',monospace;font-size:11px;font-weight:700;"><span style="color:var(--text);">Overall</span><span style="color:${convColor};">${convTotal}</span></div>`);
-            }
-            return rows.join('');
+            if(!lines.length)return'';
+            return`<div style="margin-top:10px;padding-top:8px;border-top:1px solid rgba(120,170,220,0.09);display:flex;flex-direction:column;gap:4px;">
+              <div style="font-family:'Space Mono',monospace;font-size:8px;letter-spacing:1px;color:#6b7a99;text-transform:uppercase;margin-bottom:2px;">Risk Snapshot</div>
+              ${lines.join('')}
+            </div>`;
           })()}
-        </div>
-      </div>
-      <!-- Indicator pills — right side, padded to clear ✕ button -->
-      <div class="inds" style="margin-left:auto;padding-right:32px;">
-        <a class="ip" href="https://www.tradingview.com/chart/?symbol=${ticker}" target="_blank" rel="noopener noreferrer" style="text-decoration:none;cursor:pointer;" title="Open in TradingView"><span class="il">CHART</span><span class="iv" style="color:var(--accent);">📈 TV</span></a>
-        <div class="ip"><span class="il">RSI 14</span><span class="iv ${rsiClass}">${rsiDisplay}</span></div>
-        <div class="ip"><span class="il">EMA ${parts[0]}</span><span class="iv ${a8}">${ema8Display}</span></div>
-        <div class="ip"><span class="il">EMA ${parts[1]}</span><span class="iv ${a21}">${ema21Display}</span></div>
-        <div class="ip"><span class="il">TREND</span><span class="iv" style="color:${trendColor};font-size:9px;">${trendVal}</span></div>
-        <div class="ip"><span class="il">DAY</span><span class="iv" style="color:${dayColor};">${(d.changePct>=0?'+':'')+d.changePct.toFixed(1)}%</span></div>
-        <div class="ip"><span class="il">EARN</span><span class="iv ${earnPillColor}">${earnPillText}</span></div>
-        <div class="ip" title="Today's volume vs 30-day average"><span class="il">VOL RATIO</span><span class="iv" style="color:${volRatioColor};">${volRatioDisplay}</span></div>
-        ${d.atr14!==null&&d.atr14!==undefined?`<div class="ip"><span class="il">ATR 14</span><span class="iv mid">$${d.atr14.toFixed(2)}</span></div>`:''}
-        ${d.atrNeutral?`<div class="ip" title="ATR N/A — scored as neutral"><span class="il">ENTRY</span><span class="iv" style="color:var(--warning);font-size:9px;">ATR N/A</span></div>`:''}
-        ${ivRankOverrides[ticker]!=null?`<div class="ip" title="Manual IV Rank override"><span class="il">IVR</span><span class="iv" style="color:${ivRankOverrides[ticker]<=35?'var(--good)':ivRankOverrides[ticker]>=66?'var(--danger)':'var(--warning)'};">${ivRankOverrides[ticker]}</span></div>`:''}
-      </div>
-    </div>
-    <div class="card-mid">
-      <div class="reason">"${d.reason}"${srcNote}</div>
-      <div class="tgrid">
-        ${teas}
-        <div class="tstat">
-          <div class="tlabel">EARNINGS</div>
-          <div class="tval" style="color:${earnPillDTEColor};">${earnDate||'Unknown'}</div>
-          <div class="tnote">${earnDTE!==null?(earnDTE<=0?'Today / Past':earnDTE<=7?'⚠️ Too close — avoid new positions':earnDTE+'d away — '+(earnRisky?'⚠️ RISKY':'✅ Safe')):'No data'}</div>
-        </div>
-      </div>
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-top:10px;gap:8px;flex-wrap:wrap;">
-        <div style="display:flex;align-items:center;gap:6px;">
-          <button class="sel-btn" onclick="select('${ticker}')"${isLimited?' disabled title="Need full data to select"':''}>${isLimited?'⏳':'⬇ Select'}</button>
-        </div>
-        <!-- Inline override row: Dividend | IV Rank | Earnings Date -->
-        <div style="display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;">
-          <div style="display:flex;flex-direction:column;gap:3px;">
-            <div style="font-family:'Space Mono',monospace;font-size:8px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;">Dividend</div>
-            <div style="display:flex;align-items:center;gap:4px;">
-              <input class="earn-input" id="div-yield-${ticker}" type="number" min="0" step="0.1" placeholder="Yield %" value="${dividendOverrides[ticker]?dividendOverrides[ticker].yield:''}" style="width:70px;">
-              <input class="earn-input" id="div-ex-${ticker}" type="date" value="${dividendOverrides[ticker]?dividendOverrides[ticker].exDate:''}" style="width:128px;">
-              <button class="earn-save" onclick="saveDividendOverride('${ticker}')">Save</button>
-              ${dividendOverrides[ticker]?`<button class="earn-save" style="background:var(--border);color:var(--muted);" onclick="clearDividendOverride('${ticker}');rB();tb_toast('Dividend cleared.');">✕</button>`:''}
-            </div>
-          </div>
-          <div style="display:flex;flex-direction:column;gap:3px;">
-            <div style="font-family:'Space Mono',monospace;font-size:8px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;">IV Rank</div>
-            <div style="display:flex;align-items:center;gap:4px;">
-              <input class="earn-input" id="ivr-in-${ticker}" type="number" min="0" max="100" step="1" placeholder="0–100" value="${ivRankOverrides[ticker]!=null?ivRankOverrides[ticker]:''}" style="width:70px;">
-              <button class="earn-save" onclick="saveIVROverride('${ticker}')">Save</button>
-              ${ivRankOverrides[ticker]!=null?`<button class="earn-save" style="background:var(--border);color:var(--muted);" onclick="setIVROverride('${ticker}',null);document.getElementById('ivr-in-${ticker}').value='';rB();tb_toast('IV Rank cleared.');">✕</button>`:''}
-            </div>
-          </div>
-          <div style="display:flex;flex-direction:column;gap:3px;">
-            <div style="font-family:'Space Mono',monospace;font-size:8px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;">Earnings Date</div>
-            <div style="display:flex;align-items:center;gap:4px;">
-              <input class="earn-input" id="earn-in-${ticker}" type="date" value="${earningsOverrides[ticker]||''}" style="width:128px;">
-              <button class="earn-save" onclick="saveEarningsOverride('${ticker}')">Save</button>
-            </div>
+          <!-- SI badge + Select button -->
+          <div style="display:flex;align-items:center;gap:10px;margin-top:12px;padding-top:10px;border-top:1px solid rgba(120,170,220,0.09);">
+            <button class="sel-btn" onclick="select('${ticker}')"${isLimited?' disabled title="Need full data to select"':''}>${isLimited?'⏳':'⬇ Select'}</button>
+            ${siBadge?`<div>${siBadge}${srcNote}</div>`:(srcNote||'')}
           </div>
         </div>
       </div>
-      ${(()=>{
-        // ── RISK SNAPSHOT ─────────────────────────────────────────────
-        const lines=[];
-        // Line 1: Entry extension (ATR-based)
-        if(d.atrNeutral){
-          lines.push(`<div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);">Entry &nbsp;<span style="color:var(--muted);">ATR N/A — scored neutral</span></div>`);
-        } else if(d.atr14&&d.atr14>0&&d.ema8){
-          const dist=(d.direction==='CALLS'?(d.price-d.ema8):(d.ema8-d.price));
-          const atrMult=parseFloat((dist/d.atr14).toFixed(2));
-          const entryColor=atrMult<=0.5?'var(--good)':atrMult<=1.0?'var(--accent)':atrMult<=1.5?'var(--warning)':'var(--danger)';
-          const entryLabel=atrMult<=0.5?'clean entry':atrMult<=1.0?'modest extension':atrMult<=1.5?'extended — caution':'chase risk — elevated';
-          lines.push(`<div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);">Entry &nbsp;<span style="color:${entryColor};">${atrMult.toFixed(1)}× ATR — ${entryLabel}</span></div>`);
-        }
-        // Line 2: Earnings proximity
-        if(earnDate&&earnDTE!==null){
-          const eColor=earnDTE<=3?'var(--danger)':earnDTE<=14?'var(--warning)':'var(--good)';
-          const eLabel=earnDTE<=0?'today / past':earnDTE===1?'tomorrow — avoid':'in '+earnDTE+' days';
-          lines.push(`<div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);">Earnings &nbsp;<span style="color:${eColor};">${eLabel}</span></div>`);
-        }
-        // Line 3: IV Rank
-        const ivrSnap=ivRankOverrides[ticker]??null;
-        if(ivrSnap!=null){
-          const iColor=ivrSnap<=35?'var(--good)':ivrSnap>=66?'var(--danger)':'var(--warning)';
-          const iLabel=ivrSnap<=35?'cheap — good for debit':ivrSnap>=66?'expensive — reduces edge':'fair';
-          lines.push(`<div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);">IVR &nbsp;<span style="color:${iColor};">${ivrSnap} — ${iLabel}</span></div>`);
-        }
-        // Line 4: Dividend
-        const divSnap=dividendOverrides[ticker]||null;
-        if(divSnap){
-          const dColor=divSnap.yield>=10?'var(--danger)':divSnap.yield>=5?'var(--warning)':'var(--muted)';
-          const exFmt=divSnap.exDate?new Date(divSnap.exDate+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'}):'—';
-          lines.push(`<div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);">Div &nbsp;<span style="color:${dColor};">${divSnap.yield}% · ex ${exFmt} — watch gap</span></div>`);
-        }
-        if(!lines.length)return '';
-        return `<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:4px;">
-          <div style="font-family:'Space Mono',monospace;font-size:8px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;margin-bottom:2px;">Risk Snapshot</div>
-          ${lines.join('')}
-        </div>`;
-      })()}
+
     </div>
-    <div class="thesis-row" onclick="toggleThesis('${ticker}')">
-      <div class="thesis-row-left">
-        <span class="thesis-label-sm">Thesis</span>
-        ${d.thesisScore!=null?`<span class="thesis-pill">${d.thesisVerdict||'—'} · +${d.thesisScore}/10</span>`:'<span style="font-family:\'Space Mono\',monospace;font-size:10px;color:var(--muted);">— not analyzed</span>'}
+
+    <!-- PRIOR footnote -->
+    ${priorRec?`<div style="padding:10px 22px 14px 26px;">
+      <div style="padding:8px 12px;border-left:2px solid rgba(120,170,220,0.18);background:rgba(120,170,220,0.03);border-radius:0 4px 4px 0;">
+        <div style="font-family:'Space Mono',monospace;font-size:9px;color:#4a5670;letter-spacing:1px;margin-bottom:3px;">PRIOR · ${priorRec.date||'—'}</div>
+        <div style="font-size:11px;color:#6b7a99;line-height:1.5;font-style:italic;">"${priorRec.text}"</div>
       </div>
-      <span class="thesis-chevron${d.thesisScore!=null?' open':''}" id="thesis-chev-${ticker}">▾</span>
-    </div>
-    <div class="thesis-panel${d.thesisScore!=null?' open':''}" id="thesis-panel-${ticker}">
-      <div class="thesis-loading" id="thesis-loading-${ticker}" style="display:none;align-items:center;gap:6px;padding:10px 0;">
-        <span style="width:6px;height:6px;border-radius:50%;background:#bf8cff;display:inline-block;animation:blink 1.2s infinite;"></span>
-        <span style="width:6px;height:6px;border-radius:50%;background:#bf8cff;display:inline-block;animation:blink 1.2s 0.2s infinite;"></span>
-        <span style="width:6px;height:6px;border-radius:50%;background:#bf8cff;display:inline-block;animation:blink 1.2s 0.4s infinite;"></span>
-        <span style="margin-left:4px;font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);">Analyzing setup...</span>
-      </div>
-      <div class="thesis-result${d.thesisScore!=null&&d.thesisBreakdown?' active':''}" id="thesis-result-${ticker}">
-        ${d.thesisScore!=null&&d.thesisBreakdown?`
-        <div class="thesis-score-row">
-          <span class="thesis-score-big" style="color:${d.thesisVerdict==='STRONG'?'var(--good)':d.thesisVerdict==='SKIP'?'var(--danger)':'var(--warning)'};">${d.thesisVerdict}</span>
-          <div class="thesis-conviction">
-            Technical: <span>${d.confidence}</span> &nbsp;|&nbsp; Thesis <span style="color:#bf8cff;">+${d.thesisScore}</span> → Conviction: <span style="color:${Math.min(100,(d.confidence||0)+d.thesisScore)>=82?'var(--good)':Math.min(100,(d.confidence||0)+d.thesisScore)>=70?'var(--accent)':'var(--warning)'};">${Math.min(100, (d.confidence||0) + d.thesisScore)}</span>
-          </div>
-        </div>
-        <div class="thesis-breakdown" id="thesis-breakdown-${ticker}">${d.thesisBreakdown}</div>
-        <div style="margin-top:8px;">
-          <button class="thesis-analyze-btn" onclick="fetchThesisNews('${ticker}')" id="thesis-news-btn-${ticker}">📰 Get News</button>
-          <div id="thesis-news-${ticker}" style="margin-top:8px;"></div>
-        </div>
-        `:''}
-      </div>
-    </div>
+    </div>`:''}
+
   </div>`;
 }
 
@@ -7265,7 +7402,7 @@ function swApp(name){
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradingBrief v7.8.7 — Card layout polish: TV pill, inline overrides, pill spacing  ║
+     ║  END TradingBrief v7.9.0 — CardStacked UI: new card design with mini chart, recommendation block, conviction gauge  ║
      ║  2026-04-18                                                       ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 </body>
