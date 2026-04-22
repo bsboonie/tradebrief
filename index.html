@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v7.10.0 — Chunk 2: Prior footnote, priorRecs Firestore sync, scan status bar removed  ║
+     ║  TRADEBRIEF v7.11.0 — Chunk 3: Reminder system, SET REMINDER toggle, Reminders Triggered section  ║
      ║  Date: 2026-04-20                                                ║
      ║  Changes from v7.8.4:                                              ║
      ║    1. Reweight calcConfidence: EMA 18, RSI 12, Trend 14, Vol 15   ║
@@ -18,7 +18,7 @@
 <meta name="theme-color" content="#111827">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>TradeBrief v7.10.0</title>
+<title>TradeBrief v7.11.0</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -1751,10 +1751,10 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
 
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.10.0</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.11.0</div>
 
 <!-- ══ MOBILE VERSION STAMP (always visible on mobile, bottom-left) ══════ -->
-<div id="mobile-version-stamp" style="display:none;">v7.10.0</div>
+<div id="mobile-version-stamp" style="display:none;">v7.11.0</div>
 
 <!-- ══ MOBILE SCAN BTN (Brief panel only, toggled via swApp) ═════════════ -->
 <div id="mobile-scan-btn-wrap" style="display:none;">
@@ -2499,6 +2499,7 @@ async function autoRefresh(){
   buildTop10();
   rB();
   updatePnL();
+  checkReminders();
 }
 
 function startAutoRefresh(){
@@ -3008,6 +3009,236 @@ function updatePnL(){
 }
 
 // ── BRIEFING RENDER ────────────────────────────────────────────────────────
+// ── CHUNK 3: REMINDER SYSTEM ──────────────────────────────────────────────
+
+// In-memory store: { TICKER: { trigger, level, created, signalDirection, expires } }
+let reminders = {};
+let firedReminders = []; // tickers that fired this session — shown in Reminders Triggered section
+
+// ── Firestore helpers ──────────────────────────────────────────────────────
+async function saveReminder(ticker, data) {
+  const uid = window._fbUid;
+  if (!uid) return;
+  try {
+    const db = window._fbDb;
+    const ref = window._fbDoc(db, 'users', uid, 'reminders', ticker.toUpperCase());
+    await window._fbSetDoc(ref, data, { merge: false });
+  } catch(e) { console.warn('saveReminder error:', e); }
+}
+
+async function deleteReminder(ticker) {
+  const uid = window._fbUid;
+  if (!uid) return;
+  try {
+    const db = window._fbDb;
+    const ref = window._fbDoc(db, 'users', uid, 'reminders', ticker.toUpperCase());
+    await window._fb.deleteDoc(ref);
+  } catch(e) { console.warn('deleteReminder error:', e); }
+}
+
+async function loadReminders() {
+  const uid = window._fbUid;
+  if (!uid) return;
+  try {
+    const db = window._fbDb;
+    const { collection, getDocs } = window._fb;
+    const snap = await getDocs(collection(db, 'users', uid, 'reminders'));
+    reminders = {};
+    snap.forEach(doc => { reminders[doc.id] = doc.data(); });
+    purgeExpiredReminders();
+    console.log(`Loaded ${Object.keys(reminders).length} reminders`);
+  } catch(e) { console.warn('loadReminders error:', e); }
+}
+
+function purgeExpiredReminders() {
+  const now = Date.now();
+  Object.keys(reminders).forEach(ticker => {
+    const r = reminders[ticker];
+    if (r.expires && now > r.expires) {
+      delete reminders[ticker];
+      deleteReminder(ticker);
+    }
+  });
+}
+
+// ── Toggle reminder on/off (replaces save button) ─────────────────────────
+function toggleReminder(ticker) {
+  const d = sd[ticker];
+  if (!d) return;
+  const key = ticker.toUpperCase();
+
+  if (reminders[key]) {
+    // Toggle OFF — delete
+    delete reminders[key];
+    deleteReminder(ticker);
+    tb_toast(`Reminder cleared for ${ticker}`);
+  } else {
+    // Toggle ON — create with defaults
+    const mem = getThesisMemory(ticker);
+    let level = d.price;
+    // Use target zone from thesis memory if available
+    if (mem && mem.targetZone) {
+      const parts = mem.targetZone.split('-').map(Number);
+      if (parts[0] && !isNaN(parts[0])) level = parts[0];
+    }
+    const now = Date.now();
+    const data = {
+      ticker: key,
+      trigger: 'close-above',
+      level: parseFloat(level.toFixed(2)),
+      created: now,
+      expires: now + 14 * 24 * 60 * 60 * 1000,
+      signalDirection: d.signal || '—',
+      price: d.price
+    };
+    reminders[key] = data;
+    saveReminder(ticker, data);
+    tb_toast(`Reminder set for ${ticker} · ${data.trigger} $${data.level.toFixed(2)}`);
+  }
+  rB(); // re-render to update toggle state
+}
+
+// Update reminder trigger or level (auto-saves on change)
+function updateReminderTrigger(ticker, trigger) {
+  const key = ticker.toUpperCase();
+  if (!reminders[key]) return;
+  reminders[key].trigger = trigger;
+  saveReminder(ticker, reminders[key]);
+  rB();
+}
+
+function updateReminderLevel(ticker, level) {
+  const key = ticker.toUpperCase();
+  if (!reminders[key]) return;
+  reminders[key].level = parseFloat(level) || reminders[key].level;
+  saveReminder(ticker, reminders[key]);
+}
+
+// ── Check reminders against fresh price data ──────────────────────────────
+function checkReminders() {
+  if (!Object.keys(reminders).length) return;
+  const now = Date.now();
+  const etHour = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })).getHours();
+  const nearClose = etHour >= 15; // after 3 PM ET
+
+  Object.keys(reminders).forEach(key => {
+    const r = reminders[key];
+    const d = sd[key];
+    if (!d || !d.price) return;
+
+    // Kill: expired
+    if (now > r.expires) {
+      delete reminders[key];
+      deleteReminder(key);
+      return;
+    }
+
+    // Kill: signal direction flip
+    if (r.signalDirection && d.signal && d.signal !== '—' && r.signalDirection !== d.signal) {
+      delete reminders[key];
+      deleteReminder(key);
+      tb_toast(`Reminder for ${key} cleared — signal flipped to ${d.signal}`);
+      return;
+    }
+
+    // Check trigger condition
+    let fired = false;
+    switch(r.trigger) {
+      case 'close-above':
+        // Surface near close when price is above level
+        fired = nearClose && d.price > r.level;
+        break;
+      case 'touches':
+        fired = d.price >= r.level * 0.998; // within 0.2%
+        break;
+      case 'volume-drops':
+        fired = d.volRatio !== null && d.volRatio < 1.0;
+        break;
+      case 'rescore':
+        fired = true; // fires on next scan/refresh
+        break;
+    }
+
+    if (fired) {
+      if (!firedReminders.includes(key)) {
+        firedReminders.push(key);
+      }
+      delete reminders[key];
+      deleteReminder(key);
+    }
+  });
+
+  if (firedReminders.length) rB();
+}
+
+// ── Render the header-only row for a fired reminder ───────────────────────
+function renderReminderHeader(ticker) {
+  const d = sd[ticker];
+  if (!d) return '';
+  const sig = d.signal || '—';
+  const sigBg = sig==='PUTS'?'rgba(255,71,87,0.08)':sig==='WAIT'?'rgba(255,165,2,0.08)':'rgba(0,255,157,0.08)';
+  const sigFg = sig==='PUTS'?'#ff4757':sig==='WAIT'?'#ffa502':'#00ff9d';
+  const sigBd = sig==='PUTS'?'rgba(255,71,87,0.25)':sig==='WAIT'?'rgba(255,165,2,0.25)':'rgba(0,255,157,0.25)';
+  const displayScore = d.confidence || 0;
+  const thesisAdder = d.thesisScore || 0;
+  const conviction = d.thesisScore != null ? Math.min(100, displayScore + thesisAdder) : displayScore;
+  const convColor = conviction >= 82 ? '#00ff9d' : conviction >= 70 ? '#ffa502' : '#ff4757';
+  const scoreColor = displayScore >= 82 ? '#00ff9d' : displayScore >= 70 ? '#00d4ff' : '#ffa502';
+  const priceColor = d.change >= 0 ? '#00ff9d' : '#ff4757';
+  const changeSign = d.changePct >= 0 ? '+' : '';
+  const trendVal = d.ema8 != null ? (d.price > d.ema8 && d.price > d.ema21 ? 'BULLISH' : 'BEARISH') : '—';
+  const trendBg = trendVal==='BULLISH'?'rgba(0,255,157,0.08)':trendVal==='BEARISH'?'rgba(255,71,87,0.08)':'rgba(107,122,153,0.08)';
+  const trendFg = trendVal==='BULLISH'?'#00ff9d':trendVal==='BEARISH'?'#ff4757':'#6b7a99';
+  const trendBd = trendVal==='BULLISH'?'rgba(0,255,157,0.25)':trendVal==='BEARISH'?'rgba(255,71,87,0.25)':'rgba(107,122,153,0.2)';
+  const regimeAligned = (spyRegime && d.direction) ? ((d.direction==='CALLS'&&spyRegime==='BULLISH')||(d.direction==='PUTS'&&spyRegime==='BEARISH')) : null;
+  const regimePill = regimeAligned !== null
+    ? `<span style="display:inline-flex;align-items:center;gap:4px;padding:4px 9px;border-radius:4px;font-family:'Space Mono',monospace;font-size:10px;font-weight:500;white-space:nowrap;background:${regimeAligned?'rgba(0,255,157,0.08)':'rgba(255,165,2,0.08)'};color:${regimeAligned?'#00ff9d':'#ffa502'};border:1px solid ${regimeAligned?'rgba(0,255,157,0.25)':'rgba(255,165,2,0.25)'};">${regimeAligned?'✓':'\u26a0'} SPY ${regimeAligned?'aligned':'vs regime'}</span>` : '';
+  const thesisTag = d.thesisVerdict || null;
+  const thesisTagColor = thesisTag==='STRONG'?'#00ff9d':thesisTag==='SKIP'?'#ff4757':'#ffa502';
+  const thesisTagBg = thesisTag==='STRONG'?'rgba(0,255,157,0.08)':thesisTag==='SKIP'?'rgba(255,71,87,0.08)':'rgba(255,165,2,0.08)';
+  const thesisTagBd = thesisTag==='STRONG'?'rgba(0,255,157,0.4)':thesisTag==='SKIP'?'rgba(255,71,87,0.4)':'rgba(255,165,2,0.4)';
+  const expandId = `rem-expand-${ticker}`;
+
+  return `<div style="background:#111827;border:1px solid rgba(120,170,220,0.18);position:relative;margin-bottom:6px;">
+    <div style="position:absolute;left:0;top:0;bottom:0;width:3px;background:${convColor};z-index:1;"></div>
+    <!-- Collapsed header row -->
+    <div style="display:flex;align-items:stretch;padding-left:3px;cursor:pointer;" onclick="document.getElementById('${expandId}').style.display=document.getElementById('${expandId}').style.display==='none'?'block':'none'">
+      <div style="padding:10px 14px;display:flex;align-items:center;gap:10px;background:linear-gradient(90deg,rgba(0,212,255,0.06),transparent);border-right:1px solid rgba(120,170,220,0.09);">
+        <span style="display:inline-flex;align-items:center;padding:4px 9px;border-radius:4px;font-family:'Space Mono',monospace;font-size:10px;font-weight:700;white-space:nowrap;background:${sigBg};color:${sigFg};border:1px solid ${sigBd};">${sig}</span>
+        <span style="font-family:'Space Mono',monospace;font-size:28px;font-weight:700;color:${scoreColor};line-height:1;">${displayScore}</span>
+        <!-- mini conviction gauge -->
+        <div style="display:flex;align-items:center;gap:6px;">
+          <svg width="40" height="24" viewBox="0 0 40 24"><path d="M 2 20 A 18 18 0 0 1 38 20" stroke="rgba(120,170,220,0.09)" stroke-width="3" fill="none" stroke-linecap="round"/><path d="M 2 20 A 18 18 0 0 1 38 20" stroke="${convColor}" stroke-width="3" fill="none" stroke-linecap="round" stroke-dasharray="${Math.max(0,Math.min(100,conviction))/100*56.5} 56.5"/></svg>
+          <div><div style="font-family:'Space Mono',monospace;font-size:8px;color:#6b7a99;">CONV</div><div style="font-family:'Space Mono',monospace;font-size:12px;font-weight:700;color:${convColor};">${conviction}</div></div>
+        </div>
+      </div>
+      <div style="padding:10px 14px;border-right:1px solid rgba(120,170,220,0.09);display:flex;flex-direction:column;justify-content:center;">
+        <div style="font-family:'Space Mono',monospace;font-size:18px;font-weight:700;">${ticker}</div>
+        <div style="font-size:10px;color:#6b7a99;">${d.description||''}</div>
+      </div>
+      <div style="padding:10px 14px;flex:1;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <div>
+          <div style="font-family:'Space Mono',monospace;font-size:18px;font-weight:700;color:${priceColor};">$${d.price.toFixed(2)}</div>
+          <div style="font-family:'Space Mono',monospace;font-size:10px;color:${priceColor};">${d.change>=0?'+':''}${d.change.toFixed(2)} · ${changeSign}${d.changePct.toFixed(2)}%</div>
+        </div>
+        <div style="flex:1;"></div>
+        ${thesisTag?`<span style="display:inline-flex;align-items:center;padding:4px 9px;border-radius:4px;font-family:'Space Mono',monospace;font-size:10px;font-weight:700;white-space:nowrap;background:${thesisTagBg};color:${thesisTagColor};border:1px solid ${thesisTagBd};">${thesisTag} +${thesisAdder}</span>`:''}
+        <span style="display:inline-flex;align-items:center;padding:4px 9px;border-radius:4px;font-family:'Space Mono',monospace;font-size:10px;font-weight:700;white-space:nowrap;background:${trendBg};color:${trendFg};border:1px solid ${trendBd};">${trendVal}</span>
+        ${regimePill}
+        <!-- dismiss from fired list -->
+        <button onclick="event.stopPropagation();firedReminders=firedReminders.filter(t=>t!=='${ticker}');rB();tb_toast('${ticker} dismissed');" title="Dismiss" style="display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;background:none;border:1px solid rgba(120,170,220,0.18);border-radius:4px;color:#6b7a99;font-size:14px;cursor:pointer;" onmouseover="this.style.color='#ff4757'" onmouseout="this.style.color='#6b7a99'">✕</button>
+        <!-- expand chevron -->
+        <span style="font-family:'Space Mono',monospace;font-size:14px;color:#6b7a99;padding:0 4px;">⌄</span>
+      </div>
+    </div>
+    <!-- Expandable full card body (hidden by default) -->
+    <div id="${expandId}" style="display:none;">
+      ${renderDataCard(ticker)}
+    </div>
+  </div>`;
+}
+
+
 function rB(){
   const el=document.getElementById('blist');
   const al=document.getElementById('alerts');
@@ -3070,7 +3301,18 @@ function rB(){
   const emptyMsg=top10.length===0&&notReadyList.length===0&&!scannerRunning&&Object.keys(sd).some(k=>!sd[k].loading)
     ?'<div class="empty">No actionable setups right now. Hit "Scan Now" to search for opportunities.</div>':'';
 
-  el.innerHTML=top3Cards+nrCards+loadingCards+emptyMsg;
+  // Reminders triggered section
+  let reminderSection = '';
+  if(firedReminders.length){
+    const reminderCards = firedReminders
+      .filter(t => sd[t] && !sd[t].loading && !sd[t].error)
+      .map(t => renderReminderHeader(t)).join('');
+    if(reminderCards){
+      reminderSection = `<div class="sec" style="color:#ffa502;letter-spacing:2px;">🔔 REMINDERS TRIGGERED</div>${reminderCards}`;
+    }
+  }
+
+  el.innerHTML=reminderSection+top3Cards+nrCards+loadingCards+emptyMsg;
 }
 
 function renderDataCard(ticker){
@@ -3312,7 +3554,25 @@ function renderDataCard(ticker){
     <div style="padding:14px 22px 0 26px;">
       <div style="padding:12px 14px;border-radius:6px;border:1px solid rgba(0,255,157,0.3);background:linear-gradient(180deg,rgba(0,255,157,0.05),rgba(0,255,157,0.02));position:relative;overflow:hidden;">
         <div style="position:absolute;left:0;top:0;bottom:0;width:2px;background:#00ff9d;"></div>
-        <div style="font-family:'Space Mono',monospace;font-size:10px;color:#00ff9d;letter-spacing:1.2px;margin-bottom:6px;">RECOMMENDATION</div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+          <div style="font-family:'Space Mono',monospace;font-size:10px;color:#00ff9d;letter-spacing:1.2px;">RECOMMENDATION</div>
+          <div style="flex:1;"></div>
+          ${(()=>{
+            const hasRem=reminders[ticker.toUpperCase()]!=null;
+            const r=reminders[ticker.toUpperCase()];
+            return`<button onclick="toggleReminder('${ticker}')" style="display:inline-flex;align-items:center;gap:6px;padding:4px 9px;border-radius:4px;cursor:pointer;border:1px solid ${hasRem?'rgba(0,255,157,0.4)':'rgba(120,170,220,0.18)'};background:${hasRem?'rgba(0,255,157,0.08)':'rgba(120,170,220,0.04)'};color:${hasRem?'#00ff9d':'#6b7a99'};font-family:'Space Mono',monospace;font-size:9px;letter-spacing:0.8px;transition:all .15s;">
+              <svg width="10" height="10" viewBox="0 0 11 11" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M2 8V5.5a3.5 3.5 0 117 0V8l1 1.5H1L2 8z"/><path d="M4.5 10a1 1 0 002 0"/></svg>
+              ${hasRem?'REMINDER ON':'SET REMINDER'}
+              <span style="width:14px;height:7px;border-radius:4px;background:${hasRem?'#00ff9d':'rgba(120,170,220,0.15)'};position:relative;display:inline-block;"><span style="position:absolute;top:1px;left:${hasRem?'8':'1'}px;width:5px;height:5px;border-radius:50%;background:${hasRem?'#0a0e1a':'#6b7a99'};transition:left .15s;"></span></span>
+            </button>
+            ${hasRem?`<div style="margin-top:8px;padding:8px 10px;background:rgba(0,255,157,0.03);border:1px dashed rgba(0,255,157,0.2);border-radius:4px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+              <span style="font-family:'Space Mono',monospace;font-size:8px;color:#00ff9d;letter-spacing:1px;">TRIGGER</span>
+              ${['close-above','touches','volume-drops','rescore'].map(t=>`<button onclick="updateReminderTrigger('${ticker}','${t}')" style="padding:3px 8px;border-radius:3px;cursor:pointer;border:1px solid ${r&&r.trigger===t?'rgba(0,255,157,0.5)':'rgba(120,170,220,0.18)'};background:${r&&r.trigger===t?'rgba(0,255,157,0.1)':'transparent'};color:${r&&r.trigger===t?'#00ff9d':'#6b7a99'};font-family:'Space Mono',monospace;font-size:9px;">${t==='close-above'?'Close above':t==='touches'?'Touches':t==='volume-drops'?'Vol drop':'Re-score'}</button>`).join('')}
+              ${r&&(r.trigger==='close-above'||r.trigger==='touches')?`<span style="font-family:'Space Mono',monospace;font-size:9px;color:#6b7a99;">$<input type="text" value="${r.level.toFixed(2)}" onchange="updateReminderLevel('${ticker}',this.value)" style="background:transparent;border:none;border-bottom:1px solid rgba(0,255,157,0.3);color:#00d4ff;font-family:'Space Mono',monospace;font-size:10px;font-weight:700;width:55px;outline:none;padding:1px 0;"></span>`:''}
+              <span style="font-family:'Space Mono',monospace;font-size:8px;color:#4a5670;margin-left:auto;">Exp ${new Date(r.expires).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span>
+            </div>`:''}`;
+          })()}
+        </div>
         <div id="rec-block-${ticker}" style="font-size:13px;line-height:1.55;color:#e8edf5;">
           ${recText||`<span style="color:#6b7a99;font-style:italic;">Analyzing setup...</span>`}
         </div>
@@ -3856,6 +4116,7 @@ async function fbLoad(){
       if(d.priorRecs){priorRecs=JSON.parse(d.priorRecs);localStorage.setItem('priorRecs',d.priorRecs);}
       rB();rT();rClosed();updatePnL();loadS();
       setSyncStatus('✓ loaded '+new Date().toLocaleTimeString());
+      loadReminders();
       // Silent sync on boot — no toast to avoid flash on page load
     }else{
       await fbSyncAll();
@@ -7436,7 +7697,7 @@ function swApp(name){
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradingBrief v7.10.0 — Chunk 2: Prior footnote, priorRecs Firestore sync, scan status bar removed  ║
+     ║  END TradingBrief v7.11.0 — Chunk 3: Reminder system, SET REMINDER toggle, Reminders Triggered section  ║
      ║  2026-04-18                                                       ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 </body>
