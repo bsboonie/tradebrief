@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v7.11.2 — Always-on boot scan, Brief panel re-render on return, selected ticker dismissed from list  ║
+     ║  TRADEBRIEF v7.11.3 — Boot scan fires on every cold open regardless of last active panel  ║
      ║  Date: 2026-04-20                                                ║
      ║  Changes from v7.8.4:                                              ║
      ║    1. Reweight calcConfidence: EMA 18, RSI 12, Trend 14, Vol 15   ║
@@ -18,7 +18,7 @@
 <meta name="theme-color" content="#111827">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>TradeBrief v7.11.2</title>
+<title>TradeBrief v7.11.3</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -1753,10 +1753,10 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
 
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.11.2</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.11.3</div>
 
 <!-- ══ MOBILE VERSION STAMP (always visible on mobile, bottom-left) ══════ -->
-<div id="mobile-version-stamp" style="display:none;">v7.11.2</div>
+<div id="mobile-version-stamp" style="display:none;">v7.11.3</div>
 
 <!-- ══ MOBILE SCAN BTN (Brief panel only, toggled via swApp) ═════════════ -->
 <div id="mobile-scan-btn-wrap" style="display:none;">
@@ -7356,6 +7356,8 @@ function swApp(name){
   // Defer until all scripts loaded
   window.addEventListener('load', ()=>{
     swApp(last);
+    // Always boot TB regardless of active panel — ensures scan fires on every cold open
+    if(window.TB && !window.TB._booted){ window.TB.boot(); window.TB._booted=true; }
   });
 })();
 
@@ -7724,7 +7726,7 @@ function swApp(name){
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradingBrief v7.11.2 — Always-on boot scan, Brief panel re-render on return, selected ticker dismissed from list  ║
+     ║  END TradingBrief v7.11.3 — Boot scan fires on every cold open regardless of last active panel  ║
      ║  2026-04-18                                                       ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 </body>
