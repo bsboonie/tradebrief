@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v7.11.0 — Chunk 3: Reminder system, SET REMINDER toggle, Reminders Triggered section  ║
+     ║  TRADEBRIEF v7.11.1 — Earnings exclusion window: hard scan filter, adjustable setting (default 14d)  ║
      ║  Date: 2026-04-20                                                ║
      ║  Changes from v7.8.4:                                              ║
      ║    1. Reweight calcConfidence: EMA 18, RSI 12, Trend 14, Vol 15   ║
@@ -18,7 +18,7 @@
 <meta name="theme-color" content="#111827">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>TradeBrief v7.11.0</title>
+<title>TradeBrief v7.11.1</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -595,6 +595,7 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
       <h3>RISK CONTROLS</h3>
       <div class="setting-row"><div class="setting-info"><div class="setting-label">IV Rank Warning</div><div class="setting-desc">Flag high IV in the briefing</div></div><div class="setting-control"><label class="toggle"><input type="checkbox" id="s-iv" checked onchange="saveS()"><div class="toggle-slider"></div></label></div></div>
       <div class="setting-row"><div class="setting-info"><div class="setting-label">Earnings Guardrail</div><div class="setting-desc">Flag RISKY when earnings before expiration</div></div><div class="setting-control"><label class="toggle"><input type="checkbox" id="s-earn" checked onchange="saveS()"><div class="toggle-slider"></div></label></div></div>
+      <div class="setting-row"><div class="setting-info"><div class="setting-label">Earnings Exclusion Window (days)</div><div class="setting-desc">Hide tickers with earnings within this many days. Default: 14</div></div><div class="setting-control"><input class="num-input" id="s-earn-window" type="number" min="0" max="30" value="14" onchange="saveS()"></div></div>
       <div class="setting-row"><div class="setting-info"><div class="setting-label">Browser Notifications</div><div class="setting-desc">Alert on TAKE PROFIT / CLOSE NOW even when tab is in background</div></div><div class="setting-control"><label class="toggle"><input type="checkbox" id="s-notif" onchange="toggleNotifications()"><div class="toggle-slider"></div></label></div></div>
       <div class="setting-row"><div class="setting-info"><div class="setting-label">DTE Warning (days)</div><div class="setting-desc">Alert when expiring within this many days</div></div><div class="setting-control"><input class="num-input" id="s-dte" type="number" min="1" max="21" value="5" onchange="saveS()"></div></div>
       <div class="setting-row"><div class="setting-info"><div class="setting-label">Profit Alert Threshold (%)</div><div class="setting-desc">Trigger TAKE PROFIT badge at this % gain</div></div><div class="setting-control"><input class="num-input" id="s-profit-alert" type="number" min="10" max="500" value="75" onchange="saveS()"></div></div>
@@ -1707,6 +1708,7 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
       <h3>RISK CONTROLS</h3>
       <div class="setting-row"><div class="setting-info"><div class="setting-label">IV Rank Warning</div><div class="setting-desc">Flag high IV in the briefing</div></div><div class="setting-control"><label class="toggle"><input type="checkbox" id="so-iv" checked onchange="saveSO()"><div class="toggle-slider"></div></label></div></div>
       <div class="setting-row"><div class="setting-info"><div class="setting-label">Earnings Guardrail</div><div class="setting-desc">Flag RISKY when earnings before expiration</div></div><div class="setting-control"><label class="toggle"><input type="checkbox" id="so-earn" checked onchange="saveSO()"><div class="toggle-slider"></div></label></div></div>
+      <div class="setting-row"><div class="setting-info"><div class="setting-label">Earnings Exclusion Window (days)</div><div class="setting-desc">Hide tickers with earnings within this many days. Default: 14</div></div><div class="setting-control"><input class="num-input" id="so-earn-window" type="number" min="0" max="30" value="14" onchange="saveSO()"></div></div>
       <div class="setting-row"><div class="setting-info"><div class="setting-label">Browser Notifications</div><div class="setting-desc">Alert on TAKE PROFIT / CLOSE NOW even when tab is in background</div></div><div class="setting-control"><label class="toggle"><input type="checkbox" id="so-notif" onchange="toggleNotifications()"><div class="toggle-slider"></div></label></div></div>
       <div class="setting-row"><div class="setting-info"><div class="setting-label">DTE Warning (days)</div><div class="setting-desc">Alert when expiring within this many days</div></div><div class="setting-control"><input class="num-input" id="so-dte" type="number" min="1" max="21" value="5" onchange="saveSO()"></div></div>
       <div class="setting-row"><div class="setting-info"><div class="setting-label">Profit Alert Threshold (%)</div><div class="setting-desc">Trigger TAKE PROFIT badge at this % gain</div></div><div class="setting-control"><input class="num-input" id="so-profit-alert" type="number" min="10" max="500" value="75" onchange="saveSO()"></div></div>
@@ -1751,10 +1753,10 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
 
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.11.0</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.11.1</div>
 
 <!-- ══ MOBILE VERSION STAMP (always visible on mobile, bottom-left) ══════ -->
-<div id="mobile-version-stamp" style="display:none;">v7.11.0</div>
+<div id="mobile-version-stamp" style="display:none;">v7.11.1</div>
 
 <!-- ══ MOBILE SCAN BTN (Brief panel only, toggled via swApp) ═════════════ -->
 <div id="mobile-scan-btn-wrap" style="display:none;">
@@ -2209,6 +2211,15 @@ function buildTop10(){
   let scored=allTickers.map(t=>{
     const d=sd[t];
     if(!d||d.loading||d.error)return null;
+    // Earnings exclusion: skip tickers with earnings within the configured window
+    if(d.earningsDate){
+      const today=new Date();today.setHours(0,0,0,0);
+      const earnDate=new Date(d.earningsDate+'T00:00:00');
+      const daysAway=Math.round((earnDate-today)/(1000*60*60*24));
+      const window=S('earnWindow');
+      if(daysAway>=0&&daysAway<=window)return null;
+    }
+
     const volRatioSort=d.volRatio!=null?d.volRatio:0;
 
     // Regime filter: if regime is known, surface only signals aligned with it
@@ -2511,7 +2522,7 @@ function stopAutoRefresh(){
   if(autoRefreshTimer){clearInterval(autoRefreshTimer);autoRefreshTimer=null;}
 }
 
-const DEFAULTS={rsiOb:70,rsiOs:30,ema:'8,21',rr:1.5,pop:30,cw:0.50,dmin:0.15,dmax:0.70,budget:150,iv:true,earn:true,dte:5,profitAlert:75,target:80,contracts:1,pricefmt:'both',loss:50};
+const DEFAULTS={rsiOb:70,rsiOs:30,ema:'8,21',rr:1.5,pop:30,cw:0.50,dmin:0.15,dmax:0.70,budget:150,iv:true,earn:true,dte:5,profitAlert:75,target:80,contracts:1,pricefmt:'both',loss:50,earnWindow:14};
 function S(k){return cfg[k]!==undefined?cfg[k]:DEFAULTS[k];}
 
 // ── CLOCK & MARKET ─────────────────────────────────────────────────────────
@@ -2606,6 +2617,7 @@ function loadSO(){
   document.getElementById('so-budget').value=S('budget');
   document.getElementById('so-iv').checked=S('iv');
   document.getElementById('so-earn').checked=S('earn');
+  document.getElementById('so-earn-window').value=S('earnWindow');
   document.getElementById('so-dte').value=S('dte');
   document.getElementById('so-profit-alert').value=S('profitAlert');
   document.getElementById('so-target').value=S('target');
@@ -2628,6 +2640,7 @@ function saveSO(){
     budget:+document.getElementById('so-budget').value,
     iv:document.getElementById('so-iv').checked,
     earn:document.getElementById('so-earn').checked,
+    earnWindow:+document.getElementById('so-earn-window').value,
     dte:+document.getElementById('so-dte').value,
     profitAlert:+document.getElementById('so-profit-alert').value,
     target:+document.getElementById('so-target').value,
@@ -2663,6 +2676,7 @@ function saveS(){
     budget:+document.getElementById('s-budget').value,
     iv:document.getElementById('s-iv').checked,
     earn:document.getElementById('s-earn').checked,
+    earnWindow:+document.getElementById('s-earn-window').value,
     dte:+document.getElementById('s-dte').value,
     profitAlert:+document.getElementById('s-profit-alert').value,
     target:+document.getElementById('s-target').value,
@@ -2687,6 +2701,7 @@ function loadS(){
   document.getElementById('s-budget').value=S('budget');
   document.getElementById('s-iv').checked=S('iv');
   document.getElementById('s-earn').checked=S('earn');
+  document.getElementById('s-earn-window').value=S('earnWindow');
   document.getElementById('s-dte').value=S('dte');
   document.getElementById('s-profit-alert').value=S('profitAlert');
   document.getElementById('s-target').value=S('target');
@@ -2961,13 +2976,20 @@ function updatePnL(){
   const losses=closedTrades.filter(t=>t.outcome==='Loss').length;
   const bestTrade=closedTrades.reduce((best,t)=>(!best||t.actualPL>best.actualPL)?t:best,null);
 
-  // Unrealized
+  // Unrealized — prefer TL's actual fetched option prices; fall back to estimate
   let unrealized=0;
   trades.forEach(t=>{
-    const d=sd[t.ticker];
-    if(d&&!d.loading&&!d.error){
-      const val=estOptionVal(t,d.price);
-      unrealized+=val-t.cost;
+    const ld=window.tlLiveData&&window.tlLiveData[t._tlId];
+    if(ld&&!ld.loading&&ld.liveVal!==null){
+      // TL has a real option price — use it
+      unrealized+=ld.liveVal-(t.cost*(t.qty||1));
+    } else {
+      // Fall back to stock-price estimate
+      const d=sd[t.ticker];
+      if(d&&!d.loading&&!d.error){
+        const val=estOptionVal(t,d.price);
+        unrealized+=val-t.cost;
+      }
     }
   });
 
@@ -7625,6 +7647,9 @@ function swApp(name){
     if (statOpen)  statOpen.textContent = active.length;
     if (countEl)   countEl.textContent = all.length + (all.length === 1 ? ' trade' : ' trades');
 
+    // Keep TB P&L bar in sync with TL's authoritative numbers
+    if (typeof updatePnL === 'function') updatePnL();
+
     // Fetch live prices for any active trade not yet fetched
     fetchAllLivePrices(active);
   }
@@ -7681,6 +7706,7 @@ function swApp(name){
     }
   }
 
+  window.tlLiveData        = tlLiveData;
   window.tlRender          = tlRender;
   window.tlSetFilter       = tlSetFilter;
   window.tlTrash           = tlTrash;
@@ -7697,7 +7723,7 @@ function swApp(name){
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradingBrief v7.11.0 — Chunk 3: Reminder system, SET REMINDER toggle, Reminders Triggered section  ║
+     ║  END TradingBrief v7.11.1 — Earnings exclusion window: hard scan filter, adjustable setting (default 14d)  ║
      ║  2026-04-18                                                       ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 </body>
