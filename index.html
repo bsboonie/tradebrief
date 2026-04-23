@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v7.11.5 — Diagnostic: getAll + runScanner entry logs  ║
+     ║  TRADEBRIEF v7.11.5 — Fix: getAll uses window.TB.runScanner to avoid TS name collision  ║
      ║  Date: 2026-04-20                                                ║
      ║  Changes from v7.8.4:                                              ║
      ║    1. Reweight calcConfidence: EMA 18, RSI 12, Trend 14, Vol 15   ║
@@ -2453,7 +2453,7 @@ setInterval(()=>{
   // Auto-scan at 9:00 AM ET sharp
   const et=new Date(new Date().toLocaleString('en-US',{timeZone:'America/New_York'}));
   if(et.getHours()===9&&et.getMinutes()===0&&et.getSeconds()<=1&&!firstScanDone&&!scannerRunning){
-    runScanner(true);
+    window.TB.runScanner(true);
   }
 },1000);
 
@@ -2890,9 +2890,9 @@ async function getAll(){
   sd={};
   rB();
   updateScanBar();
-  console.log('🔄 getAll() calling runScanner(true)...');
-  // Always scan on boot — market hours don't gate the initial fetch
-  await runScanner(true);
+  console.log('🔄 getAll() calling TB scanner...');
+  // Use window.TB.runScanner to avoid calling the TS runScanner which overwrites the global
+  await window.TB.runScanner(true);
   startAutoRefresh();
 }
 
@@ -7738,7 +7738,7 @@ function swApp(name){
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradingBrief v7.11.5 — Diagnostic: getAll + runScanner entry logs  ║
+     ║  END TradingBrief v7.11.5 — Fix: getAll uses window.TB.runScanner to avoid TS name collision  ║
      ║  2026-04-18                                                       ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 </body>
