@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v7.11.3 — Boot scan fires on every cold open regardless of last active panel  ║
+     ║  TRADEBRIEF v7.11.4 — Bulletproof boot trigger: DOMContentLoaded + TB.boot diagnostic log  ║
      ║  Date: 2026-04-20                                                ║
      ║  Changes from v7.8.4:                                              ║
      ║    1. Reweight calcConfidence: EMA 18, RSI 12, Trend 14, Vol 15   ║
@@ -18,7 +18,7 @@
 <meta name="theme-color" content="#111827">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>TradeBrief v7.11.3</title>
+<title>TradeBrief v7.11.4</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -1753,10 +1753,10 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
 
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.11.3</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.11.4</div>
 
 <!-- ══ MOBILE VERSION STAMP (always visible on mobile, bottom-left) ══════ -->
-<div id="mobile-version-stamp" style="display:none;">v7.11.3</div>
+<div id="mobile-version-stamp" style="display:none;">v7.11.4</div>
 
 <!-- ══ MOBILE SCAN BTN (Brief panel only, toggled via swApp) ═════════════ -->
 <div id="mobile-scan-btn-wrap" style="display:none;">
@@ -4840,6 +4840,7 @@ window.TB = window.TB || {};
 window.TB.boot = function(){
   if(window.TB._booted) return;
   window.TB._booted = true;
+  console.log('🚀 TB.boot() called — starting scan sequence');
   loadS(); tb_applyTheme();
   rB(); rT(); rClosed();
   updatePnL(); updateScanBar();
@@ -7353,12 +7354,20 @@ function swApp(name){
 // Restore last active app on page load
 (function(){
   const last = sessionStorage.getItem('swActive') || 'brief';
-  // Defer until all scripts loaded
-  window.addEventListener('load', ()=>{
+
+  function bootAll(){
     swApp(last);
-    // Always boot TB regardless of active panel — ensures scan fires on every cold open
-    if(window.TB && !window.TB._booted){ window.TB.boot(); window.TB._booted=true; }
-  });
+    // Always boot TB regardless of active panel — scan must fire on every cold open
+    if(window.TB && !window.TB._booted){ window.TB.boot(); }
+  }
+
+  // Try DOMContentLoaded first (faster), fall back to load
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', bootAll);
+  } else {
+    // Already past DOMContentLoaded — fire immediately
+    bootAll();
+  }
 })();
 
 // ══ TRADELOG PANEL JS ══════════════════════════════════════════════
@@ -7726,7 +7735,7 @@ function swApp(name){
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradingBrief v7.11.3 — Boot scan fires on every cold open regardless of last active panel  ║
+     ║  END TradingBrief v7.11.4 — Bulletproof boot trigger: DOMContentLoaded + TB.boot diagnostic log  ║
      ║  2026-04-18                                                       ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 </body>
