@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v7.11.4 — Bulletproof boot trigger: DOMContentLoaded + TB.boot diagnostic log  ║
+     ║  TRADEBRIEF v7.11.5 — Diagnostic: getAll + runScanner entry logs  ║
      ║  Date: 2026-04-20                                                ║
      ║  Changes from v7.8.4:                                              ║
      ║    1. Reweight calcConfidence: EMA 18, RSI 12, Trend 14, Vol 15   ║
@@ -18,7 +18,7 @@
 <meta name="theme-color" content="#111827">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>TradeBrief v7.11.4</title>
+<title>TradeBrief v7.11.5</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -1753,10 +1753,10 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
 
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.11.4</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.11.5</div>
 
 <!-- ══ MOBILE VERSION STAMP (always visible on mobile, bottom-left) ══════ -->
-<div id="mobile-version-stamp" style="display:none;">v7.11.4</div>
+<div id="mobile-version-stamp" style="display:none;">v7.11.5</div>
 
 <!-- ══ MOBILE SCAN BTN (Brief panel only, toggled via swApp) ═════════════ -->
 <div id="mobile-scan-btn-wrap" style="display:none;">
@@ -2266,6 +2266,7 @@ function dismissCard(ticker){
 }
 
 async function runScanner(force){
+  console.log('🔍 runScanner called — force:',force,'scannerRunning:',scannerRunning);
   if(scannerRunning)return;
   if(!force&&!inScanWindow()){
     updateScanBar();
@@ -2885,9 +2886,11 @@ async function fetch1(ticker){
 }
 
 async function getAll(){
+  console.log('🔄 getAll() called');
   sd={};
   rB();
   updateScanBar();
+  console.log('🔄 getAll() calling runScanner(true)...');
   // Always scan on boot — market hours don't gate the initial fetch
   await runScanner(true);
   startAutoRefresh();
@@ -7735,7 +7738,7 @@ function swApp(name){
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradingBrief v7.11.4 — Bulletproof boot trigger: DOMContentLoaded + TB.boot diagnostic log  ║
+     ║  END TradingBrief v7.11.5 — Diagnostic: getAll + runScanner entry logs  ║
      ║  2026-04-18                                                       ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 </body>
