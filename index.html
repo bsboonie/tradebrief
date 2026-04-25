@@ -1,14 +1,12 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v7.13.0 — New: Call-in ticker from P&L bar; View Card from SI panel  ║
+     ║  TRADEBRIEF v7.13.1 — Fix: Phase 2b fresh quote fetch for missed top10 tickers   ║
      ║  Date: 2026-04-24                                                ║
-     ║  Changes from v7.12.1:                                              ║
-     ║    1. New: 5th P&L bar slot — ticker input + FETCH button calls any stock into  ║
-     ║       top10 as 11th card with full data fetch, thesis, scroll-to. Clears on scan ║
-     ║    2. New: VIEW CARD button on Top Performers + Rising Stocks SI rows —          ║
-     ║       navigates to TradeBrief, calls ticker in if needed, smooth-scrolls to card ║
-     ║    3. New: autoPopulateThesisFor() single-ticker helper                          ║
-     ║    4. Fix: data-card outer wrapper now has id="card-{ticker}" for scroll target  ║
+     ║  Changes from v7.13.0:                                              ║
+     ║    1. Fix: Phase 2b now fetches a fresh individual quote per missed ticker        ║
+     ║       instead of relying on quoteMap — quoteMap drops tickers where Tradier       ║
+     ║       returns no `last` price (after-hours / no trade yet), causing cards 6-10   ║
+     ║       to show dashes. Fresh fetch resolves this reliably.                         ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 <html lang="en">
 <head>
@@ -18,7 +16,7 @@
 <meta name="theme-color" content="#111827">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>TradeBrief v7.13.0</title>
+<title>TradeBrief v7.13.1</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -1766,10 +1764,10 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
 
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.13.0</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.13.1</div>
 
 <!-- ══ MOBILE VERSION STAMP (always visible on mobile, bottom-left) ══════ -->
-<div id="mobile-version-stamp" style="display:none;">v7.13.0</div>
+<div id="mobile-version-stamp" style="display:none;">v7.13.1</div>
 
 <!-- ══ MOBILE SCAN BTN (Brief panel only, toggled via swApp) ═════════════ -->
 <div id="mobile-scan-btn-wrap" style="display:none;">
@@ -2492,14 +2490,19 @@ async function runScanner(force){
   // ── PHASE 2b: Catch-up history for top10 tickers that missed Phase 2 ──
   // Phase 2 ranks by momentum/volume — high-confidence tickers outside top 25
   // movers never get history fetched. This guarantees all top10 have live data.
+  // Uses fresh individual quote fetches (not quoteMap) — quoteMap may be missing
+  // tickers where Tradier returned no `last` price (e.g. after-hours / no trade yet).
   buildTop10();
   const missedTickers=top10.filter(t=>sd[t]&&sd[t].dataSource==='limited');
   if(missedTickers.length){
     console.log(`📊 Phase 2b: Catch-up history for ${missedTickers.length} top10 tickers:`,missedTickers.join(', '));
     for(const ticker of missedTickers){
-      const q=quoteMap[ticker];
-      if(!q)continue;
       try{
+        // Fresh individual quote — more reliable than quoteMap for after-hours / low-volume tickers
+        const freshQuoteMap=await fetchAllQuotes([ticker]);
+        const q=freshQuoteMap[ticker]||quoteMap[ticker];// fall back to quoteMap if fresh fetch also fails
+        if(!q){console.warn(`${ticker}: Phase 2b — no quote available, skipping`);continue;}
+
         const hist=await fetchHistory(ticker);
         const closes=hist.closes;
         const candles=hist.candles;
@@ -7993,7 +7996,7 @@ function swApp(name){
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradingBrief v7.13.0 — Call-in ticker + View Card from SI panel              ║
+     ║  END TradingBrief v7.13.1 — Fix: Phase 2b fresh quote fetch                       ║
      ║  2026-04-24                                                       ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 </body>
