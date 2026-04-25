@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v7.13.1 — Fix: Phase 2b fresh quote fetch for missed top10 tickers   ║
+     ║  TRADEBRIEF v7.13.2 — Visual: collapsed cards, TD sections, SPY % inline         ║
      ║  Date: 2026-04-24                                                ║
      ║  Changes from v7.13.0:                                              ║
      ║    1. Fix: Phase 2b now fetches a fresh individual quote per missed ticker        ║
@@ -16,7 +16,7 @@
 <meta name="theme-color" content="#111827">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>TradeBrief v7.13.1</title>
+<title>TradeBrief v7.13.2</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -1416,9 +1416,9 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
   <!-- 0. Earnings Calendar -->
   <div class="td-sec" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;" onclick="ecToggle()">
     <span>Earnings Calendar</span>
-    <span id="ec-toggle-icon" style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);">▼</span>
+    <span id="ec-toggle-icon" style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);">▶</span>
   </div>
-  <div id="ec-wrap" class="td-card" style="padding:14px;">
+  <div id="ec-wrap" class="td-card" style="padding:14px;display:none;">
     <div style="font-size:11px;color:var(--muted);margin-bottom:12px;line-height:1.6;">Enter earnings dates for your universe. Updates all three panels instantly. Dates more than 7 days past are cleared automatically each session.</div>
     <div class="ec-filter-bar">
       <button class="ec-filter-btn active" onclick="ecSetFilter('all',this)">All</button>
@@ -1454,66 +1454,74 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
     </div>
   </div>
 
-  <!-- 2. Tier Breakdown -->
-  <div class="td-sec">Tier Breakdown</div>
-  <div class="td-card">
-    <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
-      <span style="font-family:'Space Mono',monospace;font-size:11px;color:var(--good);">Proven Edge <span id="td-promoted-ct" style="font-weight:700;">0</span></span>
-      <span style="font-family:'Space Mono',monospace;font-size:11px;color:var(--accent);">Decent Track <span id="td-standard-ct" style="font-weight:700;">0</span></span>
-      <span style="font-family:'Space Mono',monospace;font-size:11px;color:var(--muted);">Early Data <span id="td-shadow-ct" style="font-weight:700;">0</span></span>
-      <span style="font-family:'Space Mono',monospace;font-size:11px;color:var(--muted);">Untested <span id="td-untested-ct" style="font-weight:700;">0</span></span>
-    </div>
-    <div class="td-tier-bar" id="td-tier-bar">
-      <div class="td-tier-seg" id="td-bar-promoted" style="background:var(--good);width:0%"></div>
-      <div class="td-tier-seg" id="td-bar-standard" style="background:var(--accent);width:0%"></div>
-      <div class="td-tier-seg" id="td-bar-shadow"   style="background:var(--muted);width:0%"></div>
-      <div class="td-tier-seg" id="td-bar-untested" style="background:var(--border);width:0%"></div>
-    </div>
-    <div class="td-tier-legend">
-      <div class="td-tier-dot"><div class="td-dot" style="background:var(--good)"></div>Promoted: 60+ samples, ≥65% accuracy</div>
-      <div class="td-tier-dot"><div class="td-dot" style="background:var(--accent)"></div>Standard: 40+ samples, 53–64%</div>
-      <div class="td-tier-dot"><div class="td-dot" style="background:var(--muted)"></div>Shadow: below threshold</div>
-    </div>
+  <!-- 2. Tier Breakdown (collapsible parent) -->
+  <div class="td-sec" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;" onclick="tbToggle()">
+    <span>Tier Breakdown</span>
+    <span id="tb-toggle-icon" style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);">▶</span>
   </div>
+  <div id="tb-wrap" style="display:none;">
 
-  <!-- 3. Top Performers -->
-  <div class="td-sec">Top Performers</div>
-  <div class="td-card" style="padding:0;overflow:hidden;">
-    <div id="td-top-performers"><div class="td-empty">No promoted stocks yet — curation in progress</div></div>
-  </div>
-
-  <!-- 4. Rising Stocks -->
-  <div class="td-sec">Rising Stocks</div>
-  <div class="td-card" style="padding:0;overflow:hidden;">
-    <div id="td-rising"><div class="td-empty">No recent tier promotions yet</div></div>
-  </div>
-
-  <!-- 5. Curation Queue -->
-  <div class="td-sec">Curation Queue</div>
-  <div class="td-card" style="padding:0;overflow:hidden;">
-    <div id="td-queue"><div class="td-empty">No curation running</div></div>
-  </div>
-
-  <!-- 6. Weak Performers -->
-  <div class="td-sec">Weak Performers</div>
-  <div class="td-card" style="padding:0;overflow:hidden;">
-    <div id="td-weak"><div class="td-empty">No shadow-tier records yet</div></div>
-  </div>
-
-  <!-- 7. Manual Controls -->
-  <div class="td-sec">Manual Controls</div>
-  <div class="td-card">
-    <div style="margin-bottom:14px;">
-      <button class="td-ctrl-btn" onclick="window.TD&&window.TD.runCuration()">▶ Run Curation Now</button>
-      <button class="td-ctrl-btn" onclick="window.TD&&window.TD.refreshDisplay()">↺ Refresh Display</button>
+    <!-- Tier bar card -->
+    <div class="td-card">
+      <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+        <span style="font-family:'Space Mono',monospace;font-size:11px;color:var(--good);">Proven Edge <span id="td-promoted-ct" style="font-weight:700;">0</span></span>
+        <span style="font-family:'Space Mono',monospace;font-size:11px;color:var(--accent);">Decent Track <span id="td-standard-ct" style="font-weight:700;">0</span></span>
+        <span style="font-family:'Space Mono',monospace;font-size:11px;color:var(--muted);">Early Data <span id="td-shadow-ct" style="font-weight:700;">0</span></span>
+        <span style="font-family:'Space Mono',monospace;font-size:11px;color:var(--muted);">Untested <span id="td-untested-ct" style="font-weight:700;">0</span></span>
+      </div>
+      <div class="td-tier-bar" id="td-tier-bar">
+        <div class="td-tier-seg" id="td-bar-promoted" style="background:var(--good);width:0%"></div>
+        <div class="td-tier-seg" id="td-bar-standard" style="background:var(--accent);width:0%"></div>
+        <div class="td-tier-seg" id="td-bar-shadow"   style="background:var(--muted);width:0%"></div>
+        <div class="td-tier-seg" id="td-bar-untested" style="background:var(--border);width:0%"></div>
+      </div>
+      <div class="td-tier-legend">
+        <div class="td-tier-dot"><div class="td-dot" style="background:var(--good)"></div>Promoted: 60+ samples, ≥65% accuracy</div>
+        <div class="td-tier-dot"><div class="td-dot" style="background:var(--accent)"></div>Standard: 40+ samples, 53–64%</div>
+        <div class="td-tier-dot"><div class="td-dot" style="background:var(--muted)"></div>Shadow: below threshold</div>
+      </div>
     </div>
-    <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);margin-bottom:8px;letter-spacing:1px;text-transform:uppercase;">Reset Individual Record</div>
-    <div class="td-reset-row">
-      <input class="td-reset-input" id="td-reset-ticker" type="text" placeholder="TICKER" maxlength="6">
-      <button class="td-ctrl-btn danger" onclick="window.TD&&window.TD.resetRecord()">Reset Record</button>
+
+    <!-- Top Performers -->
+    <div class="td-sec">Top Performers</div>
+    <div class="td-card" style="padding:0;overflow:hidden;">
+      <div id="td-top-performers"><div class="td-empty">No promoted stocks yet — curation in progress</div></div>
     </div>
-    <div style="font-size:11px;color:var(--muted);margin-top:8px;">Clears all accumulated samples for that ticker. Cannot be undone.</div>
-  </div>
+
+    <!-- Rising Stocks -->
+    <div class="td-sec">Rising Stocks</div>
+    <div class="td-card" style="padding:0;overflow:hidden;">
+      <div id="td-rising"><div class="td-empty">No recent tier promotions yet</div></div>
+    </div>
+
+    <!-- Curation Queue -->
+    <div class="td-sec">Curation Queue</div>
+    <div class="td-card" style="padding:0;overflow:hidden;">
+      <div id="td-queue"><div class="td-empty">No curation running</div></div>
+    </div>
+
+    <!-- Weak Performers -->
+    <div class="td-sec">Weak Performers</div>
+    <div class="td-card" style="padding:0;overflow:hidden;">
+      <div id="td-weak"><div class="td-empty">No shadow-tier records yet</div></div>
+    </div>
+
+    <!-- Manual Controls -->
+    <div class="td-sec">Manual Controls</div>
+    <div class="td-card">
+      <div style="margin-bottom:14px;">
+        <button class="td-ctrl-btn" onclick="window.TD&&window.TD.runCuration()">▶ Run Curation Now</button>
+        <button class="td-ctrl-btn" onclick="window.TD&&window.TD.refreshDisplay()">↺ Refresh Display</button>
+      </div>
+      <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);margin-bottom:8px;letter-spacing:1px;text-transform:uppercase;">Reset Individual Record</div>
+      <div class="td-reset-row">
+        <input class="td-reset-input" id="td-reset-ticker" type="text" placeholder="TICKER" maxlength="6">
+        <button class="td-ctrl-btn danger" onclick="window.TD&&window.TD.resetRecord()">Reset Record</button>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:8px;">Clears all accumulated samples for that ticker. Cannot be undone.</div>
+    </div>
+
+  </div><!-- /tb-wrap -->
 
 </div>
 </div><!-- /panel-data -->
@@ -1764,10 +1772,10 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
 
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.13.1</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.13.2</div>
 
 <!-- ══ MOBILE VERSION STAMP (always visible on mobile, bottom-left) ══════ -->
-<div id="mobile-version-stamp" style="display:none;">v7.13.1</div>
+<div id="mobile-version-stamp" style="display:none;">v7.13.2</div>
 
 <!-- ══ MOBILE SCAN BTN (Brief panel only, toggled via swApp) ═════════════ -->
 <div id="mobile-scan-btn-wrap" style="display:none;">
@@ -2282,6 +2290,30 @@ function dismissCard(ticker){
   if(!dismissedCards.includes(ticker))dismissedCards.push(ticker);
   buildTop10();
   rB();
+}
+
+let _openCard = null;
+function toggleCard(ticker){
+  // Collapse previously open card
+  if(_openCard && _openCard !== ticker){
+    const prevBody = document.getElementById('card-body-'+_openCard);
+    const prevToggle = document.getElementById('card-toggle-'+_openCard);
+    if(prevBody){ prevBody.style.display='none'; }
+    if(prevToggle){ prevToggle.textContent='▼'; prevToggle.style.color='#6b7a99'; }
+  }
+  const body = document.getElementById('card-body-'+ticker);
+  const toggle = document.getElementById('card-toggle-'+ticker);
+  if(!body) return;
+  const isOpen = body.style.display !== 'none';
+  if(isOpen){
+    body.style.display='none';
+    if(toggle){ toggle.textContent='▼'; toggle.style.color='#6b7a99'; }
+    _openCard = null;
+  } else {
+    body.style.display='block';
+    if(toggle){ toggle.textContent='▲'; toggle.style.color='#00d4ff'; }
+    _openCard = ticker;
+  }
 }
 
 async function callInTicker(){
@@ -3378,7 +3410,7 @@ function renderReminderHeader(ticker) {
   const regimeAligned = (spyRegime && d.direction) ? ((d.direction==='CALLS'&&spyRegime==='BULLISH')||(d.direction==='PUTS'&&spyRegime==='BEARISH')) : null;
   const siPctHtml = window.SI ? window.SI.getAccuracyPctHTML(ticker) : '';
   const regimePill = regimeAligned !== null
-    ? `<div style="display:inline-flex;flex-direction:column;align-items:center;gap:0;"><span style="display:inline-flex;align-items:center;gap:4px;padding:4px 9px;border-radius:4px;font-family:'Space Mono',monospace;font-size:10px;font-weight:500;white-space:nowrap;background:${regimeAligned?'rgba(0,255,157,0.08)':'rgba(255,165,2,0.08)'};color:${regimeAligned?'#00ff9d':'#ffa502'};border:1px solid ${regimeAligned?'rgba(0,255,157,0.25)':'rgba(255,165,2,0.25)'};">${regimeAligned?'✓':'\u26a0'} SPY ${regimeAligned?'aligned':'vs regime'}</span>${siPctHtml}</div>` : '';
+    ? `<span style="display:inline-flex;align-items:center;gap:4px;padding:4px 9px;border-radius:4px;font-family:'Space Mono',monospace;font-size:10px;font-weight:500;white-space:nowrap;background:${regimeAligned?'rgba(0,255,157,0.08)':'rgba(255,165,2,0.08)'};color:${regimeAligned?'#00ff9d':'#ffa502'};border:1px solid ${regimeAligned?'rgba(0,255,157,0.25)':'rgba(255,165,2,0.25)'};">${regimeAligned?'✓':'\u26a0'} SPY ${regimeAligned?'aligned':'vs regime'}${siPctHtml}</span>` : '';
   const thesisTag = d.thesisVerdict || null;
   const thesisTagColor = thesisTag==='STRONG'?'#00ff9d':thesisTag==='SKIP'?'#ff4757':'#ffa502';
   const thesisTagBg = thesisTag==='STRONG'?'rgba(0,255,157,0.08)':thesisTag==='SKIP'?'rgba(255,71,87,0.08)':'rgba(255,165,2,0.08)';
@@ -3539,7 +3571,7 @@ function renderDataCard(ticker, bodyOnly=false){
     :null;
   const siPctCard = window.SI ? window.SI.getAccuracyPctHTML(ticker) : '';
   const regimePillHtml=regimeAligned!==null
-    ?`<div style="display:inline-flex;flex-direction:column;align-items:center;gap:0;"><span style="display:inline-flex;align-items:center;gap:4px;padding:4px 9px;border-radius:4px;font-family:'Space Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.2px;white-space:nowrap;background:${regimeAligned?'rgba(0,255,157,0.08)':'rgba(255,165,2,0.08)'};color:${regimeAligned?'#00ff9d':'#ffa502'};border:1px solid ${regimeAligned?'rgba(0,255,157,0.25)':'rgba(255,165,2,0.25)'};">${regimeAligned?'✓':'\u26a0'} SPY ${regimeAligned?'aligned':'vs regime'}</span>${siPctCard}</div>`
+    ?`<span style="display:inline-flex;align-items:center;gap:4px;padding:4px 9px;border-radius:4px;font-family:'Space Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.2px;white-space:nowrap;background:${regimeAligned?'rgba(0,255,157,0.08)':'rgba(255,165,2,0.08)'};color:${regimeAligned?'#00ff9d':'#ffa502'};border:1px solid ${regimeAligned?'rgba(0,255,157,0.25)':'rgba(255,165,2,0.25)'};">${regimeAligned?'✓':'\u26a0'} SPY ${regimeAligned?'aligned':'vs regime'}${siPctCard}</span>`
     :'';
 
   // Earnings
@@ -3725,8 +3757,13 @@ function renderDataCard(ticker, bodyOnly=false){
         ${regimePillHtml}
         <!-- X dismiss button -->
         <button onclick="dismissCard('${ticker}')" title="Dismiss" style="display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;background:none;border:1px solid rgba(120,170,220,0.18);border-radius:4px;color:#6b7a99;font-size:14px;cursor:pointer;transition:all 0.15s;flex-shrink:0;" onmouseover="this.style.color='#ff4757';this.style.borderColor='rgba(255,71,87,0.4)'" onmouseout="this.style.color='#6b7a99';this.style.borderColor='rgba(120,170,220,0.18)'">✕</button>
+        <!-- Expand toggle -->
+        <button id="card-toggle-${ticker}" onclick="toggleCard('${ticker}')" title="Expand" style="display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;background:none;border:1px solid rgba(120,170,220,0.18);border-radius:4px;color:#6b7a99;font-size:11px;cursor:pointer;transition:all 0.15s;flex-shrink:0;" onmouseover="this.style.color='#00d4ff';this.style.borderColor='rgba(0,212,255,0.4)'" onmouseout="this.style.color='#6b7a99';this.style.borderColor='rgba(120,170,220,0.18)'">▼</button>
       </div>
     </div>`}
+
+    <!-- ② CARD BODY (collapsible) -->
+    <div id="card-body-${ticker}" style="display:none;">
 
     <!-- ② PRICE CHART -->
     ${pts.length>=2?`<div style="padding:14px 22px 10px 26px;border-bottom:1px solid rgba(120,170,220,0.09);background:linear-gradient(180deg,rgba(0,0,0,0.08),transparent);">
@@ -3930,6 +3967,8 @@ function renderDataCard(ticker, bodyOnly=false){
         <div style="font-size:11px;color:#6b7a99;line-height:1.5;font-style:italic;">"${priorRec.text}"</div>
       </div>
     </div>`:''}
+
+    </div><!-- /card-body -->
 
   ${bodyOnly?'':`</div>`}`;
 }
@@ -7064,7 +7103,7 @@ window.SI = (function(){
     const color = rec.tier === 'promoted' ? '#4ade80' :
                   rec.tier === 'standard' ? '#00d4ff' : '';
     if(!color) return '';
-    return `<div style="font-family:'Space Mono',monospace;font-size:9px;font-weight:700;color:${color};text-align:center;margin-top:2px;line-height:1;">${pct}%</div>`;
+    return `<span style="font-family:'Space Mono',monospace;font-size:9px;font-weight:700;color:${color};margin-left:5px;">${pct}%</span>`;
   }
 
   // ── RESET A TICKER RECORD (admin) ────────────────────────────
@@ -7325,7 +7364,7 @@ window.TD = (function(){
 
 // ── EARNINGS CALENDAR (TradeData tab) ────────────────────────────────────────
 let _ecFilter = 'all';
-let _ecOpen = true;
+let _ecOpen = false;
 let _uhOpen = true;
 
 // Pre-seeded Q2 2026 earnings dates from TradeBrief_EarningsCalendar.xlsx
@@ -7417,6 +7456,14 @@ function uhToggle(){
   const icon = document.getElementById('uh-toggle-icon');
   if(wrap){ wrap.style.display = _uhOpen ? 'block' : 'none'; }
   if(icon){ icon.textContent = _uhOpen ? '▼' : '▶'; }
+}
+let _tbOpen = false;
+function tbToggle(){
+  _tbOpen = !_tbOpen;
+  const wrap = document.getElementById('tb-wrap');
+  const icon = document.getElementById('tb-toggle-icon');
+  if(wrap){ wrap.style.display = _tbOpen ? 'block' : 'none'; }
+  if(icon){ icon.textContent = _tbOpen ? '▼' : '▶'; }
 }
 
 function ecSetFilter(filter, btn){
@@ -7996,7 +8043,7 @@ function swApp(name){
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradingBrief v7.13.1 — Fix: Phase 2b fresh quote fetch                       ║
+     ║  END TradingBrief v7.13.2 — Visual: collapsed cards, TD sections, SPY % inline    ║
      ║  2026-04-24                                                       ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 </body>
