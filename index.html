@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v7.13.3 — Fix: score breakdown footer updates after thesis runs         ║
+     ║  TRADEBRIEF v7.13.4 — Fix: thesis as line item in score breakdown, bodyOnly re-render after thesis         ║
      ║  Date: 2026-04-24                                                ║
      ║  Changes from v7.13.0:                                              ║
      ║    1. Fix: Phase 2b now fetches a fresh individual quote per missed ticker        ║
@@ -16,7 +16,7 @@
 <meta name="theme-color" content="#111827">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>TradeBrief v7.13.3</title>
+<title>TradeBrief v7.13.4</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -1772,10 +1772,10 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
 
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.13.3</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.13.4</div>
 
 <!-- ══ MOBILE VERSION STAMP (always visible on mobile, bottom-left) ══════ -->
-<div id="mobile-version-stamp" style="display:none;">v7.13.3</div>
+<div id="mobile-version-stamp" style="display:none;">v7.13.4</div>
 
 <!-- ══ MOBILE SCAN BTN (Brief panel only, toggled via swApp) ═════════════ -->
 <div id="mobile-scan-btn-wrap" style="display:none;">
@@ -3701,8 +3701,9 @@ function renderDataCard(ticker, bodyOnly=false){
 
   const scoreRowsHtml=scoreRows.map(r=>{
     const c=r.isPurple?'#bf8cff':(r.val>0?'#00ff9d':r.val===0?'#6b7a99':'#ff4757');
-    return`<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;background:#0f1624;font-size:12px;">
-      <span style="color:#6b7a99;">${r.label}${r.note?`<span style="color:#4a5670;font-weight:400;margin-left:6px;">(${r.note})</span>`:''}</span>
+    const rowBg=r.isPurple?'background:rgba(191,140,255,0.06);border-left:2px solid #bf8cff;':'background:#0f1624;';
+    return`<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;${rowBg}font-size:12px;">
+      <span style="color:${r.isPurple?'#bf8cff':'#6b7a99'};">${r.label}${r.note?`<span style="color:${r.isPurple?'#8b6ec4':'#4a5670'};font-weight:400;margin-left:6px;">(${r.note})</span>`:''}</span>
       <span style="font-family:'Space Mono',monospace;font-weight:700;color:${c};">${r.val>0?'+':''}${r.val}</span>
     </div>`;
   }).join('<div style="height:1px;background:rgba(120,170,220,0.09);"></div>');
@@ -4943,13 +4944,17 @@ ${siStr}${priorMemoryStr}`;
       if(textNode&&textNode.nodeType===3)textNode.textContent=conviction;
     }
 
-    // Patch score breakdown footer to reflect thesis bonus
-    const sbEl=document.getElementById('score-breakdown-'+ticker);
-    if(sbEl){
-      const footer=sbEl.querySelector('div[style*="justify-content:space-between"]');
-      if(footer){
-        const convColor2=conviction>=82?'#00ff9d':conviction>=70?'#00d4ff':'#ffa502';
-        footer.innerHTML=`<span style="color:#6b7a99;">Technical <span style="color:#00d4ff;font-weight:700;">${d.confidence||0}</span> + Thesis <span style="color:#bf8cff;font-weight:700;">+${thesisAdder}</span></span><span style="color:${convColor2};font-weight:700;">→ Conviction ${conviction}</span>`;
+    // Re-render the full card body so thesis appears as a line item and footer is correct
+    const cardBodyEl=document.getElementById('card-body-'+ticker);
+    if(cardBodyEl){
+      const sbWasOpen=document.getElementById('score-breakdown-'+ticker)?.style.display==='block';
+      cardBodyEl.innerHTML=renderDataCard(ticker,true);
+      // Restore card body visibility (it was open since user just ran thesis)
+      cardBodyEl.style.display='block';
+      // Restore score breakdown open state if it was open
+      if(sbWasOpen){
+        const sbEl=document.getElementById('score-breakdown-'+ticker);
+        if(sbEl)sbEl.style.display='block';
       }
     }
 
@@ -8053,7 +8058,7 @@ function swApp(name){
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradingBrief v7.13.3 — Fix: score breakdown footer updates after thesis runs    ║
+     ║  END TradingBrief v7.13.4 — Fix: thesis as line item in score breakdown, bodyOnly re-render after thesis    ║
      ║  2026-04-24                                                       ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 </body>
