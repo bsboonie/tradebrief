@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v7.13.2 — Visual: collapsed cards, TD sections, SPY % inline         ║
+     ║  TRADEBRIEF v7.13.3 — Fix: score breakdown footer updates after thesis runs         ║
      ║  Date: 2026-04-24                                                ║
      ║  Changes from v7.13.0:                                              ║
      ║    1. Fix: Phase 2b now fetches a fresh individual quote per missed ticker        ║
@@ -16,7 +16,7 @@
 <meta name="theme-color" content="#111827">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>TradeBrief v7.13.2</title>
+<title>TradeBrief v7.13.3</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -1772,10 +1772,10 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
 
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.13.2</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.13.3</div>
 
 <!-- ══ MOBILE VERSION STAMP (always visible on mobile, bottom-left) ══════ -->
-<div id="mobile-version-stamp" style="display:none;">v7.13.2</div>
+<div id="mobile-version-stamp" style="display:none;">v7.13.3</div>
 
 <!-- ══ MOBILE SCAN BTN (Brief panel only, toggled via swApp) ═════════════ -->
 <div id="mobile-scan-btn-wrap" style="display:none;">
@@ -4943,6 +4943,16 @@ ${siStr}${priorMemoryStr}`;
       if(textNode&&textNode.nodeType===3)textNode.textContent=conviction;
     }
 
+    // Patch score breakdown footer to reflect thesis bonus
+    const sbEl=document.getElementById('score-breakdown-'+ticker);
+    if(sbEl){
+      const footer=sbEl.querySelector('div[style*="justify-content:space-between"]');
+      if(footer){
+        const convColor2=conviction>=82?'#00ff9d':conviction>=70?'#00d4ff':'#ffa502';
+        footer.innerHTML=`<span style="color:#6b7a99;">Technical <span style="color:#00d4ff;font-weight:700;">${d.confidence||0}</span> + Thesis <span style="color:#bf8cff;font-weight:700;">+${thesisAdder}</span></span><span style="color:${convColor2};font-weight:700;">→ Conviction ${conviction}</span>`;
+      }
+    }
+
   }catch(e){
     console.error('Thesis analysis error:',e);
     const errEl=document.getElementById('thesis-result-'+ticker);
@@ -8043,7 +8053,7 @@ function swApp(name){
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradingBrief v7.13.2 — Visual: collapsed cards, TD sections, SPY % inline    ║
+     ║  END TradingBrief v7.13.3 — Fix: score breakdown footer updates after thesis runs    ║
      ║  2026-04-24                                                       ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 </body>
