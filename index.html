@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v7.13.4 — Fix: thesis as line item in score breakdown, bodyOnly re-render after thesis         ║
+     ║  TRADEBRIEF v7.13.5 — Fix: card expand toggle broken — card-body div now inside template literal         ║
      ║  Date: 2026-04-24                                                ║
      ║  Changes from v7.13.0:                                              ║
      ║    1. Fix: Phase 2b now fetches a fresh individual quote per missed ticker        ║
@@ -16,7 +16,7 @@
 <meta name="theme-color" content="#111827">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>TradeBrief v7.13.4</title>
+<title>TradeBrief v7.13.5</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -1772,10 +1772,10 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
 
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.13.4</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.13.5</div>
 
 <!-- ══ MOBILE VERSION STAMP (always visible on mobile, bottom-left) ══════ -->
-<div id="mobile-version-stamp" style="display:none;">v7.13.4</div>
+<div id="mobile-version-stamp" style="display:none;">v7.13.5</div>
 
 <!-- ══ MOBILE SCAN BTN (Brief panel only, toggled via swApp) ═════════════ -->
 <div id="mobile-scan-btn-wrap" style="display:none;">
@@ -3761,10 +3761,10 @@ function renderDataCard(ticker, bodyOnly=false){
         <!-- Expand toggle -->
         <button id="card-toggle-${ticker}" onclick="toggleCard('${ticker}')" title="Expand" style="display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;background:none;border:1px solid rgba(120,170,220,0.18);border-radius:4px;color:#6b7a99;font-size:11px;cursor:pointer;transition:all 0.15s;flex-shrink:0;" onmouseover="this.style.color='#00d4ff';this.style.borderColor='rgba(0,212,255,0.4)'" onmouseout="this.style.color='#6b7a99';this.style.borderColor='rgba(120,170,220,0.18)'">▼</button>
       </div>
-    </div>`}
+    </div>
 
     <!-- ② CARD BODY (collapsible) -->
-    <div id="card-body-${ticker}" style="display:none;">
+    <div id="card-body-${ticker}" style="display:none;">`}
 
     <!-- ② PRICE CHART -->
     ${pts.length>=2?`<div style="padding:14px 22px 10px 26px;border-bottom:1px solid rgba(120,170,220,0.09);background:linear-gradient(180deg,rgba(0,0,0,0.08),transparent);">
@@ -8058,7 +8058,7 @@ function swApp(name){
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradingBrief v7.13.4 — Fix: thesis as line item in score breakdown, bodyOnly re-render after thesis    ║
+     ║  END TradingBrief v7.13.5 — Fix: card expand toggle broken — card-body div now inside template literal    ║
      ║  2026-04-24                                                       ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 </body>
