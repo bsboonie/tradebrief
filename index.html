@@ -1,8 +1,14 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v7.11.6 — EEW fix: earningsOverrides fallback + exclude recently-past earnings (2d)  ║
-     ║  Date: 2026-04-20                                                ║
-     ║  Changes from v7.8.4:                                              ║
+     ║  TRADEBRIEF v7.12.0 — Bug fixes & polish: label order, reminder dupe header, SI badge, earnings seed, universe cleanup, trade log stock price  ║
+     ║  Date: 2026-04-24                                                ║
+     ║  Changes from v7.11.6:                                              ║
+     ║    1. Fix: "Top 10 by Confidence" label renders below reminders banner  ║
+     ║    2. Fix: Expanding reminder card no longer duplicates header row      ║
+     ║    3. New: SI alignment % shown under SPY aligned badge (cyan=DTR, green=PE) ║
+     ║    4. Data: 61 missing UNIVERSE tickers seeded with Q2 earnings dates   ║
+     ║    5. Fix: WBA and X removed from UNIVERSE (both delisted 2025)         ║
+     ║    6. New: Live stock price column in active trade log (green/red vs open) ║
      ║    1. Reweight calcConfidence: EMA 18, RSI 12, Trend 14, Vol 15   ║
      ║    2. New: Clean Entry/Extension category (ATR multiples, max 15) ║
      ║    3. IV Rank slot: neutral 6/12 at scan; full range post-chain   ║
@@ -18,7 +24,7 @@
 <meta name="theme-color" content="#111827">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>TradeBrief v7.11.6</title>
+<title>TradeBrief v7.12.0</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -556,7 +562,6 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
   <div class="tab-content" id="tab-briefing">
     <div id="scan-bar-area"></div>
     <div id="alerts"></div>
-    <div class="sec" id="brief-header" style="margin-top:8px;">Top 10 by Confidence</div>
     <div id="blist"></div>
   </div>
 
@@ -1193,6 +1198,7 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
 @media(max-width:580px){
   #panel-log .tl-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
   #panel-log .tl-col-rr,#panel-log .tl-col-iv{display:none;}
+  #panel-log .tl-col-px{min-width:70px;}
 }
 #panel-log .tl-table{width:100%;border-collapse:collapse;font-size:11px;}
 #panel-log .tl-table th{font-family:'Space Mono',monospace;font-size:8px;letter-spacing:1px;color:var(--muted);padding:10px 12px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap;background:var(--surface2);}
@@ -1283,7 +1289,7 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
     <table class="tl-table">
       <thead>
         <tr>
-          <th>DATE</th><th>TKR</th><th>TYPE</th><th>STRK</th>
+          <th>DATE</th><th>TKR</th><th>TYPE</th><th class="tl-col-px">PRICE</th><th>STRK</th>
           <th>EXP</th><th>COST $</th><th>MAX $</th><th>LIVE $</th><th class="tl-col-rr">R/R</th>
           <th class="tl-col-iv">IV RANK</th><th>EXIT ↑</th><th>EXIT ↓</th>
           <th>ACT</th>
@@ -1970,7 +1976,7 @@ const UNIVERSE=[
   // 02 · Technology — Software, Cloud, Semis
   'MSFT','META','AMD','INTC','MU','ON','QCOM','PLTR','CRM','ORCL','IBM','CSCO','ACN','AI','SNOW','SNAP','PINS','UBER',
   // 03 · Healthcare — Pharma & Insurance
-  'UNH','CVS','WBA','PFE','MRK','ABBV','BMY','GILD','MRNA','BIIB','REGN','HUM','CI',
+  'UNH','CVS','PFE','MRK','ABBV','BMY','GILD','MRNA','BIIB','REGN','HUM','CI',
   // 04 · Energy — Oil, Gas, Utilities
   'XOM','CVX','OVV','CTRA','PR','DVN','ET','KMI','NEE','SO','DUK','FSLR',
   // 05 · Consumer Discretionary
@@ -1980,7 +1986,7 @@ const UNIVERSE=[
   // 07 · Industrials — Defense, Aerospace, Transport
   'BA','RTX','LMT','NOC','GE','HON','UPS','FDX','CAT','DE','GD',
   // 08 · Materials — Mining, Metals, Chemicals
-  'FCX','NEM','GOLD','CLF','VALE','AA','X','DOW','LYB',
+  'FCX','NEM','GOLD','CLF','VALE','AA','DOW','LYB',
   // 09 · Real Estate — REITs
   'AMT','PLD','EQIX','SPG','VICI','IRM','AGNC',
   // 10 · Telecom & Media
@@ -3217,8 +3223,9 @@ function renderReminderHeader(ticker) {
   const trendFg = trendVal==='BULLISH'?'#00ff9d':trendVal==='BEARISH'?'#ff4757':'#6b7a99';
   const trendBd = trendVal==='BULLISH'?'rgba(0,255,157,0.25)':trendVal==='BEARISH'?'rgba(255,71,87,0.25)':'rgba(107,122,153,0.2)';
   const regimeAligned = (spyRegime && d.direction) ? ((d.direction==='CALLS'&&spyRegime==='BULLISH')||(d.direction==='PUTS'&&spyRegime==='BEARISH')) : null;
+  const siPctHtml = window.SI ? window.SI.getAccuracyPctHTML(ticker) : '';
   const regimePill = regimeAligned !== null
-    ? `<span style="display:inline-flex;align-items:center;gap:4px;padding:4px 9px;border-radius:4px;font-family:'Space Mono',monospace;font-size:10px;font-weight:500;white-space:nowrap;background:${regimeAligned?'rgba(0,255,157,0.08)':'rgba(255,165,2,0.08)'};color:${regimeAligned?'#00ff9d':'#ffa502'};border:1px solid ${regimeAligned?'rgba(0,255,157,0.25)':'rgba(255,165,2,0.25)'};">${regimeAligned?'✓':'\u26a0'} SPY ${regimeAligned?'aligned':'vs regime'}</span>` : '';
+    ? `<div style="display:inline-flex;flex-direction:column;align-items:center;gap:0;"><span style="display:inline-flex;align-items:center;gap:4px;padding:4px 9px;border-radius:4px;font-family:'Space Mono',monospace;font-size:10px;font-weight:500;white-space:nowrap;background:${regimeAligned?'rgba(0,255,157,0.08)':'rgba(255,165,2,0.08)'};color:${regimeAligned?'#00ff9d':'#ffa502'};border:1px solid ${regimeAligned?'rgba(0,255,157,0.25)':'rgba(255,165,2,0.25)'};">${regimeAligned?'✓':'\u26a0'} SPY ${regimeAligned?'aligned':'vs regime'}</span>${siPctHtml}</div>` : '';
   const thesisTag = d.thesisVerdict || null;
   const thesisTagColor = thesisTag==='STRONG'?'#00ff9d':thesisTag==='SKIP'?'#ff4757':'#ffa502';
   const thesisTagBg = thesisTag==='STRONG'?'rgba(0,255,157,0.08)':thesisTag==='SKIP'?'rgba(255,71,87,0.08)':'rgba(255,165,2,0.08)';
@@ -3259,7 +3266,7 @@ function renderReminderHeader(ticker) {
     </div>
     <!-- Expandable full card body (hidden by default) -->
     <div id="${expandId}" style="display:none;">
-      ${renderDataCard(ticker)}
+      ${renderDataCard(ticker, true)}
     </div>
   </div>`;
 }
@@ -3274,10 +3281,6 @@ function rB(){
 
   // Clear alerts area (expiry warnings now shown on trade cards)
   al.innerHTML='';
-
-  // Update header
-  const headerEl=document.getElementById('brief-header');
-  if(headerEl)headerEl.textContent=`Top ${top10.length} by Confidence`;
 
   // Build cards for top10 (qualifying tickers)
   const top3Cards=top10.map(ticker=>renderDataCard(ticker)).join('');
@@ -3338,10 +3341,15 @@ function rB(){
     }
   }
 
-  el.innerHTML=reminderSection+top3Cards+nrCards+loadingCards+emptyMsg;
+  // Top N label — always appears below reminders, above scan results
+  const top10Label = (top10.length || notReadyList.length || scannerRunning)
+    ? `<div class="sec" style="margin-top:${reminderSection?'18px':'8px'};">Top ${top10.length||'—'} by Confidence</div>`
+    : '';
+
+  el.innerHTML=reminderSection+top10Label+top3Cards+nrCards+loadingCards+emptyMsg;
 }
 
-function renderDataCard(ticker){
+function renderDataCard(ticker, bodyOnly=false){
   const d=sd[ticker];
   if(!d||d.loading||d.error)return'';
 
@@ -3376,8 +3384,9 @@ function renderDataCard(ticker){
   const regimeAligned=(spyRegime&&d.direction)
     ?((d.direction==='CALLS'&&spyRegime==='BULLISH')||(d.direction==='PUTS'&&spyRegime==='BEARISH'))
     :null;
+  const siPctCard = window.SI ? window.SI.getAccuracyPctHTML(ticker) : '';
   const regimePillHtml=regimeAligned!==null
-    ?`<span style="display:inline-flex;align-items:center;gap:4px;padding:4px 9px;border-radius:4px;font-family:'Space Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.2px;white-space:nowrap;background:${regimeAligned?'rgba(0,255,157,0.08)':'rgba(255,165,2,0.08)'};color:${regimeAligned?'#00ff9d':'#ffa502'};border:1px solid ${regimeAligned?'rgba(0,255,157,0.25)':'rgba(255,165,2,0.25)'};">${regimeAligned?'✓':'\u26a0'} SPY ${regimeAligned?'aligned':'vs regime'}</span>`
+    ?`<div style="display:inline-flex;flex-direction:column;align-items:center;gap:0;"><span style="display:inline-flex;align-items:center;gap:4px;padding:4px 9px;border-radius:4px;font-family:'Space Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.2px;white-space:nowrap;background:${regimeAligned?'rgba(0,255,157,0.08)':'rgba(255,165,2,0.08)'};color:${regimeAligned?'#00ff9d':'#ffa502'};border:1px solid ${regimeAligned?'rgba(0,255,157,0.25)':'rgba(255,165,2,0.25)'};">${regimeAligned?'✓':'\u26a0'} SPY ${regimeAligned?'aligned':'vs regime'}</span>${siPctCard}</div>`
     :'';
 
   // Earnings
@@ -3524,7 +3533,7 @@ function renderDataCard(ticker){
   // srcNote for limited data
   const srcNote=isLimited?'<span style="font-family:\'Space Mono\',monospace;font-size:9px;font-weight:700;padding:2px 8px;border-radius:12px;background:rgba(107,122,153,0.15);color:#6b7a99;border:1px solid rgba(107,122,153,0.3);margin-left:8px;">LIMITED</span>':'';
 
-  return`<div style="background:#111827;border:1px solid rgba(120,170,220,0.18);position:relative;margin-bottom:9px;color:#e8edf5;font-family:'DM Sans',sans-serif;">
+  return`${bodyOnly?'':`<div style="background:#111827;border:1px solid rgba(120,170,220,0.18);position:relative;margin-bottom:9px;color:#e8edf5;font-family:'DM Sans',sans-serif;">
     <!-- Left accent rail -->
     <div style="position:absolute;left:0;top:0;bottom:0;width:3px;background:${convColor};box-shadow:0 0 12px ${convColor}55;z-index:1;"></div>
 
@@ -3564,7 +3573,7 @@ function renderDataCard(ticker){
         <!-- X dismiss button -->
         <button onclick="dismissCard('${ticker}')" title="Dismiss" style="display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;background:none;border:1px solid rgba(120,170,220,0.18);border-radius:4px;color:#6b7a99;font-size:14px;cursor:pointer;transition:all 0.15s;flex-shrink:0;" onmouseover="this.style.color='#ff4757';this.style.borderColor='rgba(255,71,87,0.4)'" onmouseout="this.style.color='#6b7a99';this.style.borderColor='rgba(120,170,220,0.18)'">✕</button>
       </div>
-    </div>
+    </div>`}
 
     <!-- ② PRICE CHART -->
     ${pts.length>=2?`<div style="padding:14px 22px 10px 26px;border-bottom:1px solid rgba(120,170,220,0.09);background:linear-gradient(180deg,rgba(0,0,0,0.08),transparent);">
@@ -3769,7 +3778,7 @@ function renderDataCard(ticker){
       </div>
     </div>`:''}
 
-  </div>`;
+  ${bodyOnly?'':`</div>`}`;
 }
 
 // ── POSITIONS DASHBOARD ────────────────────────────────────────────────────
@@ -6887,6 +6896,18 @@ window.SI = (function(){
     return `<div style="display:inline-flex;flex-direction:column;align-items:flex-start;gap:1px;font-family:'Space Mono',monospace;font-size:9px;font-weight:700;color:${color};background:${color}22;border:1px solid ${color}55;border-radius:10px;padding:3px 8px;margin-left:4px;margin-top:2px;" title="${fullTitle}${regimeSuffix}"><span>${tierLabel}</span><span style="opacity:0.7;font-weight:400;">${statsLabel}</span></div>`;
   }
 
+  // Returns accuracy % for display under SPY aligned badge on stock cards
+  // cyan = Decent Track Record, light green = Proven Edge, empty = shadow tier
+  function getAccuracyPctHTML(symbol){
+    const rec = _records[symbol];
+    if(!rec || rec.totalSamples < MIN_DISPLAY_SAMPLES) return '';
+    const pct = rec.accuracy;
+    const color = rec.tier === 'promoted' ? '#4ade80' :
+                  rec.tier === 'standard' ? '#00d4ff' : '';
+    if(!color) return '';
+    return `<div style="font-family:'Space Mono',monospace;font-size:9px;font-weight:700;color:${color};text-align:center;margin-top:2px;line-height:1;">${pct}%</div>`;
+  }
+
   // ── RESET A TICKER RECORD (admin) ────────────────────────────
   async function resetRecord(symbol){
     delete _records[symbol];
@@ -6917,6 +6938,7 @@ window.SI = (function(){
     getStatus,
     getCurrentSPYRegime,
     getAccuracyBadgeHTML,
+    getAccuracyPctHTML,
     resetRecord,
     loadAllRecords,
     calcTier,
@@ -7147,6 +7169,7 @@ let _uhOpen = true;
 
 // Pre-seeded Q2 2026 earnings dates from TradeBrief_EarningsCalendar.xlsx
 const EC_SEED_DATES = {
+  // ── Originally seeded (67 tickers) ──
   'AAL':'2026-04-25','ABBV':'2026-04-29','AGNC':'2026-04-22','AMD':'2026-05-05',
   'AMGN':'2026-04-29','AMT':'2026-04-29','AMZN':'2026-04-23','BA':'2026-04-23',
   'BSX':'2026-04-23','CAT':'2026-04-29','CLF':'2026-04-22','CMCSA':'2026-04-24',
@@ -7163,7 +7186,47 @@ const EC_SEED_DATES = {
   'RTX':'2026-04-22','SBUX':'2026-04-29','SHOP':'2026-05-07','SPG':'2026-04-28',
   'SYK':'2026-04-29','T':'2026-04-23','TMO':'2026-04-23','UBER':'2026-05-06',
   'UNH':'2026-04-21','UPS':'2026-04-29','VICI':'2026-04-30','VRTX':'2026-04-28',
-  'VZ':'2026-04-22','XOM':'2026-05-01','ZTS':'2026-05-05'
+  'VZ':'2026-04-22','XOM':'2026-05-01','ZTS':'2026-05-05',
+  // ── Added 2026-04-24: remaining UNIVERSE tickers ──
+  // Financials (July Q2 reporters)
+  'BAC':'2026-07-14','WFC':'2026-07-14','C':'2026-07-14',
+  'GS':'2026-07-14','MS':'2026-07-15','SCHW':'2026-07-17',
+  // Financials (near-term)
+  'HOOD':'2026-04-28','SQ':'2026-05-07','SOFI':'2026-04-29','AFRM':'2026-05-07',
+  // Technology
+  'QCOM':'2026-04-29','MU':'2026-07-01','ON':'2026-05-04',
+  'ORCL':'2026-06-10','CSCO':'2026-05-13','SNOW':'2026-05-27',
+  'SNAP':'2026-05-06','AI':'2026-05-27',
+  // Healthcare
+  'CVS':'2026-05-06','GILD':'2026-05-07','MRNA':'2026-05-01',
+  'BIIB':'2026-04-29','REGN':'2026-04-29','HUM':'2026-04-29',
+  'BMY':'2026-04-30','CI':'2026-04-30',
+  // Energy
+  'OVV':'2026-05-12','ET':'2026-05-05','DVN':'2026-05-05','CTRA':'2026-04-30',
+  // Utilities
+  'SO':'2026-04-30','DUK':'2026-05-05',
+  // Consumer Discretionary
+  'NKE':'2026-06-25','DKNG':'2026-05-07','CCL':'2026-06-23','DAL':'2026-07-09',
+  // Consumer Staples
+  'WMT':'2026-05-14','COST':'2026-05-28','KR':'2026-06-11','GIS':'2026-06-24',
+  // Industrials
+  'HON':'2026-07-17','FDX':'2026-06-18','DE':'2026-05-21',
+  // Materials
+  'VALE':'2026-04-28',
+  // REITs
+  'PLD':'2026-07-16',
+  // Telecom & Media
+  'NFLX':'2026-07-16','PARA':'2026-05-04',
+  // E-Commerce & Global Platforms
+  'NU':'2026-05-14','MELI':'2026-05-07','MARA':'2026-05-07',
+  // Biotech & Medical Devices
+  'MDT':'2026-05-20','ELV':'2026-07-16','NVO':'2026-05-06',
+  // Technology (additional)
+  'ACN':'2026-06-18',
+  // Energy (additional)
+  'PR':'2026-05-06',
+  // Solar
+  'FSLR':'2026-07-29'
 };
 
 // Seed dates into override store if not already set (first run only)
@@ -7551,7 +7614,7 @@ function swApp(name){
           // Inline close row
           const closeRow = isClosing ? `
           <tr id="tl-close-out-row" class="tl-close-row">
-            <td colspan="13" style="padding:10px 12px;">
+            <td colspan="14" style="padding:10px 12px;">
               <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
                 <span style="font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:1px;">CLOSE AT ($)</span>
                 <input id="tl-close-price-input" class="tl-close-price" type="number" step="0.01"
@@ -7569,6 +7632,15 @@ function swApp(name){
             </td>
           </tr>` : '';
 
+          // Stock price cell (active trades only) — green if above open, red if below
+          const tlSd = (typeof sd !== 'undefined' && sd[t.ticker]) ? sd[t.ticker] : null;
+          let stockPxCell = '<span style="color:var(--muted);font-size:10px;">—</span>';
+          if (tlSd && tlSd.price != null) {
+            const px = parseFloat(tlSd.price);
+            const prevCl = parseFloat(tlSd.prevClose || 0);
+            const pxColor = prevCl > 0 ? (px >= prevCl ? 'var(--good)' : 'var(--danger)') : 'var(--muted)';
+            stockPxCell = `<span style="font-family:'Space Mono',monospace;font-size:11px;font-weight:700;color:${pxColor};">$${px.toFixed(2)}</span>`;
+          }
           const typeAbbr = {'Long Call':'LC','Long Put':'LP','Call Spread':'CS','Put Spread':'PS'}[t.type] || t.type;
           const entryDateFmt = (t.entryDate||'—').replace(/^\d{4}-/,'');
           const expDateFmt   = (t.expDate||'—').replace(/^\d{4}-/,'');
@@ -7577,6 +7649,7 @@ function swApp(name){
             <td>${entryDateFmt}</td>
             <td style="font-weight:700;">${t.ticker}</td>
             <td><span class="tl-type-pill ${typeClass}">${typeAbbr}</span></td>
+            <td>${stockPxCell}</td>
             <td>${strikesFmt}</td>
             <td>${expDateFmt}</td>
             <td style="color:var(--accent);">$${parseFloat(t.cost||0).toFixed(2)}</td>
@@ -7741,8 +7814,8 @@ function swApp(name){
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradingBrief v7.11.6 — EEW fix: earningsOverrides fallback + exclude recently-past earnings (2d)  ║
-     ║  2026-04-18                                                       ║
+     ║  END TradingBrief v7.12.0 — Bug fixes & polish                            ║
+     ║  2026-04-24                                                       ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 </body>
 </html>
