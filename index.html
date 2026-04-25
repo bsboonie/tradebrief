@@ -1,14 +1,11 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v7.12.0 — Bug fixes & polish: label order, reminder dupe header, SI badge, earnings seed, universe cleanup, trade log stock price  ║
+     ║  TRADEBRIEF v7.12.1 — Fix: top10 cards 6-10 missing live data (Phase 2b catch-up)  ║
      ║  Date: 2026-04-24                                                ║
-     ║  Changes from v7.11.6:                                              ║
-     ║    1. Fix: "Top 10 by Confidence" label renders below reminders banner  ║
-     ║    2. Fix: Expanding reminder card no longer duplicates header row      ║
-     ║    3. New: SI alignment % shown under SPY aligned badge (cyan=DTR, green=PE) ║
-     ║    4. Data: 61 missing UNIVERSE tickers seeded with Q2 earnings dates   ║
-     ║    5. Fix: WBA and X removed from UNIVERSE (both delisted 2025)         ║
-     ║    6. New: Live stock price column in active trade log (green/red vs open) ║
+     ║  Changes from v7.12.0:                                              ║
+     ║    1. Fix: Top10 tickers ranked 6-10 showed dashes — Phase 2 ranked by momentum    ║
+     ║       not confidence, so low-momentum high-confidence tickers missed history fetch  ║
+     ║       Phase 2b catch-up pass ensures all top10 have live data before Phase 3       ║
      ║    1. Reweight calcConfidence: EMA 18, RSI 12, Trend 14, Vol 15   ║
      ║    2. New: Clean Entry/Extension category (ATR multiples, max 15) ║
      ║    3. IV Rank slot: neutral 6/12 at scan; full range post-chain   ║
@@ -24,7 +21,7 @@
 <meta name="theme-color" content="#111827">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>TradeBrief v7.12.0</title>
+<title>TradeBrief v7.12.1</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -2383,6 +2380,51 @@ async function runScanner(force){
     }
   }
   console.log(`✅ Phase 2 complete: ${histDone} history fetches done`);
+
+  // ── PHASE 2b: Catch-up history for top10 tickers that missed Phase 2 ──
+  // Phase 2 ranks by momentum/volume — high-confidence tickers outside top 25
+  // movers never get history fetched. This guarantees all top10 have live data.
+  buildTop10();
+  const missedTickers=top10.filter(t=>sd[t]&&sd[t].dataSource==='limited');
+  if(missedTickers.length){
+    console.log(`📊 Phase 2b: Catch-up history for ${missedTickers.length} top10 tickers:`,missedTickers.join(', '));
+    for(const ticker of missedTickers){
+      const q=quoteMap[ticker];
+      if(!q)continue;
+      try{
+        const hist=await fetchHistory(ticker);
+        const closes=hist.closes;
+        const candles=hist.candles;
+        if(closes.length>=22){
+          const parts=S('ema').split(',');
+          const ema8=calcEMA(closes,parseInt(parts[0]));
+          const ema21=calcEMA(closes,parseInt(parts[1]));
+          const rsi14=calcRSI(closes,14);
+          const atr14=calcATR(candles,14);
+          const trend=trendStrength(closes,ema8,ema21,rsi14);
+          const conf=calcConfidence(q.price,ema8,ema21,rsi14,q.volume,q.avgVolume,q.changePct,atr14,closes,ivRankOverrides[ticker]??null);
+          const ob=S('rsiOb'),os=S('rsiOs');
+          sd[ticker]={ticker,price:q.price,change:q.change,changePct:q.changePct,
+            volume:q.volume,avgVolume:q.avgVolume,description:q.description||'',
+            rsi14,ema8,ema21,atr14,earningsDate:earningsOverrides[ticker]||null,
+            signal:conf.direction,reason:'Confidence '+conf.score+'/100 — '+(conf.direction==='CALLS'?'Bullish':'Bearish')+' setup'+(conf.againstRegime?' — fighting broader SPY trend. Elevated risk, consider smaller size.':''),
+            confidence:conf.score,rawScore:conf.rawScore,againstRegime:conf.againstRegime,volRatio:conf.volRatio,atrNeutral:conf.atrNeutral,direction:conf.direction,
+            teasers:[
+              {label:'RSI 14',value:rsi14.toFixed(1),note:rsi14<os?'Oversold — bounce potential':rsi14>ob?'Overbought — caution':'Healthy momentum range'},
+              {label:'Trend',value:q.price>ema8&&q.price>ema21?'BULLISH':'BEARISH',note:q.price>ema8&&q.price>ema21?'Price above both EMAs':'Price below key EMAs'},
+              {label:'Day Move',value:(q.changePct>=0?'+':'')+q.changePct.toFixed(2)+'%',note:Math.abs(q.changePct)>3?'Big move today':'Quiet session today'}
+            ],
+            closes,trend,dataSource:'live'};
+        }else{
+          console.warn(`${ticker}: Phase 2b insufficient history (${closes.length} points)`);
+        }
+      }catch(e){console.warn(`${ticker}: Phase 2b error — ${e.message}`);}
+      histDone++;
+      buildTop10();rB();
+      await new Promise(r=>setTimeout(r,600));
+    }
+    console.log(`✅ Phase 2b complete`);
+  }
 
   // ── PHASE 3: Earnings + finalize ───────────────────────────────────────
   scannerProgress=2;
@@ -7814,7 +7856,7 @@ function swApp(name){
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradingBrief v7.12.0 — Bug fixes & polish                            ║
+     ║  END TradingBrief v7.12.1 — Fix: Phase 2b catch-up for top10 live data            ║
      ║  2026-04-24                                                       ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 </body>
