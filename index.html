@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v7.13.5 — Fix: card expand toggle broken — card-body div now inside template literal         ║
+     ║  TRADEBRIEF v7.13.6 — Fix: badge padding reduced, buttons pinned nowrap to prevent header wrap         ║
      ║  Date: 2026-04-24                                                ║
      ║  Changes from v7.13.0:                                              ║
      ║    1. Fix: Phase 2b now fetches a fresh individual quote per missed ticker        ║
@@ -16,7 +16,7 @@
 <meta name="theme-color" content="#111827">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>TradeBrief v7.13.5</title>
+<title>TradeBrief v7.13.6</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -1772,10 +1772,10 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
 
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.13.5</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.13.6</div>
 
 <!-- ══ MOBILE VERSION STAMP (always visible on mobile, bottom-left) ══════ -->
-<div id="mobile-version-stamp" style="display:none;">v7.13.5</div>
+<div id="mobile-version-stamp" style="display:none;">v7.13.6</div>
 
 <!-- ══ MOBILE SCAN BTN (Brief panel only, toggled via swApp) ═════════════ -->
 <div id="mobile-scan-btn-wrap" style="display:none;">
@@ -3410,7 +3410,7 @@ function renderReminderHeader(ticker) {
   const regimeAligned = (spyRegime && d.direction) ? ((d.direction==='CALLS'&&spyRegime==='BULLISH')||(d.direction==='PUTS'&&spyRegime==='BEARISH')) : null;
   const siPctHtml = window.SI ? window.SI.getAccuracyPctHTML(ticker) : '';
   const regimePill = regimeAligned !== null
-    ? `<span style="display:inline-flex;align-items:center;gap:4px;padding:4px 9px;border-radius:4px;font-family:'Space Mono',monospace;font-size:10px;font-weight:500;white-space:nowrap;background:${regimeAligned?'rgba(0,255,157,0.08)':'rgba(255,165,2,0.08)'};color:${regimeAligned?'#00ff9d':'#ffa502'};border:1px solid ${regimeAligned?'rgba(0,255,157,0.25)':'rgba(255,165,2,0.25)'};">${regimeAligned?'✓':'\u26a0'} SPY ${regimeAligned?'aligned':'vs regime'}${siPctHtml}</span>` : '';
+    ? `<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 7px;border-radius:4px;font-family:'Space Mono',monospace;font-size:10px;font-weight:500;white-space:nowrap;background:${regimeAligned?'rgba(0,255,157,0.08)':'rgba(255,165,2,0.08)'};color:${regimeAligned?'#00ff9d':'#ffa502'};border:1px solid ${regimeAligned?'rgba(0,255,157,0.25)':'rgba(255,165,2,0.25)'};">${regimeAligned?'✓':'\u26a0'} SPY ${regimeAligned?'aligned':'vs regime'}${siPctHtml}</span>` : '';
   const thesisTag = d.thesisVerdict || null;
   const thesisTagColor = thesisTag==='STRONG'?'#00ff9d':thesisTag==='SKIP'?'#ff4757':'#ffa502';
   const thesisTagBg = thesisTag==='STRONG'?'rgba(0,255,157,0.08)':thesisTag==='SKIP'?'rgba(255,71,87,0.08)':'rgba(255,165,2,0.08)';
@@ -3440,8 +3440,8 @@ function renderReminderHeader(ticker) {
           <div style="font-family:'Space Mono',monospace;font-size:10px;color:${priceColor};">${d.change>=0?'+':''}${d.change.toFixed(2)} · ${changeSign}${d.changePct.toFixed(2)}%</div>
         </div>
         <div style="flex:1;"></div>
-        ${thesisTag?`<span style="display:inline-flex;align-items:center;padding:4px 9px;border-radius:4px;font-family:'Space Mono',monospace;font-size:10px;font-weight:700;white-space:nowrap;background:${thesisTagBg};color:${thesisTagColor};border:1px solid ${thesisTagBd};">${thesisTag} +${thesisAdder}</span>`:''}
-        <span style="display:inline-flex;align-items:center;padding:4px 9px;border-radius:4px;font-family:'Space Mono',monospace;font-size:10px;font-weight:700;white-space:nowrap;background:${trendBg};color:${trendFg};border:1px solid ${trendBd};">${trendVal}</span>
+        ${thesisTag?`<span style="display:inline-flex;align-items:center;padding:3px 7px;border-radius:4px;font-family:'Space Mono',monospace;font-size:10px;font-weight:700;white-space:nowrap;background:${thesisTagBg};color:${thesisTagColor};border:1px solid ${thesisTagBd};">${thesisTag} +${thesisAdder}</span>`:''}
+        <span style="display:inline-flex;align-items:center;padding:3px 7px;border-radius:4px;font-family:'Space Mono',monospace;font-size:10px;font-weight:700;white-space:nowrap;background:${trendBg};color:${trendFg};border:1px solid ${trendBd};">${trendVal}</span>
         ${regimePill}
         <!-- dismiss from fired list -->
         <button onclick="event.stopPropagation();firedReminders=firedReminders.filter(t=>t!=='${ticker}');rB();tb_toast('${ticker} dismissed');" title="Dismiss" style="display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;background:none;border:1px solid rgba(120,170,220,0.18);border-radius:4px;color:#6b7a99;font-size:14px;cursor:pointer;" onmouseover="this.style.color='#ff4757'" onmouseout="this.style.color='#6b7a99'">✕</button>
@@ -3571,7 +3571,7 @@ function renderDataCard(ticker, bodyOnly=false){
     :null;
   const siPctCard = window.SI ? window.SI.getAccuracyPctHTML(ticker) : '';
   const regimePillHtml=regimeAligned!==null
-    ?`<span style="display:inline-flex;align-items:center;gap:4px;padding:4px 9px;border-radius:4px;font-family:'Space Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.2px;white-space:nowrap;background:${regimeAligned?'rgba(0,255,157,0.08)':'rgba(255,165,2,0.08)'};color:${regimeAligned?'#00ff9d':'#ffa502'};border:1px solid ${regimeAligned?'rgba(0,255,157,0.25)':'rgba(255,165,2,0.25)'};">${regimeAligned?'✓':'\u26a0'} SPY ${regimeAligned?'aligned':'vs regime'}${siPctCard}</span>`
+    ?`<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 7px;border-radius:4px;font-family:'Space Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.2px;white-space:nowrap;background:${regimeAligned?'rgba(0,255,157,0.08)':'rgba(255,165,2,0.08)'};color:${regimeAligned?'#00ff9d':'#ffa502'};border:1px solid ${regimeAligned?'rgba(0,255,157,0.25)':'rgba(255,165,2,0.25)'};">${regimeAligned?'✓':'\u26a0'} SPY ${regimeAligned?'aligned':'vs regime'}${siPctCard}</span>`
     :'';
 
   // Earnings
@@ -3753,13 +3753,15 @@ function renderDataCard(ticker, bodyOnly=false){
           <div style="font-family:'Space Mono',monospace;font-size:10px;color:${priceColor};margin-top:3px;">${d.change>=0?'+':''}${d.change.toFixed(2)} · ${changeSign}${d.changePct.toFixed(2)}%</div>
         </div>
         <div style="flex:1;"></div>
-        ${thesisTag?`<span style="display:inline-flex;align-items:center;padding:4px 9px;border-radius:4px;font-family:'Space Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.2px;white-space:nowrap;background:${thesisTagBg};color:${thesisTagColor};border:1px solid ${thesisTagBorder};">${thesisTag} +${thesisAdder}</span>`:''}
-        <span style="display:inline-flex;align-items:center;padding:4px 9px;border-radius:4px;font-family:'Space Mono',monospace;font-size:10px;font-weight:700;white-space:nowrap;background:${trendBg};color:${trendColor};border:1px solid ${trendBorder};">${trendVal}</span>
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:nowrap;flex-shrink:0;">
+        ${thesisTag?`<span style="display:inline-flex;align-items:center;padding:3px 7px;border-radius:4px;font-family:'Space Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.2px;white-space:nowrap;background:${thesisTagBg};color:${thesisTagColor};border:1px solid ${thesisTagBorder};">${thesisTag} +${thesisAdder}</span>`:''}
+        <span style="display:inline-flex;align-items:center;padding:3px 7px;border-radius:4px;font-family:'Space Mono',monospace;font-size:10px;font-weight:700;white-space:nowrap;background:${trendBg};color:${trendColor};border:1px solid ${trendBorder};">${trendVal}</span>
         ${regimePillHtml}
         <!-- X dismiss button -->
         <button onclick="dismissCard('${ticker}')" title="Dismiss" style="display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;background:none;border:1px solid rgba(120,170,220,0.18);border-radius:4px;color:#6b7a99;font-size:14px;cursor:pointer;transition:all 0.15s;flex-shrink:0;" onmouseover="this.style.color='#ff4757';this.style.borderColor='rgba(255,71,87,0.4)'" onmouseout="this.style.color='#6b7a99';this.style.borderColor='rgba(120,170,220,0.18)'">✕</button>
         <!-- Expand toggle -->
         <button id="card-toggle-${ticker}" onclick="toggleCard('${ticker}')" title="Expand" style="display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;background:none;border:1px solid rgba(120,170,220,0.18);border-radius:4px;color:#6b7a99;font-size:11px;cursor:pointer;transition:all 0.15s;flex-shrink:0;" onmouseover="this.style.color='#00d4ff';this.style.borderColor='rgba(0,212,255,0.4)'" onmouseout="this.style.color='#6b7a99';this.style.borderColor='rgba(120,170,220,0.18)'">▼</button>
+        </div>
       </div>
     </div>
 
@@ -8058,7 +8060,7 @@ function swApp(name){
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradingBrief v7.13.5 — Fix: card expand toggle broken — card-body div now inside template literal    ║
+     ║  END TradingBrief v7.13.6 — Fix: badge padding reduced, buttons pinned nowrap to prevent header wrap    ║
      ║  2026-04-24                                                       ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 </body>
