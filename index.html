@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v7.13.6 — Fix: badge padding reduced, buttons pinned nowrap to prevent header wrap         ║
+     ║  TRADEBRIEF v7.13.7 — Fix: thesis badge restored, header nowrap via container flex settings         ║
      ║  Date: 2026-04-24                                                ║
      ║  Changes from v7.13.0:                                              ║
      ║    1. Fix: Phase 2b now fetches a fresh individual quote per missed ticker        ║
@@ -16,7 +16,7 @@
 <meta name="theme-color" content="#111827">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>TradeBrief v7.13.6</title>
+<title>TradeBrief v7.13.7</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -1772,10 +1772,10 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
 
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.13.6</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.13.7</div>
 
 <!-- ══ MOBILE VERSION STAMP (always visible on mobile, bottom-left) ══════ -->
-<div id="mobile-version-stamp" style="display:none;">v7.13.6</div>
+<div id="mobile-version-stamp" style="display:none;">v7.13.7</div>
 
 <!-- ══ MOBILE SCAN BTN (Brief panel only, toggled via swApp) ═════════════ -->
 <div id="mobile-scan-btn-wrap" style="display:none;">
@@ -3747,13 +3747,12 @@ function renderDataCard(ticker, bodyOnly=false){
         <div style="font-size:10px;color:#6b7a99;">${d.description||''}</div>
       </div>
       <!-- Price + pills -->
-      <div style="padding:14px 18px;flex:1;display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+      <div style="padding:14px 18px;flex:1;display:flex;align-items:center;gap:10px;flex-wrap:nowrap;min-width:0;overflow:hidden;">
         <div>
           <div style="font-family:'Space Mono',monospace;font-size:22px;font-weight:700;color:${priceColor};line-height:1;">$${d.price.toFixed(2)}</div>
           <div style="font-family:'Space Mono',monospace;font-size:10px;color:${priceColor};margin-top:3px;">${d.change>=0?'+':''}${d.change.toFixed(2)} · ${changeSign}${d.changePct.toFixed(2)}%</div>
         </div>
-        <div style="flex:1;"></div>
-        <div style="display:flex;align-items:center;gap:6px;flex-wrap:nowrap;flex-shrink:0;">
+        <div style="flex:1;min-width:0;"></div>
         ${thesisTag?`<span style="display:inline-flex;align-items:center;padding:3px 7px;border-radius:4px;font-family:'Space Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.2px;white-space:nowrap;background:${thesisTagBg};color:${thesisTagColor};border:1px solid ${thesisTagBorder};">${thesisTag} +${thesisAdder}</span>`:''}
         <span style="display:inline-flex;align-items:center;padding:3px 7px;border-radius:4px;font-family:'Space Mono',monospace;font-size:10px;font-weight:700;white-space:nowrap;background:${trendBg};color:${trendColor};border:1px solid ${trendBorder};">${trendVal}</span>
         ${regimePillHtml}
@@ -3761,7 +3760,6 @@ function renderDataCard(ticker, bodyOnly=false){
         <button onclick="dismissCard('${ticker}')" title="Dismiss" style="display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;background:none;border:1px solid rgba(120,170,220,0.18);border-radius:4px;color:#6b7a99;font-size:14px;cursor:pointer;transition:all 0.15s;flex-shrink:0;" onmouseover="this.style.color='#ff4757';this.style.borderColor='rgba(255,71,87,0.4)'" onmouseout="this.style.color='#6b7a99';this.style.borderColor='rgba(120,170,220,0.18)'">✕</button>
         <!-- Expand toggle -->
         <button id="card-toggle-${ticker}" onclick="toggleCard('${ticker}')" title="Expand" style="display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;background:none;border:1px solid rgba(120,170,220,0.18);border-radius:4px;color:#6b7a99;font-size:11px;cursor:pointer;transition:all 0.15s;flex-shrink:0;" onmouseover="this.style.color='#00d4ff';this.style.borderColor='rgba(0,212,255,0.4)'" onmouseout="this.style.color='#6b7a99';this.style.borderColor='rgba(120,170,220,0.18)'">▼</button>
-        </div>
       </div>
     </div>
 
@@ -8060,7 +8058,7 @@ function swApp(name){
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradingBrief v7.13.6 — Fix: badge padding reduced, buttons pinned nowrap to prevent header wrap    ║
+     ║  END TradingBrief v7.13.7 — Fix: thesis badge restored, header nowrap via container flex settings    ║
      ║  2026-04-24                                                       ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 </body>
