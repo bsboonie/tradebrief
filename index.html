@@ -7,7 +7,7 @@
      ║    1. Fix: Phase 2b now fetches a fresh individual quote per missed ticker        ║
      ║       instead of relying on quoteMap — quoteMap drops tickers where Tradier       ║
      ║       returns no `last` price (after-hours / no trade yet), causing cards 6-10   ║
-     ║       to show dashes. Fresh fetch resolves this reliably.                         ║
+     ║       to show dashes. Fresh fetch resolves this reliably. bsb                        ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 <html lang="en">
 <head>
@@ -7271,13 +7271,19 @@ window.TD = (function(){
     document.getElementById('td-samples').textContent=totalSamples.toLocaleString();
     document.getElementById('td-avg-acc').textContent=avgAcc;
 
-    // Top Pick — highest accuracy ticker across all records
+    // Top Pick — highest accuracy ticker from promoted tier only
     const topPickEl=document.getElementById('td-top-pick');
     const topPickSubEl=document.getElementById('td-top-pick-sub');
-    if(topPickEl&&records.length>0){
-      const best=[...records].sort((a,b)=>(b.accuracy||0)-(a.accuracy||0))[0];
-      topPickEl.textContent=best.symbol;
-      if(topPickSubEl) topPickSubEl.textContent=(best.accuracy||0).toFixed(1)+'% · '+tierOf(best);
+    if(topPickEl){
+      const promotedSorted=[...promoted].sort((a,b)=>(b.accuracy||0)-(a.accuracy||0));
+      const best=promotedSorted[0];
+      if(best){
+        topPickEl.textContent=best.symbol;
+        if(topPickSubEl) topPickSubEl.textContent=(best.accuracy||0).toFixed(1)+'% · Proven Edge';
+      } else {
+        topPickEl.textContent='—';
+        if(topPickSubEl) topPickSubEl.textContent='no promoted tickers yet';
+      }
     }
 
     // Tiers
