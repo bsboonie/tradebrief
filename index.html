@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v7.13.10 — TS Canvas Chart + Earnings Floor Fix           ║
+     ║  TRADEBRIEF v7.13.10.2 — Intraday chart via timesales endpoint           ║
      ║  Date: 2026-04-27                                                ║
      ║  Changes from v7.13.9:                                              ║
      ║    1. Fix: Earnings filter floor -2 → -3 (AGNC edge case)            ║
@@ -17,7 +17,7 @@
 <meta name="theme-color" content="#111827">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>TradeBrief v7.13.10</title>
+<title>TradeBrief v7.13.10.2</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -830,32 +830,33 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
   </div>
 
   <!-- TS CHART -->
-  <div class="ts-chart-wrap" id="ts-chart-wrap">
-    <div class="ts-chart-header">
-      <div class="ts-chart-title" id="ts-chart-title">📈 CHART</div>
-      <div class="ts-chart-toggles">
-        <button class="ts-view-btn active" id="ts-view-daily" onclick="tsChartSetView('daily')">DAILY</button>
-        <button class="ts-view-btn" id="ts-view-60m" onclick="tsChartSetView('60m')">60-MIN</button>
-        <button class="ts-view-btn" id="ts-view-5m" onclick="tsChartSetView('5m')">5-MIN</button>
-      </div>
-    </div>
-    <div class="ts-chart-body" id="ts-chart-body">
-      <div class="ts-chart-legend" id="ts-chart-legend" style="display:none;">
-        <div class="ts-legend-item"><div class="ts-legend-dot" style="background:#ffa502;"></div>EMA 8</div>
-        <div class="ts-legend-item"><div class="ts-legend-dot" style="background:rgba(255,255,255,0.5);"></div>EMA 21</div>
-        <div class="ts-legend-item" id="ts-legend-strike" style="display:none;"><div class="ts-legend-dot" style="background:#4ade80;border-top:1px dashed #4ade80;height:0;border-radius:0;"></div>Strike</div>
-      </div>
-      <div class="ts-chart-loading" id="ts-chart-loading">Fetch a ticker to load chart</div>
-      <canvas class="ts-main-canvas" id="ts-main-canvas" height="220" style="display:none;"></canvas>
-      <canvas class="ts-rsi-canvas" id="ts-rsi-canvas" height="60" style="display:none;"></canvas>
-    </div>
-  </div>
-
   <!-- TWO-COL: DASHBOARD + CONTROLS -->
   <div class="two-col">
 
     <!-- LEFT: DASHBOARD -->
     <div>
+
+      <!-- TS CHART -->
+      <div class="ts-chart-wrap" id="ts-chart-wrap">
+        <div class="ts-chart-header">
+          <div class="ts-chart-title" id="ts-chart-title">📈 CHART</div>
+          <div class="ts-chart-toggles">
+            <button class="ts-view-btn active" id="ts-view-daily" onclick="tsChartSetView('daily')">DAILY</button>
+            <button class="ts-view-btn" id="ts-view-60m" onclick="tsChartSetView('60m')">60-MIN</button>
+            <button class="ts-view-btn" id="ts-view-5m" onclick="tsChartSetView('5m')">5-MIN</button>
+          </div>
+        </div>
+        <div class="ts-chart-body" id="ts-chart-body">
+          <div class="ts-chart-legend" id="ts-chart-legend" style="display:none;">
+            <div class="ts-legend-item"><div class="ts-legend-dot" style="background:#ffa502;"></div>EMA 8</div>
+            <div class="ts-legend-item"><div class="ts-legend-dot" style="background:rgba(255,255,255,0.5);"></div>EMA 21</div>
+            <div class="ts-legend-item" id="ts-legend-strike" style="display:none;"><div class="ts-legend-dot" style="background:#4ade80;"></div>Strike</div>
+          </div>
+          <div class="ts-chart-loading" id="ts-chart-loading">Fetch a ticker to load chart</div>
+          <canvas class="ts-main-canvas" id="ts-main-canvas" height="220" style="display:none;"></canvas>
+          <canvas class="ts-rsi-canvas" id="ts-rsi-canvas" height="60" style="display:none;"></canvas>
+        </div>
+      </div>
 
       <!-- TRADEPLAN -->
       <div class="tradeplan" id="tradeplan">
@@ -1798,10 +1799,10 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
 
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.13.10</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.13.10.2</div>
 
 <!-- ══ MOBILE VERSION STAMP (always visible on mobile, bottom-left) ══════ -->
-<div id="mobile-version-stamp" style="display:none;">v7.13.10</div>
+<div id="mobile-version-stamp" style="display:none;">v7.13.10.2</div>
 
 <!-- ══ MOBILE SCAN BTN (Brief panel only, toggled via swApp) ═════════════ -->
 <div id="mobile-scan-btn-wrap" style="display:none;">
@@ -6801,33 +6802,54 @@ const tsChart = (function(){
     let url;
     const now = new Date();
     const fmt = d => d.toISOString().split('T')[0];
+    const fmtDt = d => d.toISOString().slice(0,19); // YYYY-MM-DDTHH:MM:SS for timesales
+    let isTimesales = false;
 
     if (view === 'daily') {
       const start = new Date(); start.setMonth(start.getMonth() - 6);
       url = `${PROXY}/tradier?type=history&symbol=${ticker}&interval=daily&start=${fmt(start)}&end=${fmt(now)}`;
     } else if (view === '60m') {
-      // Tradier intraday: interval=60min, last 14 days
+      // Tradier timesales: interval=60min, last 10 trading days
       const start = new Date(); start.setDate(start.getDate() - 14);
-      url = `${PROXY}/tradier?type=history&symbol=${ticker}&interval=60min&start=${fmt(start)}&end=${fmt(now)}`;
+      url = `${PROXY}/tradier?type=timesales&symbol=${ticker}&interval=60min&start=${fmtDt(start)}&end=${fmtDt(now)}`;
+      isTimesales = true;
     } else {
-      // 5-min: today only
-      const start = new Date(); start.setDate(start.getDate() - 1);
-      url = `${PROXY}/tradier?type=history&symbol=${ticker}&interval=5min&start=${fmt(start)}&end=${fmt(now)}`;
+      // 5-min: last 2 days to ensure we get today's session
+      const start = new Date(); start.setDate(start.getDate() - 2);
+      url = `${PROXY}/tradier?type=timesales&symbol=${ticker}&interval=5min&start=${fmtDt(start)}&end=${fmtDt(now)}`;
+      isTimesales = true;
     }
 
     const r = await fetch(url);
     const d = await r.json();
-    const days = d.history?.day;
-    if (!days) return [];
-    const arr = Array.isArray(days) ? days : [days];
-    return arr.map(c => ({
-      t: c.date || c.time || '',
-      o: parseFloat(c.open),
-      h: parseFloat(c.high),
-      l: parseFloat(c.low),
-      c: parseFloat(c.close),
-      v: parseFloat(c.volume || 0)
-    })).filter(c => !isNaN(c.c));
+
+    if (isTimesales) {
+      // timesales response: d.series.data — array of {time, open, high, low, close, volume}
+      const data = d.series?.data;
+      if (!data) return [];
+      const arr = Array.isArray(data) ? data : [data];
+      return arr.map(c => ({
+        t: (c.time || '').substring(5, 16), // "MM-DD HH:MM"
+        o: parseFloat(c.open),
+        h: parseFloat(c.high),
+        l: parseFloat(c.low),
+        c: parseFloat(c.close),
+        v: parseFloat(c.volume || 0)
+      })).filter(c => !isNaN(c.c));
+    } else {
+      // history response: d.history.day
+      const days = d.history?.day;
+      if (!days) return [];
+      const arr = Array.isArray(days) ? days : [days];
+      return arr.map(c => ({
+        t: c.date || '',
+        o: parseFloat(c.open),
+        h: parseFloat(c.high),
+        l: parseFloat(c.low),
+        c: parseFloat(c.close),
+        v: parseFloat(c.volume || 0)
+      })).filter(c => !isNaN(c.c));
+    }
   }
 
   function calcEMA(closes, period) {
@@ -8483,7 +8505,7 @@ function swApp(name){
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradingBrief v7.13.10 — TS Canvas Chart + Earnings Floor Fix              ║
+     ║  END TradingBrief v7.13.10.2 — Intraday chart via timesales endpoint              ║
      ║    Top Performers collapsed, top pick stat box                                       ║
      ║  2026-04-24                                                       ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
