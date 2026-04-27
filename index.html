@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v7.13.10.2 — Intraday chart via timesales endpoint           ║
+     ║  TRADEBRIEF v7.13.10.3 — Intraday chart via timesales endpoint           ║
      ║  Date: 2026-04-27                                                ║
      ║  Changes from v7.13.9:                                              ║
      ║    1. Fix: Earnings filter floor -2 → -3 (AGNC edge case)            ║
@@ -17,7 +17,7 @@
 <meta name="theme-color" content="#111827">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>TradeBrief v7.13.10.2</title>
+<title>TradeBrief v7.13.10.3</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -1799,10 +1799,10 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
 
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.13.10.2</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.13.10.3</div>
 
 <!-- ══ MOBILE VERSION STAMP (always visible on mobile, bottom-left) ══════ -->
-<div id="mobile-version-stamp" style="display:none;">v7.13.10.2</div>
+<div id="mobile-version-stamp" style="display:none;">v7.13.10.3</div>
 
 <!-- ══ MOBILE SCAN BTN (Brief panel only, toggled via swApp) ═════════════ -->
 <div id="mobile-scan-btn-wrap" style="display:none;">
@@ -7058,6 +7058,7 @@ const tsChart = (function(){
 })();
 
 function tsChartSetView(view) { tsChart.setView(view); }
+window.tsChartSetView = tsChartSetView;
 
 // Strike update hook called directly from updateTradePlan
 function tsChartUpdateStrikes() {
@@ -8505,7 +8506,7 @@ function swApp(name){
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradingBrief v7.13.10.2 — Intraday chart via timesales endpoint              ║
+     ║  END TradingBrief v7.13.10.3 — Intraday chart via timesales endpoint              ║
      ║    Top Performers collapsed, top pick stat box                                       ║
      ║  2026-04-24                                                       ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
