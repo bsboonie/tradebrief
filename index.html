@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v7.13.10.3 — Intraday chart via timesales endpoint           ║
+     ║  TRADEBRIEF v7.13.11 — RSI upgrade: shaded zones, 50-line, color line  ║
      ║  Date: 2026-04-27                                                ║
      ║  Changes from v7.13.9:                                              ║
      ║    1. Fix: Earnings filter floor -2 → -3 (AGNC edge case)            ║
@@ -17,7 +17,7 @@
 <meta name="theme-color" content="#111827">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>TradeBrief v7.13.10.3</title>
+<title>TradeBrief v7.13.11</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -1799,10 +1799,10 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
 
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.13.10.3</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.13.11</div>
 
 <!-- ══ MOBILE VERSION STAMP (always visible on mobile, bottom-left) ══════ -->
-<div id="mobile-version-stamp" style="display:none;">v7.13.10.3</div>
+<div id="mobile-version-stamp" style="display:none;">v7.13.11</div>
 
 <!-- ══ MOBILE SCAN BTN (Brief panel only, toggled via swApp) ═════════════ -->
 <div id="mobile-scan-btn-wrap" style="display:none;">
@@ -7015,36 +7015,55 @@ const tsChart = (function(){
     // RSI panel
     rCtx.fillStyle = bg;
     rCtx.fillRect(0, 0, W, 60);
-    rCtx.strokeStyle = border;
-    rCtx.lineWidth = 0.5;
-    // 30/70 lines
-    [30, 70].forEach(lvl => {
-      const y = (1 - lvl / 100) * 50 + 5;
+
+    const rsiY = v => (1 - v / 100) * 50 + 5;
+    const y70 = rsiY(70), y50 = rsiY(50), y30 = rsiY(30);
+
+    // Shaded overbought zone (70-100) — red tint
+    rCtx.fillStyle = 'rgba(255,71,87,0.10)';
+    rCtx.fillRect(pad.l, rsiY(100), W - pad.r - pad.l, y70 - rsiY(100));
+
+    // Shaded oversold zone (0-30) — green tint
+    rCtx.fillStyle = 'rgba(0,255,157,0.10)';
+    rCtx.fillRect(pad.l, y30, W - pad.r - pad.l, rsiY(0) - y30);
+
+    // 70 / 50 / 30 reference lines
+    [[70, 'rgba(255,71,87,0.4)'], [50, 'rgba(255,255,255,0.15)'], [30, 'rgba(0,255,157,0.4)']].forEach(([lvl, color]) => {
+      const y = rsiY(lvl);
+      rCtx.strokeStyle = color;
+      rCtx.lineWidth = 0.5;
+      rCtx.setLineDash(lvl === 50 ? [] : [3, 3]);
       rCtx.beginPath(); rCtx.moveTo(pad.l, y); rCtx.lineTo(W - pad.r, y); rCtx.stroke();
+      rCtx.setLineDash([]);
       rCtx.fillStyle = textColor;
       rCtx.font = '8px Space Mono, monospace';
       rCtx.textAlign = 'left';
       rCtx.fillText(lvl, W - pad.r + 4, y + 3);
     });
-    // RSI line
-    rCtx.strokeStyle = rsiColor;
+
+    // RSI line — green above 50, red below 50, segment by segment
     rCtx.lineWidth = 1.5;
-    rCtx.beginPath();
-    let first = true;
-    for (let i = 0; i < N; i++) {
-      if (rsi[i] === null) continue;
-      const x = xFor(i);
-      const y = (1 - rsi[i] / 100) * 50 + 5;
-      first ? rCtx.moveTo(x, y) : rCtx.lineTo(x, y);
-      first = false;
+    for (let i = 1; i < N; i++) {
+      if (rsi[i] === null || rsi[i-1] === null) continue;
+      const x0 = xFor(i-1), y0 = rsiY(rsi[i-1]);
+      const x1 = xFor(i),   y1 = rsiY(rsi[i]);
+      const avgRsi = (rsi[i-1] + rsi[i]) / 2;
+      rCtx.strokeStyle = avgRsi >= 50 ? '#00ff9d' : '#ff4757';
+      rCtx.beginPath();
+      rCtx.moveTo(x0, y0);
+      rCtx.lineTo(x1, y1);
+      rCtx.stroke();
     }
-    rCtx.stroke();
-    // RSI label
-    rCtx.fillStyle = rsiColor;
-    rCtx.font = 'bold 8px Space Mono, monospace';
-    rCtx.textAlign = 'left';
+
+    // RSI current value label — colored by zone
     const lastRsi = rsi.filter(v => v !== null).slice(-1)[0];
-    if (lastRsi !== undefined) rCtx.fillText('RSI ' + lastRsi.toFixed(0), W - pad.r + 4, (1 - lastRsi / 100) * 50 + 8);
+    if (lastRsi !== undefined) {
+      const labelColor = lastRsi >= 70 ? '#ff4757' : lastRsi <= 30 ? '#00ff9d' : lastRsi >= 50 ? '#00ff9d' : '#ff4757';
+      rCtx.fillStyle = labelColor;
+      rCtx.font = 'bold 8px Space Mono, monospace';
+      rCtx.textAlign = 'left';
+      rCtx.fillText('RSI ' + lastRsi.toFixed(0), W - pad.r + 4, rsiY(lastRsi) + 3);
+    }
   }
 
   function setStrikes(strikes) {
@@ -8506,7 +8525,7 @@ function swApp(name){
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradingBrief v7.13.10.3 — Intraday chart via timesales endpoint              ║
+     ║  END TradingBrief v7.13.11 — Intraday chart via timesales endpoint              ║
      ║    Top Performers collapsed, top pick stat box                                       ║
      ║  2026-04-24                                                       ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
