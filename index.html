@@ -6586,6 +6586,7 @@ function updateTradePlan() {
   }
 
   updateTpStatus();
+  if (typeof tsChartUpdateStrikes === 'function') tsChartUpdateStrikes();
 }
 
 function toggleTpOverride(side) {
@@ -7036,23 +7037,17 @@ const tsChart = (function(){
 
 function tsChartSetView(view) { tsChart.setView(view); }
 
-// Hook: update chart strikes when trade plan changes
-const _origUpdateTradePlan = typeof updateTradePlan === 'function' ? updateTradePlan : null;
-function updateTradePlan() {
-  if (_origUpdateTradePlan) _origUpdateTradePlan();
-  // Update strike lines from current state
-  setTimeout(() => {
-    const strikes = [];
-    const type = state.tradeType;
-    if (state.selectedCall) {
-      strikes.push({ price: state.selectedCall.buyStrike, label: 'BUY' });
-      if (state.selectedCall.sellStrike) strikes.push({ price: state.selectedCall.sellStrike, label: 'SELL' });
-    } else if (state.selectedPut) {
-      strikes.push({ price: state.selectedPut.buyStrike, label: 'BUY' });
-      if (state.selectedPut.sellStrike) strikes.push({ price: state.selectedPut.sellStrike, label: 'SELL' });
-    }
-    tsChart.setStrikes(strikes);
-  }, 50);
+// Strike update hook called directly from updateTradePlan
+function tsChartUpdateStrikes() {
+  const strikes = [];
+  if (state.selectedCall) {
+    if (state.selectedCall.buyStrike) strikes.push({ price: state.selectedCall.buyStrike, label: 'BUY' });
+    if (state.selectedCall.sellStrike) strikes.push({ price: state.selectedCall.sellStrike, label: 'SELL' });
+  } else if (state.selectedPut) {
+    if (state.selectedPut.buyStrike) strikes.push({ price: state.selectedPut.buyStrike, label: 'BUY' });
+    if (state.selectedPut.sellStrike) strikes.push({ price: state.selectedPut.sellStrike, label: 'SELL' });
+  }
+  tsChart.setStrikes(strikes);
 }
 
 return {
