@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v7.13.7 — Fix: thesis badge restored, header nowrap via container flex settings         ║
+     ║  TRADEBRIEF v7.13.8 — Fix: card collapse on save, thesis auto-expand, TP notes removed,            ║
+     ║    earnings purge tightened, TradeSheet single results window                                       ║
      ║  Date: 2026-04-24                                                ║
      ║  Changes from v7.13.0:                                              ║
      ║    1. Fix: Phase 2b now fetches a fresh individual quote per missed ticker        ║
@@ -16,7 +17,7 @@
 <meta name="theme-color" content="#111827">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>TradeBrief v7.13.7</title>
+<title>TradeBrief v7.13.8</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -861,11 +862,6 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
               <input class="tp-input auto" id="tp-otm" type="number" step="0.01" placeholder="—" readonly>
             </div>
           </div>
-          <!-- Row 3: Notes -->
-          <div class="tp-field">
-            <div class="tp-label">Notes / Thesis</div>
-            <textarea class="tp-notes" id="tp-notes" placeholder="Why am I taking this trade?" oninput="updateTpStatus()"></textarea>
-          </div>
         </div>
         <div class="tp-footer">
           <div class="tp-status" id="tp-status">Fetch a ticker to begin</div>
@@ -873,20 +869,21 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
         </div>
       </div>
 
-      <!-- CALL SPREADS -->
+      <!-- RESULTS (single window — header updates with trade type) -->
       <div class="dashboard">
         <div class="dash-header">
-          <div class="dash-title">▲ CALL RESULTS</div>
+          <div class="dash-title" id="results-dash-title">▲ CALL RESULTS</div>
           <div class="n-control">
             <span>SHOW</span>
-            <button class="n-btn" onclick="adjustN('call',-1)">−</button>
-            <span class="n-val" id="call-n-val">3</span>
-            <button class="n-btn" onclick="adjustN('call',1)">+</button>
+            <button class="n-btn" id="results-n-minus" onclick="adjustNActive(-1)">−</button>
+            <span class="n-val" id="results-n-val">3</span>
+            <button class="n-btn" id="results-n-plus" onclick="adjustNActive(1)">+</button>
           </div>
         </div>
         <div class="dash-section">
-          <div class="dash-sec-title"><span></span>TOP CALLS<span></span></div>
-          <div id="call-results"><div class="no-data">Select an expiration to scan</div></div>
+          <div class="dash-sec-title"><span></span><span id="results-sec-title">TOP CALLS</span><span></span></div>
+          <div id="call-results" style="display:block;"><div class="no-data">Select an expiration to scan</div></div>
+          <div id="put-results" style="display:none;"><div class="no-data">Select an expiration to scan</div></div>
         </div>
         <div class="checks-grid" id="call-checks" style="display:none;">
           <div class="check-item"><span class="check-label">Quotes available?</span><span class="check-val" id="ck-c-quotes">—</span></div>
@@ -895,23 +892,6 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
           <div class="check-item"><span class="check-label">Break-even in move?</span><span class="check-val" id="ck-c-be">—</span></div>
           <div class="check-item"><span class="check-label">Strikes valid?</span><span class="check-val" id="ck-c-strikes">—</span></div>
           <div class="check-item"><span class="check-label">Earnings safe?</span><span class="check-val" id="ck-c-earn">—</span></div>
-        </div>
-      </div>
-
-      <!-- PUT SPREADS -->
-      <div class="dashboard" style="margin-top:14px;">
-        <div class="dash-header">
-          <div class="dash-title">▼ PUT RESULTS</div>
-          <div class="n-control">
-            <span>SHOW</span>
-            <button class="n-btn" onclick="adjustN('put',-1)">−</button>
-            <span class="n-val" id="put-n-val">3</span>
-            <button class="n-btn" onclick="adjustN('put',1)">+</button>
-          </div>
-        </div>
-        <div class="dash-section">
-          <div class="dash-sec-title"><span></span>TOP PUTS<span></span></div>
-          <div id="put-results"><div class="no-data">Select an expiration to scan</div></div>
         </div>
         <div class="checks-grid" id="put-checks" style="display:none;">
           <div class="check-item"><span class="check-label">Quotes available?</span><span class="check-val" id="ck-p-quotes">—</span></div>
@@ -1772,10 +1752,10 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
 
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.13.7</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.13.8</div>
 
 <!-- ══ MOBILE VERSION STAMP (always visible on mobile, bottom-left) ══════ -->
-<div id="mobile-version-stamp" style="display:none;">v7.13.7</div>
+<div id="mobile-version-stamp" style="display:none;">v7.13.8</div>
 
 <!-- ══ MOBILE SCAN BTN (Brief panel only, toggled via swApp) ═════════════ -->
 <div id="mobile-scan-btn-wrap" style="display:none;">
@@ -1887,9 +1867,9 @@ let thesisMemory=JSON.parse(localStorage.getItem('thesisMemory')||'{}');
 let priorRecs=JSON.parse(localStorage.getItem('priorRecs')||'{}');// {ticker:{text,date,signal}}
 
 // ── EARNINGS OVERRIDE UTILITIES (shared TB↔TS) ──────────────────────────
-// Purge stored dates more than 7 days in the past (quarter rollover protection)
+// Purge stored dates more than 1 day in the past (earnings reported, date is done)
 function purgeStaleEarningsOverrides(){
-  const cutoff=new Date();cutoff.setDate(cutoff.getDate()-7);
+  const cutoff=new Date();cutoff.setDate(cutoff.getDate()-1);
   let changed=false;
   Object.keys(earningsOverrides).forEach(t=>{
     if(earningsOverrides[t]&&new Date(earningsOverrides[t])<cutoff){delete earningsOverrides[t];changed=true;}
@@ -4280,12 +4260,24 @@ function saveEarningsOverride(ticker){
   setEarningsOverride(ticker,val||null);
   if(sd[ticker])sd[ticker].earningsDate=val||null;
   fbSyncAll();
-  rB();tb_toast('Earnings date saved ✓');
+  // Targeted re-render — preserve open state
+  const cardBodyEl=document.getElementById('card-body-'+ticker);
+  if(cardBodyEl){
+    cardBodyEl.innerHTML=renderDataCard(ticker,true);
+    if(_openCard===ticker)cardBodyEl.style.display='block';
+  }
+  tb_toast('Earnings date saved ✓');
 }
 function saveIVROverride(ticker){
   const val=document.getElementById('ivr-in-'+ticker).value;
   setIVROverride(ticker,val);
-  rB();tb_toast('IV Rank saved ✓');
+  // Targeted re-render — preserve open state
+  const cardBodyEl=document.getElementById('card-body-'+ticker);
+  if(cardBodyEl){
+    cardBodyEl.innerHTML=renderDataCard(ticker,true);
+    if(_openCard===ticker)cardBodyEl.style.display='block';
+  }
+  tb_toast('IV Rank saved ✓');
 }
 
 // ── DIVIDEND OVERRIDE UTILITIES ────────────────────────────────────────────
@@ -4305,7 +4297,13 @@ function saveDividendOverride(ticker){
   const xEl=document.getElementById('div-ex-'+ticker);
   if(!yEl||!xEl)return;
   setDividendOverride(ticker,yEl.value,xEl.value);
-  rB();tb_toast('Dividend saved ✓');
+  // Targeted re-render — preserve open state
+  const cardBodyEl=document.getElementById('card-body-'+ticker);
+  if(cardBodyEl){
+    cardBodyEl.innerHTML=renderDataCard(ticker,true);
+    if(_openCard===ticker)cardBodyEl.style.display='block';
+  }
+  tb_toast('Dividend saved ✓');
 }
 
 // ── FIREBASE SYNC ─────────────────────────────────────────────────────────
@@ -4949,10 +4947,10 @@ ${siStr}${priorMemoryStr}`;
     if(cardBodyEl){
       const sbWasOpen=document.getElementById('score-breakdown-'+ticker)?.style.display==='block';
       cardBodyEl.innerHTML=renderDataCard(ticker,true);
-      // Restore card body visibility (it was open since user just ran thesis)
-      cardBodyEl.style.display='block';
+      // Only keep card open if it was already open — don't force-expand
+      if(_openCard===ticker)cardBodyEl.style.display='block';
       // Restore score breakdown open state if it was open
-      if(sbWasOpen){
+      if(sbWasOpen&&_openCard===ticker){
         const sbEl=document.getElementById('score-breakdown-'+ticker);
         if(sbEl)sbEl.style.display='block';
       }
@@ -5685,8 +5683,18 @@ function rateScore(score) {
 
 // ── RENDER RESULTS ────────────────────────────────────────────────
 function renderResults() {
+  const isCall = ['Long Call', 'Call Spread'].includes(state.tradeType);
   renderSide('call');
   renderSide('put');
+  // After render, hide the inactive side's results and checks
+  const callRes = document.getElementById('call-results');
+  const putRes  = document.getElementById('put-results');
+  const callChk = document.getElementById('call-checks');
+  const putChk  = document.getElementById('put-checks');
+  if(callRes) callRes.style.display = isCall ? 'block' : 'none';
+  if(putRes)  putRes.style.display  = isCall ? 'none'  : 'block';
+  if(!isCall && callChk) callChk.style.display = 'none';
+  if(isCall  && putChk)  putChk.style.display  = 'none';
 }
 
 function renderSide(side) {
@@ -5896,6 +5904,7 @@ function calcOptionValAtExp(trade, stockPrice) {
 function setTradeType(type) {
   state.tradeType = type;
   const isSpread = ['Call Spread', 'Put Spread'].includes(type);
+  const isCall   = ['Long Call', 'Call Spread'].includes(type);
 
   // Button states
   ['lc','lp','cs','ps'].forEach(id => {
@@ -5910,8 +5919,37 @@ function setTradeType(type) {
     el.classList.toggle('hidden', !isSpread);
   });
 
+  // Update single results window header + toggle results panes
+  const arrow = isCall ? '▲' : '▼';
+  const label = isCall ? (isSpread ? 'CALL SPREAD RESULTS' : 'CALL RESULTS') : (isSpread ? 'PUT SPREAD RESULTS' : 'PUT RESULTS');
+  const secLabel = isCall ? (isSpread ? 'TOP CALL SPREADS' : 'TOP CALLS') : (isSpread ? 'TOP PUT SPREADS' : 'TOP PUTS');
+  const titleEl = document.getElementById('results-dash-title');
+  const secEl   = document.getElementById('results-sec-title');
+  const nValEl  = document.getElementById('results-n-val');
+  if(titleEl) titleEl.textContent = arrow + ' ' + label;
+  if(secEl)   secEl.textContent   = secLabel;
+  // Sync N display to active type
+  if(nValEl){
+    nValEl.textContent = isCall ? state.callN : state.putN;
+  }
+  // Toggle which results pane is visible
+  const callRes = document.getElementById('call-results');
+  const putRes  = document.getElementById('put-results');
+  const callChk = document.getElementById('call-checks');
+  const putChk  = document.getElementById('put-checks');
+  if(callRes) callRes.style.display = isCall ? 'block' : 'none';
+  if(putRes)  putRes.style.display  = isCall ? 'none'  : 'block';
+  if(callChk) callChk.style.display = 'none';
+  if(putChk)  putChk.style.display  = 'none';
+
   runScanner();
   updateTradePlan();
+}
+
+// Adjust N for whichever type is currently active
+function adjustNActive(delta) {
+  const isCall = ['Long Call', 'Call Spread'].includes(state.tradeType);
+  adjustN(isCall ? 'call' : 'put', delta);
 }
 
 // ── CONTROLS: OVERRIDES ───────────────────────────────────────────
@@ -6066,11 +6104,14 @@ function onEarningsChange() {
 function adjustN(side, delta) {
   if (side === 'call') {
     state.callN = Math.max(1, Math.min(10, state.callN + delta));
-    document.getElementById('call-n-val').textContent = state.callN;
   } else {
     state.putN = Math.max(1, Math.min(10, state.putN + delta));
-    document.getElementById('put-n-val').textContent = state.putN;
   }
+  // Sync single display to active type
+  const isCall = ['Long Call', 'Call Spread'].includes(state.tradeType);
+  const activeN = isCall ? state.callN : state.putN;
+  const nValEl = document.getElementById('results-n-val');
+  if(nValEl) nValEl.textContent = activeN;
   renderResults();
 }
 
@@ -6555,7 +6596,7 @@ async function sendToPlan() {
   const cost    = trade ? trade.cost : 0;
   const itm     = parseFloat(document.getElementById('tp-itm')?.value) || 0;
   const otm     = parseFloat(document.getElementById('tp-otm')?.value) || 0;
-  const notes   = document.getElementById('tp-notes')?.value || '';
+  const notes   = '';
   const contracts = parseInt(document.getElementById('contracts')?.value) || 1;
 
   if (!ticker || !type || !exp || !itm || !otm) {
@@ -6590,7 +6631,6 @@ async function sendToPlan() {
   // Reset plan
   state.tpItmOverride = false;
   state.tpOtmOverride = false;
-  document.getElementById('tp-notes').value = '';
   updateTradePlan();
 }
 window.setLogFilter           = setLogFilter;
@@ -8058,7 +8098,8 @@ function swApp(name){
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradingBrief v7.13.7 — Fix: thesis badge restored, header nowrap via container flex settings    ║
+     ║  END TradingBrief v7.13.8 — Fix: card collapse on save, thesis auto-expand, TP notes removed,       ║
+     ║    earnings purge tightened, TradeSheet single results window                                       ║
      ║  2026-04-24                                                       ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 </body>
