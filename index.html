@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v7.13.8 — Fix: card collapse on save, thesis auto-expand, TP notes removed,            ║
-     ║    earnings purge tightened, TradeSheet single results window                                       ║
+     ║  TRADEBRIEF v7.13.9 — TD: Universe Health/Tier open on boot, EC moved below Tier,          ║
+     ║    Top Performers collapsed, 5th stat box (top pick)                                       ║
      ║  Date: 2026-04-24                                                ║
      ║  Changes from v7.13.0:                                              ║
      ║    1. Fix: Phase 2b now fetches a fresh individual quote per missed ticker        ║
@@ -17,7 +17,7 @@
 <meta name="theme-color" content="#111827">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>TradeBrief v7.13.8</title>
+<title>TradeBrief v7.13.9</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -1393,53 +1393,27 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
 
 <div class="td-main">
 
-  <!-- 0. Earnings Calendar -->
-  <div class="td-sec" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;" onclick="ecToggle()">
-    <span>Earnings Calendar</span>
-    <span id="ec-toggle-icon" style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);">▶</span>
-  </div>
-  <div id="ec-wrap" class="td-card" style="padding:14px;display:none;">
-    <div style="font-size:11px;color:var(--muted);margin-bottom:12px;line-height:1.6;">Enter earnings dates for your universe. Updates all three panels instantly. Dates more than 7 days past are cleared automatically each session.</div>
-    <div class="ec-filter-bar">
-      <button class="ec-filter-btn active" onclick="ecSetFilter('all',this)">All</button>
-      <button class="ec-filter-btn" onclick="ecSetFilter('set',this)">Has Date</button>
-      <button class="ec-filter-btn" onclick="ecSetFilter('unset',this)">No Date</button>
-      <button class="ec-filter-btn" onclick="ecSetFilter('soon',this)">≤14d</button>
-      <span class="ec-count" id="ec-count">— tickers</span>
-    </div>
-    <div style="overflow-x:auto;">
-      <table class="ec-table">
-        <thead><tr>
-          <th>TICKER</th>
-          <th>EARNINGS DATE</th>
-          <th>PROXIMITY</th>
-          <th></th>
-        </tr></thead>
-        <tbody id="ec-tbody"></tbody>
-      </table>
-    </div>
-  </div>
-
   <!-- 1. Universe Health -->
   <div class="td-sec" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;" onclick="uhToggle()">
     <span>Universe Health</span>
     <span id="uh-toggle-icon" style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);">▼</span>
   </div>
   <div id="uh-wrap" class="td-card">
-    <div class="td-stat-grid" id="td-health-grid">
+    <div class="td-stat-grid" id="td-health-grid" style="grid-template-columns:repeat(5,1fr);">
       <div class="td-stat"><div class="td-stat-label">Total Tickers</div><div class="td-stat-val" id="td-total">—</div><div class="td-stat-sub">in candidate pool</div></div>
       <div class="td-stat"><div class="td-stat-label">With Records</div><div class="td-stat-val" id="td-with-records">—</div><div class="td-stat-sub">tested at least once</div></div>
       <div class="td-stat"><div class="td-stat-label">Total Samples</div><div class="td-stat-val" id="td-samples">—</div><div class="td-stat-sub">accumulated</div></div>
       <div class="td-stat"><div class="td-stat-label">Avg Accuracy</div><div class="td-stat-val" id="td-avg-acc">—</div><div class="td-stat-sub">across all records</div></div>
+      <div class="td-stat" style="border-color:rgba(0,255,157,0.3);"><div class="td-stat-label">Top Pick</div><div class="td-stat-val" id="td-top-pick" style="font-size:15px;color:var(--good);">—</div><div class="td-stat-sub" id="td-top-pick-sub">highest accuracy</div></div>
     </div>
   </div>
 
   <!-- 2. Tier Breakdown (collapsible parent) -->
   <div class="td-sec" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;" onclick="tbToggle()">
     <span>Tier Breakdown</span>
-    <span id="tb-toggle-icon" style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);">▶</span>
+    <span id="tb-toggle-icon" style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);">▼</span>
   </div>
-  <div id="tb-wrap" style="display:none;">
+  <div id="tb-wrap" style="display:block;">
 
     <!-- Tier bar card -->
     <div class="td-card">
@@ -1462,46 +1436,80 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
       </div>
     </div>
 
-    <!-- Top Performers -->
-    <div class="td-sec">Top Performers</div>
-    <div class="td-card" style="padding:0;overflow:hidden;">
-      <div id="td-top-performers"><div class="td-empty">No promoted stocks yet — curation in progress</div></div>
+    <!-- Top Performers + detail sections (collapsible, boots collapsed) -->
+    <div class="td-sec" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;margin-top:14px;" onclick="tpToggle()">
+      <span>Top Performers &amp; Detail</span>
+      <span id="tp-toggle-icon" style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);">▶</span>
     </div>
+    <div id="tp-wrap" style="display:none;">
 
-    <!-- Rising Stocks -->
-    <div class="td-sec">Rising Stocks</div>
-    <div class="td-card" style="padding:0;overflow:hidden;">
-      <div id="td-rising"><div class="td-empty">No recent tier promotions yet</div></div>
-    </div>
-
-    <!-- Curation Queue -->
-    <div class="td-sec">Curation Queue</div>
-    <div class="td-card" style="padding:0;overflow:hidden;">
-      <div id="td-queue"><div class="td-empty">No curation running</div></div>
-    </div>
-
-    <!-- Weak Performers -->
-    <div class="td-sec">Weak Performers</div>
-    <div class="td-card" style="padding:0;overflow:hidden;">
-      <div id="td-weak"><div class="td-empty">No shadow-tier records yet</div></div>
-    </div>
-
-    <!-- Manual Controls -->
-    <div class="td-sec">Manual Controls</div>
-    <div class="td-card">
-      <div style="margin-bottom:14px;">
-        <button class="td-ctrl-btn" onclick="window.TD&&window.TD.runCuration()">▶ Run Curation Now</button>
-        <button class="td-ctrl-btn" onclick="window.TD&&window.TD.refreshDisplay()">↺ Refresh Display</button>
+      <div class="td-card" style="padding:0;overflow:hidden;">
+        <div id="td-top-performers"><div class="td-empty">No promoted stocks yet — curation in progress</div></div>
       </div>
-      <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);margin-bottom:8px;letter-spacing:1px;text-transform:uppercase;">Reset Individual Record</div>
-      <div class="td-reset-row">
-        <input class="td-reset-input" id="td-reset-ticker" type="text" placeholder="TICKER" maxlength="6">
-        <button class="td-ctrl-btn danger" onclick="window.TD&&window.TD.resetRecord()">Reset Record</button>
+
+      <!-- Rising Stocks -->
+      <div class="td-sec">Rising Stocks</div>
+      <div class="td-card" style="padding:0;overflow:hidden;">
+        <div id="td-rising"><div class="td-empty">No recent tier promotions yet</div></div>
       </div>
-      <div style="font-size:11px;color:var(--muted);margin-top:8px;">Clears all accumulated samples for that ticker. Cannot be undone.</div>
-    </div>
+
+      <!-- Curation Queue -->
+      <div class="td-sec">Curation Queue</div>
+      <div class="td-card" style="padding:0;overflow:hidden;">
+        <div id="td-queue"><div class="td-empty">No curation running</div></div>
+      </div>
+
+      <!-- Weak Performers -->
+      <div class="td-sec">Weak Performers</div>
+      <div class="td-card" style="padding:0;overflow:hidden;">
+        <div id="td-weak"><div class="td-empty">No shadow-tier records yet</div></div>
+      </div>
+
+      <!-- Manual Controls -->
+      <div class="td-sec">Manual Controls</div>
+      <div class="td-card">
+        <div style="margin-bottom:14px;">
+          <button class="td-ctrl-btn" onclick="window.TD&&window.TD.runCuration()">▶ Run Curation Now</button>
+          <button class="td-ctrl-btn" onclick="window.TD&&window.TD.refreshDisplay()">↺ Refresh Display</button>
+        </div>
+        <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);margin-bottom:8px;letter-spacing:1px;text-transform:uppercase;">Reset Individual Record</div>
+        <div class="td-reset-row">
+          <input class="td-reset-input" id="td-reset-ticker" type="text" placeholder="TICKER" maxlength="6">
+          <button class="td-ctrl-btn danger" onclick="window.TD&&window.TD.resetRecord()">Reset Record</button>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:8px;">Clears all accumulated samples for that ticker. Cannot be undone.</div>
+      </div>
+
+    </div><!-- /tp-wrap -->
 
   </div><!-- /tb-wrap -->
+
+  <!-- 3. Earnings Calendar (below Tier Breakdown) -->
+  <div class="td-sec" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;" onclick="ecToggle()">
+    <span>Earnings Calendar</span>
+    <span id="ec-toggle-icon" style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);">▶</span>
+  </div>
+  <div id="ec-wrap" class="td-card" style="padding:14px;display:none;">
+    <div style="font-size:11px;color:var(--muted);margin-bottom:12px;line-height:1.6;">Enter earnings dates for your universe. Updates all three panels instantly. Dates more than 1 day past are cleared automatically each session.</div>
+    <div class="ec-filter-bar">
+      <button class="ec-filter-btn active" onclick="ecSetFilter('all',this)">All</button>
+      <button class="ec-filter-btn" onclick="ecSetFilter('set',this)">Has Date</button>
+      <button class="ec-filter-btn" onclick="ecSetFilter('unset',this)">No Date</button>
+      <button class="ec-filter-btn" onclick="ecSetFilter('soon',this)">≤14d</button>
+      <span class="ec-count" id="ec-count">— tickers</span>
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="ec-table">
+        <thead><tr>
+          <th>TICKER</th>
+          <th>EARNINGS DATE</th>
+          <th>PROXIMITY</th>
+          <th></th>
+        </tr></thead>
+        <tbody id="ec-tbody"></tbody>
+      </table>
+    </div>
+  </div>
 
 </div>
 </div><!-- /panel-data -->
@@ -1752,10 +1760,10 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
 
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.13.8</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.13.9</div>
 
 <!-- ══ MOBILE VERSION STAMP (always visible on mobile, bottom-left) ══════ -->
-<div id="mobile-version-stamp" style="display:none;">v7.13.8</div>
+<div id="mobile-version-stamp" style="display:none;">v7.13.9</div>
 
 <!-- ══ MOBILE SCAN BTN (Brief panel only, toggled via swApp) ═════════════ -->
 <div id="mobile-scan-btn-wrap" style="display:none;">
@@ -7263,6 +7271,15 @@ window.TD = (function(){
     document.getElementById('td-samples').textContent=totalSamples.toLocaleString();
     document.getElementById('td-avg-acc').textContent=avgAcc;
 
+    // Top Pick — highest accuracy ticker across all records
+    const topPickEl=document.getElementById('td-top-pick');
+    const topPickSubEl=document.getElementById('td-top-pick-sub');
+    if(topPickEl&&records.length>0){
+      const best=[...records].sort((a,b)=>(b.accuracy||0)-(a.accuracy||0))[0];
+      topPickEl.textContent=best.symbol;
+      if(topPickSubEl) topPickSubEl.textContent=(best.accuracy||0).toFixed(1)+'% · '+tierOf(best);
+    }
+
     // Tiers
     const promoted=records.filter(r=>tierOf(r)==='promoted');
     const standard=records.filter(r=>tierOf(r)==='standard');
@@ -7512,13 +7529,21 @@ function uhToggle(){
   if(wrap){ wrap.style.display = _uhOpen ? 'block' : 'none'; }
   if(icon){ icon.textContent = _uhOpen ? '▼' : '▶'; }
 }
-let _tbOpen = false;
+let _tbOpen = true;
 function tbToggle(){
   _tbOpen = !_tbOpen;
   const wrap = document.getElementById('tb-wrap');
   const icon = document.getElementById('tb-toggle-icon');
   if(wrap){ wrap.style.display = _tbOpen ? 'block' : 'none'; }
   if(icon){ icon.textContent = _tbOpen ? '▼' : '▶'; }
+}
+let _tpOpen = false;
+function tpToggle(){
+  _tpOpen = !_tpOpen;
+  const wrap = document.getElementById('tp-wrap');
+  const icon = document.getElementById('tp-toggle-icon');
+  if(wrap){ wrap.style.display = _tpOpen ? 'block' : 'none'; }
+  if(icon){ icon.textContent = _tpOpen ? '▼' : '▶'; }
 }
 
 function ecSetFilter(filter, btn){
@@ -8098,8 +8123,8 @@ function swApp(name){
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradingBrief v7.13.8 — Fix: card collapse on save, thesis auto-expand, TP notes removed,       ║
-     ║    earnings purge tightened, TradeSheet single results window                                       ║
+     ║  END TradingBrief v7.13.9 — TD layout: UH/Tier open, EC below Tier collapsed,              ║
+     ║    Top Performers collapsed, top pick stat box                                       ║
      ║  2026-04-24                                                       ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 </body>
