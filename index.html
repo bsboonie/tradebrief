@@ -1,13 +1,13 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v7.14 — TradeHelp full revamp                        ║
+     ║  TRADEBRIEF v7.14.1 — Directional gate fix                       ║
      ║  Date: 2026-04-27                                                ║
-     ║  Changes from v7.13.11:                                          ║
-     ║    1. TradeHelp panel completely rebuilt from scratch             ║
-     ║       Four tabs: Overview, Workflow, Reading a Card, Glossary    ║
-     ║       Reading a Card: full card anatomy tutorial with color key  ║
-     ║       Overview/Workflow accurate to v7.14 architecture           ║
-     ║       Glossary tightened to terms that appear in the app         ║
+     ║  Changes from v7.14:                                             ║
+     ║    1. Fix: Directional gate — price must confirm EMA crossover   ║
+     ║       EMA8>EMA21 but price below EMA8 → WAIT, not CALLS         ║
+     ║       Eliminates CALLS/BEARISH contradiction on same card        ║
+     ║    2. Fix: Regime filter passes WAIT signals through             ║
+     ║       Only hard-filters true directional conflicts               ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 <html lang="en">
 <head>
@@ -17,7 +17,7 @@
 <meta name="theme-color" content="#111827">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>TradeBrief v7.14</title>
+<title>TradeBrief v7.14.1</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -2181,10 +2181,10 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
 
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.14</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.14.1</div>
 
 <!-- ══ MOBILE VERSION STAMP (always visible on mobile, bottom-left) ══════ -->
-<div id="mobile-version-stamp" style="display:none;">v7.14</div>
+<div id="mobile-version-stamp" style="display:none;">v7.14.1</div>
 
 <!-- ══ MOBILE SCAN BTN (Brief panel only, toggled via swApp) ═════════════ -->
 <div id="mobile-scan-btn-wrap" style="display:none;">
@@ -2567,18 +2567,29 @@ function calcConfidence(price,ema8,ema21,rsi,volume,avgVolume,changePct,atr14,cl
   score+=ivrPts;
 
   // Determine direction before regime check
-  const direction=emaCrossover?'CALLS':'PUTS';
+  // Directional gate (v7.14.1): EMA crossover sets the structure, but price must confirm.
+  // If EMA8 > EMA21 (bullish structure) but price is below EMA8, the move hasn't been
+  // confirmed by price action — signal is WAIT, not CALLS. Same logic mirrored for bears.
+  // This prevents EMA structure from overriding price reality on the signal badge.
+  let direction;
+  if(emaCrossover){
+    direction = priceAboveBoth ? 'CALLS' : (price>=ema21 ? 'WAIT' : 'PUTS');
+  } else {
+    direction = priceBelowBoth ? 'PUTS' : (price<=ema21 ? 'WAIT' : 'CALLS');
+  }
 
   // 7. SPY Regime + SI Edge (0–10 pts, bonus only — no negative penalty)
-  // Removed the old -10 penalty; fighting regime just loses opportunity points
+  // Regime points only apply when regime direction agrees with stock direction.
+  // A WAIT signal gets partial regime credit only if SPY is in an aligned regime.
   let regimePts=0;
   let againstRegime=false;
   if(spyRegime){
     const aligned=(direction==='CALLS'&&spyRegime==='BULLISH')||(direction==='PUTS'&&spyRegime==='BEARISH');
     if(aligned){ regimePts=10; }
-    else{ regimePts=0; againstRegime=true; }// no penalty, just no bonus
+    else if(direction==='WAIT'){ regimePts=3; }// wait signal — partial neutral credit
+    else{ regimePts=0; againstRegime=true; }// directional conflict — no bonus
   } else {
-    regimePts=5;// neutral market — partial credit
+    regimePts=5;// unknown regime — partial credit
   }
   score+=regimePts;
 
@@ -2654,16 +2665,16 @@ function buildTop10(){
 
     const volRatioSort=d.volRatio!=null?d.volRatio:0;
 
-    // Regime filter: if regime is known, surface only signals aligned with it
-    // Shadow-tier or no-record tickers are not regime-filtered (unknowns pass through)
+    // Regime filter: surface aligned signals and WAIT signals. Hard-filter only true
+    // directional conflicts (CALLS in bearish regime, PUTS in bullish regime).
+    // WAIT signals always pass — they are already gated by the directional check above.
+    // Shadow and unknown tickers still surface (not enough data to trust filter).
     const rec=window.SI?window.SI.getRecord(t):null;
     const tier=rec?rec.tier:null;
-    if(spyRegime&&d.direction&&d.direction!=='—'){
+    if(spyRegime&&d.direction&&d.direction!=='—'&&d.direction!=='WAIT'){
       const directionAligned=(d.direction==='CALLS'&&spyRegime==='BULLISH')||(d.direction==='PUTS'&&spyRegime==='BEARISH');
-      // Filter promoted and standard tickers that are against regime
-      // Shadow and unknown tickers still surface (not enough data to trust filter)
       if(!directionAligned&&(tier==='promoted'||tier==='standard')){
-        return null;// filtered by regime
+        return null;// hard directional conflict — filtered by regime
       }
     }
 
@@ -8907,7 +8918,7 @@ function swApp(name){
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradeBrief v7.14 — TradeHelp full revamp                    ║
+     ║  END TradeBrief v7.14.1 — Directional gate fix                   ║
      ║  2026-04-27                                                       ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 </body>
