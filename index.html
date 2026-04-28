@@ -1,13 +1,13 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v7.13.11 — RSI upgrade: shaded zones, 50-line, color line  ║
+     ║  TRADEBRIEF v7.14 — TradeHelp full revamp                        ║
      ║  Date: 2026-04-27                                                ║
-     ║  Changes from v7.13.9:                                              ║
-     ║    1. Fix: Earnings filter floor -2 → -3 (AGNC edge case)            ║
-     ║    2. New: TS canvas chart — candles, EMA 8/21, RSI panel           ║
-     ║       Three views: Daily (6mo), 60-Min (14d), 5-Min (today)         ║
-     ║       Strike lines update from TradePlan selection                   ║
-     ║       Auto-renders on fetch; TB → TS handoff triggers chart          ║
+     ║  Changes from v7.13.11:                                          ║
+     ║    1. TradeHelp panel completely rebuilt from scratch             ║
+     ║       Four tabs: Overview, Workflow, Reading a Card, Glossary    ║
+     ║       Reading a Card: full card anatomy tutorial with color key  ║
+     ║       Overview/Workflow accurate to v7.14 architecture           ║
+     ║       Glossary tightened to terms that appear in the app         ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 <html lang="en">
 <head>
@@ -17,7 +17,7 @@
 <meta name="theme-color" content="#111827">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>TradeBrief v7.13.11</title>
+<title>TradeBrief v7.14</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -1555,43 +1555,90 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
 
 <!-- ══════════════════════════════════════════════════════════════════════
      PANEL 6: TRADEHELP
-══════════════════════════════════════════════════════════════════════════ -->
+══════════════════════════════════════════════════════════════════════ -->
+
 <div class="app-panel" id="panel-help">
 <style>
 #panel-help *{box-sizing:border-box;}
 #panel-help{background:var(--bg);min-height:100vh;font-family:'DM Sans',sans-serif;}
+
+/* ── HEADER ── */
 #panel-help .th-header{position:sticky;top:0;z-index:200;background:var(--surface);border-bottom:1px solid var(--border);padding:10px 16px;display:flex;align-items:center;justify-content:space-between;}
 #panel-help .th-logo{font-family:'Space Mono',monospace;font-size:22px;font-weight:700;color:#22d3ee;}
 #panel-help .th-logo span{color:#ff4d4d;}
 #panel-help .th-main{padding:16px;max-width:860px;margin:0 auto;}
+
+/* ── TABS ── */
 #panel-help .th-tabs{display:flex;gap:4px;margin-bottom:20px;background:var(--surface2);padding:3px;border-radius:8px;border:1px solid var(--border);}
-#panel-help .th-tab{flex:1;padding:7px;text-align:center;border-radius:6px;font-size:11px;cursor:pointer;color:var(--muted);background:none;border:none;font-family:'Space Mono',monospace;transition:all 0.2s;}
+#panel-help .th-tab{flex:1;padding:7px 4px;text-align:center;border-radius:6px;font-size:10px;cursor:pointer;color:var(--muted);background:none;border:none;font-family:'Space Mono',monospace;transition:all 0.2s;white-space:nowrap;}
 #panel-help .th-tab.active{background:var(--surface);color:#ff4d4d;border:1px solid var(--border);}
 #panel-help .th-content{display:none;}
 #panel-help .th-content.active{display:block;}
-#panel-help .th-hero{text-align:center;padding:24px 0 20px;border-bottom:1px solid var(--border);margin-bottom:20px;}
-#panel-help .th-title{font-family:'Space Mono',monospace;font-size:20px;font-weight:700;color:#ff4d4d;margin-bottom:8px;}
-#panel-help .th-subtitle{font-size:14px;color:var(--muted);max-width:500px;margin:0 auto;line-height:1.6;}
-#panel-help .th-h2{font-family:'Space Mono',monospace;font-size:11px;letter-spacing:2px;color:#ff4d4d;text-transform:uppercase;margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid var(--border);}
+
+/* ── TYPOGRAPHY ── */
+#panel-help .th-h2{font-family:'Space Mono',monospace;font-size:10px;letter-spacing:2px;color:#ff4d4d;text-transform:uppercase;margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid var(--border);}
 #panel-help .th-p{font-size:13px;line-height:1.7;color:var(--text);margin-bottom:10px;}
-#panel-help .th-warn{background:rgba(255,165,2,0.1);border:1px solid rgba(255,165,2,0.3);border-radius:8px;padding:12px 14px;font-size:13px;color:var(--warning);margin-bottom:12px;line-height:1.6;}
-#panel-help .th-section{margin-bottom:24px;}
-#panel-help .th-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:10px;}
-#panel-help .th-card-title{font-family:'Space Mono',monospace;font-size:11px;font-weight:700;color:var(--text);margin-bottom:6px;}
+#panel-help .th-section{margin-bottom:28px;}
+
+/* ── CARDS ── */
+#panel-help .th-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:8px;}
+#panel-help .th-card-title{font-family:'Space Mono',monospace;font-size:11px;font-weight:700;color:var(--text);margin-bottom:5px;}
 #panel-help .th-card-body{font-size:12px;color:var(--muted);line-height:1.6;}
-#panel-help .th-steps{display:flex;flex-direction:column;gap:14px;margin-bottom:24px;}
-#panel-help .th-step{display:flex;gap:14px;align-items:flex-start;}
-#panel-help .th-step-num{min-width:32px;height:32px;background:#ff4d4d;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Space Mono',monospace;font-weight:700;font-size:13px;flex-shrink:0;}
-#panel-help .th-step-body{flex:1;}
-#panel-help .th-step-title{font-family:'Space Mono',monospace;font-size:12px;font-weight:700;color:var(--text);margin-bottom:6px;}
-#panel-help .th-gterm{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:8px;}
-#panel-help .th-gterm-word{font-family:'Space Mono',monospace;font-size:13px;font-weight:700;color:#ff4d4d;margin-bottom:4px;}
-#panel-help .th-gterm-def{font-size:13px;color:var(--text);line-height:1.6;margin-bottom:6px;}
-#panel-help .th-gterm-why{font-size:12px;color:var(--muted);background:var(--surface2);padding:8px 10px;border-radius:6px;line-height:1.5;}
-#panel-help .th-panel-badge{display:inline-block;font-family:'Space Mono',monospace;font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;margin-right:6px;}
+#panel-help .th-warn{background:rgba(255,165,2,0.1);border:1px solid rgba(255,165,2,0.3);border-radius:8px;padding:12px 14px;font-size:13px;color:var(--warning);margin-bottom:12px;line-height:1.6;}
+#panel-help .th-info{background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.25);border-radius:8px;padding:11px 14px;font-size:12px;color:var(--accent);margin-bottom:10px;line-height:1.6;}
+
+/* ── PANEL BADGES ── */
+#panel-help .th-panel-badge{display:inline-block;font-family:'Space Mono',monospace;font-size:9px;font-weight:700;padding:2px 8px;border-radius:4px;margin-right:6px;}
 #panel-help .th-badge-brief{background:rgba(74,222,128,0.15);color:#4ade80;border:1px solid rgba(74,222,128,0.3);}
-#panel-help .th-badge-journal{background:rgba(191,140,255,0.15);color:#bf8cff;border:1px solid rgba(191,140,255,0.3);}
 #panel-help .th-badge-sheet{background:rgba(255,165,2,0.15);color:#ffa502;border:1px solid rgba(255,165,2,0.3);}
+#panel-help .th-badge-log{background:rgba(191,140,255,0.15);color:#bf8cff;border:1px solid rgba(191,140,255,0.3);}
+#panel-help .th-badge-data{background:rgba(0,212,255,0.15);color:#22d3ee;border:1px solid rgba(0,212,255,0.3);}
+#panel-help .th-badge-help{background:rgba(255,77,77,0.15);color:#ff4d4d;border:1px solid rgba(255,77,77,0.3);}
+
+/* ── WORKFLOW STEPS ── */
+#panel-help .th-steps{display:flex;flex-direction:column;gap:12px;margin-bottom:20px;}
+#panel-help .th-step{display:flex;gap:14px;align-items:flex-start;}
+#panel-help .th-step-num{min-width:30px;height:30px;background:#ff4d4d;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Space Mono',monospace;font-weight:700;font-size:12px;flex-shrink:0;}
+#panel-help .th-step-body{flex:1;padding-top:4px;}
+#panel-help .th-step-title{font-family:'Space Mono',monospace;font-size:11px;font-weight:700;color:var(--text);margin-bottom:4px;}
+#panel-help .th-step-desc{font-size:12px;color:var(--muted);line-height:1.6;}
+
+/* ── CARD ANATOMY ── */
+#panel-help .th-anatomy-block{background:var(--surface);border:1px solid var(--border);border-radius:10px;margin-bottom:10px;overflow:hidden;}
+#panel-help .th-anatomy-zone{padding:12px 14px;border-bottom:1px solid var(--border);}
+#panel-help .th-anatomy-zone:last-child{border-bottom:none;}
+#panel-help .th-zone-label{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:8px;}
+#panel-help .th-zone-label::after{content:'';flex:1;height:1px;background:var(--border);}
+#panel-help .th-element{display:flex;align-items:flex-start;gap:10px;margin-bottom:7px;}
+#panel-help .th-element:last-child{margin-bottom:0;}
+#panel-help .th-el-name{font-family:'Space Mono',monospace;font-size:10px;font-weight:700;color:var(--text);min-width:130px;flex-shrink:0;padding-top:1px;}
+#panel-help .th-el-desc{font-size:12px;color:var(--muted);line-height:1.5;}
+#panel-help .th-el-swatch{display:inline-block;width:10px;height:10px;border-radius:2px;flex-shrink:0;margin-top:3px;}
+
+/* ── COLOR KEY TABLE ── */
+#panel-help .th-color-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:6px;}
+#panel-help .th-color-table th{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:1px;color:var(--muted);padding:6px 10px;text-align:left;border-bottom:1px solid var(--border);}
+#panel-help .th-color-table td{padding:7px 10px;border-bottom:1px solid var(--border);vertical-align:top;}
+#panel-help .th-color-table tr:last-child td{border-bottom:none;}
+#panel-help .th-swatch{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:middle;margin-right:6px;flex-shrink:0;}
+#panel-help .c-green{background:#4ade80;}
+#panel-help .c-cyan{background:#00d4ff;}
+#panel-help .c-orange{background:#ffa502;}
+#panel-help .c-red{background:#ff4757;}
+#panel-help .c-muted{background:#6b7a99;}
+#panel-help .c-purple{background:#bf8cff;}
+#panel-help .th-color-label{font-family:'Space Mono',monospace;font-size:10px;font-weight:700;}
+#panel-help .col-green{color:#4ade80;}
+#panel-help .col-cyan{color:#00d4ff;}
+#panel-help .col-orange{color:#ffa502;}
+#panel-help .col-red{color:#ff4757;}
+#panel-help .col-muted{color:#6b7a99;}
+
+/* ── GLOSSARY ── */
+#panel-help .th-gterm{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:13px;margin-bottom:8px;}
+#panel-help .th-gterm-word{font-family:'Space Mono',monospace;font-size:12px;font-weight:700;color:#ff4d4d;margin-bottom:4px;}
+#panel-help .th-gterm-def{font-size:13px;color:var(--text);line-height:1.6;margin-bottom:5px;}
+#panel-help .th-gterm-why{font-size:11px;color:var(--muted);background:var(--surface2);padding:7px 10px;border-radius:6px;line-height:1.5;}
 </style>
 
 <div class="th-header">
@@ -1613,107 +1660,442 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
   <div class="th-tabs">
     <button class="th-tab active" onclick="thTab('overview')">📋 Overview</button>
     <button class="th-tab" onclick="thTab('workflow')">🔄 Workflow</button>
+    <button class="th-tab" onclick="thTab('cardguide')">🃏 Reading a Card</button>
     <button class="th-tab" onclick="thTab('glossary')">📚 Glossary</button>
   </div>
 
-  <!-- OVERVIEW -->
+  <!-- ══ OVERVIEW ══ -->
   <div class="th-content active" id="th-overview">
-    <div class="th-hero">
-      <div style="font-size:36px;margin-bottom:8px;">📖</div>
-      <div class="th-title">Welcome to TradeBrief</div>
-      <div class="th-subtitle">Your personal options trading decision tool — built around your rules, your budget, and your workflow.</div>
+
+    <div class="th-section">
+      <div class="th-h2">What TradeBrief Is</div>
+      <p class="th-p">TradeBrief is a pre-market decision tool. Its job is to answer one question before you touch Tradier: <b>what should I look at today, and is the setup good enough to pull the option chain?</b> It is the filter before execution — not a trading platform, not a portfolio tracker.</p>
+      <p class="th-p">It scans a curated universe of liquid, optionable stocks, scores each one 0–100 using technical signals, and surfaces the best setups ranked by confidence. From there you build a thesis, analyze the option in TradeSheet, and log the trade after placing it in Tradier.</p>
+      <div class="th-warn">⚠️ TradeBrief supports defined-risk positions only — debit spreads, long calls, and long puts. It is not designed for undefined-risk strategies. Know your max loss before every entry.</div>
     </div>
 
     <div class="th-section">
-      <div class="th-h2">What is TradeBrief?</div>
-      <p class="th-p">TradeBrief is a personal trading intelligence tool designed for retail options traders who buy <b>debit spreads</b>, <b>long calls</b>, and <b>long puts</b>. It gives you a clear picture of watchlist stocks — their trend direction, momentum, and whether conditions are right for a trade.</p>
-      <p class="th-p">Think of it as your pre-market routine, automated. Instead of opening multiple browser tabs and manually checking charts, TradeBrief pulls it all into one clean dashboard.</p>
+      <div class="th-h2">Five Panels</div>
+      <div class="th-card">
+        <div class="th-card-title"><span class="th-panel-badge th-badge-brief">TradeBrief</span>Morning Scanner</div>
+        <div class="th-card-body">Scans the universe, scores candidates, and surfaces the top setups. Expand a card to build your thesis. Send to TradeSheet when ready.</div>
+      </div>
+      <div class="th-card">
+        <div class="th-card-title"><span class="th-panel-badge th-badge-sheet">TradeSheet</span>Option Analyzer</div>
+        <div class="th-card-body">Analyzes spreads and long options for the ticker sent from TradeBrief. Shows ranked setups, R/R, cost vs budget, break-even, and decision checks. Log your trade here after placing it in Tradier.</div>
+      </div>
+      <div class="th-card">
+        <div class="th-card-title"><span class="th-panel-badge th-badge-log">TradeLog</span>Position Tracker</div>
+        <div class="th-card-body">Tracks open and closed positions. Shows running P&L, win rate, and closed trade history. Updated when you log or close a trade.</div>
+      </div>
+      <div class="th-card">
+        <div class="th-card-title"><span class="th-panel-badge th-badge-data">TradeData</span>Market Context</div>
+        <div class="th-card-body">Sector performance, earnings calendar, and market-wide context to inform whether conditions favor aggressive or cautious positioning today.</div>
+      </div>
+      <div class="th-card">
+        <div class="th-card-title"><span class="th-panel-badge th-badge-help">TradeHelp</span>You Are Here</div>
+        <div class="th-card-body">Documentation, workflow guide, card anatomy tutorial, and glossary. Settings are accessed via the ⚙️ gear icon in the header.</div>
+      </div>
     </div>
 
     <div class="th-section">
-      <div class="th-h2">Three Tools, One Workflow</div>
-      <div class="th-card">
-        <div class="th-card-title"><span class="th-panel-badge th-badge-brief">TradeBrief</span> Gate 1 — Scanner</div>
-        <div class="th-card-body">Scans 127 liquid, optionable stocks across 12 sectors. Ranks by confidence score. Shows the top candidates worth investigating.</div>
-      </div>
-      <div class="th-card">
-        <div class="th-card-title"><span class="th-panel-badge th-badge-brief">TradeBrief</span> Gate 2 — Thesis Builder</div>
-        <div class="th-card-body">Build your trade thesis directly in the briefing card. AI scores your thesis 0–10 and adds it to your conviction score. Select a ticker to send it to TradeSheet with directional bias pre-loaded.</div>
-      </div>
-      <div class="th-card">
-        <div class="th-card-title"><span class="th-panel-badge th-badge-sheet">TradeSheet</span> Gate 3 — Option Analyzer</div>
-        <div class="th-card-body">Analyze spreads and long options. Ticker and directional bias flow in from TradeJournal. Auto-populates fields where possible. TradeLog lives here — log your trade after placing it in Tradier.</div>
-      </div>
+      <div class="th-h2">One Honest Note on Accuracy</div>
+      <p class="th-p">The confidence score is a filter, not a guarantee. Technical scanning has a documented ceiling of 52–55% directional accuracy at the professional level. TradeBrief is not trying to beat that ceiling — it is trying to make sure you only take trades where the setup is clean, the risk is defined, and the move is big enough to matter. Quality of setup beats quantity of trades every time.</p>
     </div>
 
-    <div class="th-section">
-      <div class="th-h2">What TradeBrief Does NOT Do</div>
-      <div class="th-warn">⚠️ TradeBrief is a decision-support tool — not financial advice. It helps you organize information and apply your own rules consistently. Always do your own research and verify data on Tradier before placing any trade.</div>
-      <p class="th-p">TradeBrief does not support naked calls, cash-secured puts, or any undefined-risk strategy. It is built exclusively for traders who want to know their maximum loss before entering.</p>
-    </div>
   </div>
 
-  <!-- WORKFLOW -->
+  <!-- ══ WORKFLOW ══ -->
   <div class="th-content" id="th-workflow">
+
     <div class="th-section">
-      <div class="th-h2">The Three-Gate Workflow</div>
-      <p class="th-p">TradeBrief is designed around a simple morning routine. Each panel is a gate — but none of them lock you out. You can access any panel directly at any time. The gates are guides, not guards.</p>
+      <div class="th-h2">The Morning Routine</div>
+      <p class="th-p">TradeBrief is built around a disciplined pre-market routine. Run it before 9:30 AM ET for the freshest signals. Each step is a gate — not a lock. You can jump to any panel at any time, but this sequence is the intended flow.</p>
     </div>
 
     <div class="th-steps">
       <div class="th-step">
         <div class="th-step-num">1</div>
         <div class="th-step-body">
-          <div class="th-step-title">Open TradeBrief — Scan the Universe</div>
-          <p class="th-p">Hit Scan Now. TradeBrief pulls quotes and history for 127 stocks across 12 sectors. Top candidates are ranked by confidence score (0–100). Review the top results. When you find one worth investigating, hit Select.</p>
+          <div class="th-step-title">Open TradeBrief — Run the Scan</div>
+          <div class="th-step-desc">Hit <b>Scan Now</b>. TradeBrief fetches quotes, calculates EMA/RSI/ATR/volume signals, and ranks the top candidates by confidence score (0–100). Review the list — pay attention to score, signal badge (CALLS / PUTS / WAIT), and whether SPY is aligned.</div>
         </div>
       </div>
       <div class="th-step">
         <div class="th-step-num">2</div>
         <div class="th-step-body">
-          <div class="th-step-title">TradeJournal — Build Your Thesis</div>
-          <p class="th-p">The selected ticker flows into TradeJournal automatically. News auto-fetches. ATR auto-calculates. Work through the four thesis questions with AI coaching. Resolve to BULLISH or BEARISH. When your thesis score is solid, move to TradeSheet.</p>
+          <div class="th-step-title">Expand a Card — Review the Setup</div>
+          <div class="th-step-desc">Click the expand arrow (▼) on a card that catches your eye. Review the mini chart, signal metrics, and score breakdown. Check RSI, IV rank, and whether earnings are a near-term risk. The score breakdown shows exactly why a ticker ranked where it did.</div>
         </div>
       </div>
       <div class="th-step">
         <div class="th-step-num">3</div>
         <div class="th-step-body">
-          <div class="th-step-title">TradeSheet — Analyze the Option</div>
-          <p class="th-p">Ticker pre-loads. Directional bias badge reminds you what the thesis said. Review the top spreads or long options. Check R/R, cost vs budget, break-even vs expected move. When you're ready, place the trade on Tradier.</p>
+          <div class="th-step-title">Build Your Thesis</div>
+          <div class="th-step-desc">Use the Thesis section inside the expanded card. Type your read on the setup — why you think it moves, what the catalyst is, what would invalidate it. The AI scores your thesis 0–10 and adds it to your conviction score. A strong thesis is the difference between a trade and a gamble.</div>
         </div>
       </div>
       <div class="th-step">
         <div class="th-step-num">4</div>
         <div class="th-step-body">
-          <div class="th-step-title">Log the Trade in TradeLog</div>
-          <p class="th-p">After placing in Tradier, come back to TradeSheet and hit Log This Trade. Fill in the details. TradeLog tracks your open and closed positions and calculates your running P&L.</p>
+          <div class="th-step-title">Hit Select — Send to TradeSheet</div>
+          <div class="th-step-desc">When the setup and thesis both look solid, hit <b>Select</b>. The ticker and directional bias (BULLISH / BEARISH) flow into TradeSheet automatically. The TS canvas chart renders immediately.</div>
+        </div>
+      </div>
+      <div class="th-step">
+        <div class="th-step-num">5</div>
+        <div class="th-step-body">
+          <div class="th-step-title">TradeSheet — Analyze the Option</div>
+          <div class="th-step-desc">Review the ranked spreads or long options. Check R/R (minimum 1.5), cost vs your budget, break-even vs ATR-based expected move, and whether earnings fall before expiration. Use the TradePlan card to set your strikes — the chart updates strike lines automatically.</div>
+        </div>
+      </div>
+      <div class="th-step">
+        <div class="th-step-num">6</div>
+        <div class="th-step-body">
+          <div class="th-step-title">Place the Trade in Tradier</div>
+          <div class="th-step-desc">TradeBrief does not execute trades. When you are ready, open Tradier, pull the option chain for your ticker, and place the order. After-hours orders sit as day orders — verify them pre-market (9:00–9:15 AM ET) before they execute at open.</div>
+        </div>
+      </div>
+      <div class="th-step">
+        <div class="th-step-num">7</div>
+        <div class="th-step-body">
+          <div class="th-step-title">Log the Trade in TradeSheet</div>
+          <div class="th-step-desc">Come back to TradeSheet and hit <b>Log This Trade</b>. Fill in your actual entry details. The trade appears in TradeLog with your open P&L tracked. Close it from TradeLog when you exit.</div>
         </div>
       </div>
     </div>
 
     <div class="th-section">
-      <div class="th-h2">Tips</div>
-      <div class="th-card"><div class="th-card-body">✅ Run TradeBrief every morning before market open (9:00–9:25 AM ET) for the freshest data.</div></div>
-      <div class="th-card"><div class="th-card-body">✅ If you placed an order after hours, review it pre-market before it executes at open.</div></div>
-      <div class="th-card"><div class="th-card-body">✅ Target 3–4 weeks minimum on expiration for long options. Theta eats cheap short-dated contracts fast.</div></div>
-      <div class="th-card"><div class="th-card-body">✅ The confidence score is a filter, not a guarantee. 52–55% directional accuracy is the professional ceiling for technical scanning.</div></div>
+      <div class="th-h2">Key Rules</div>
+      <div class="th-card"><div class="th-card-body">✅ Run the scan before 9:25 AM ET — pre-market prices give you the freshest signal before the open.</div></div>
+      <div class="th-card"><div class="th-card-body">✅ If you placed an order after hours, check it pre-market before it executes. Conditions may have changed overnight.</div></div>
+      <div class="th-card"><div class="th-card-body">✅ Target 3–4 weeks minimum on expiration (21+ DTE). Theta decay accelerates sharply in the final two weeks.</div></div>
+      <div class="th-card"><div class="th-card-body">✅ Skip WAIT signals. If the app says wait, wait. A mediocre setup is not better than no setup.</div></div>
+      <div class="th-card"><div class="th-card-body">✅ R/R minimum is 1.5. If the math doesn't work, the trade doesn't work — regardless of how confident you feel.</div></div>
     </div>
+
   </div>
 
-  <!-- GLOSSARY -->
+  <!-- ══ READING A CARD ══ -->
+  <div class="th-content" id="th-cardguide">
+
+    <div class="th-section">
+      <div class="th-h2">Reading a TradeBrief Card</div>
+      <p class="th-p">Every card in the scanner represents one stock. Cards are sorted by confidence score — highest first. Here is every element, top to bottom, and what it means.</p>
+    </div>
+
+    <!-- HEADER ROW -->
+    <div class="th-anatomy-block">
+      <div class="th-anatomy-zone">
+        <div class="th-zone-label" style="color:#4ade80;">Header Row — Always Visible</div>
+
+        <div class="th-element">
+          <div class="th-el-name">Signal Badge</div>
+          <div class="th-el-desc"><span style="color:#4ade80;font-family:'Space Mono',monospace;font-size:10px;font-weight:700;">CALLS</span> / <span style="color:#ff4757;font-family:'Space Mono',monospace;font-size:10px;font-weight:700;">PUTS</span> / <span style="color:#ffa502;font-family:'Space Mono',monospace;font-size:10px;font-weight:700;">WAIT</span> — The app's directional recommendation for this ticker based on all signals combined. Green = bullish setup, Red = bearish setup, Orange = signals conflicted or insufficient.</div>
+        </div>
+
+        <div class="th-element">
+          <div class="th-el-name">Confidence Score</div>
+          <div class="th-el-desc">Large number on the left (0–100). The aggregate score across all technical signals. <span class="col-green">80–100 = strong setup</span>, <span class="col-cyan">60–79 = decent</span>, <span class="col-orange">40–59 = marginal</span>, <span class="col-red">below 40 = weak</span>. Cards are sorted by this number.</div>
+        </div>
+
+        <div class="th-element">
+          <div class="th-el-name">Conviction Gauge</div>
+          <div class="th-el-desc">The arc/dial graphic next to the confidence score. Animates from grey to the signal color when the card loads. Shows at a glance how strong the composite signal is — full arc means high conviction.</div>
+        </div>
+
+        <div class="th-element">
+          <div class="th-el-name">CONV Number</div>
+          <div class="th-el-desc">Conviction score — a separate composite that weights momentum-based signals more heavily than the confidence score. Displayed in small text next to the gauge. Adds a second read on trade quality beyond raw confidence.</div>
+        </div>
+
+        <div class="th-element">
+          <div class="th-el-name">Ticker + Company</div>
+          <div class="th-el-desc">Stock symbol in large monospace font, company name below in muted text. Clicking the ticker opens the TradingView chart in a new tab.</div>
+        </div>
+
+        <div class="th-element">
+          <div class="th-el-name">Price + Change</div>
+          <div class="th-el-desc">Current price and point/percent change from prior close. <span class="col-green">Green = up</span>, <span class="col-red">Red = down</span>. Flat shows in muted grey. This is live Tradier data — not delayed.</div>
+        </div>
+
+        <div class="th-element">
+          <div class="th-el-name">BULLISH / BEARISH Badge</div>
+          <div class="th-el-desc">Distinct from the signal badge. This is the trend direction assessment based on EMA alignment. <span style="background:rgba(0,255,157,0.15);color:#4ade80;font-family:'Space Mono',monospace;font-size:9px;font-weight:700;padding:1px 7px;border-radius:4px;border:1px solid rgba(0,255,157,0.3);">BULLISH</span> means price is above EMA 8 and EMA 21 with the fast above the slow. <span style="background:rgba(255,71,87,0.15);color:#ff4757;font-family:'Space Mono',monospace;font-size:9px;font-weight:700;padding:1px 7px;border-radius:4px;border:1px solid rgba(255,71,87,0.3);">BEARISH</span> means price or the EMAs have rolled over.</div>
+        </div>
+
+        <div class="th-element">
+          <div class="th-el-name">SPY Aligned %</div>
+          <div class="th-el-desc">Shows when the stock's directional signal matches the broad market direction. The percentage is the historical correlation strength. A CALLS signal with SPY aligned is meaningfully stronger than one without market tailwind. Missing badge = not aligned or data unavailable.</div>
+        </div>
+
+        <div class="th-element">
+          <div class="th-el-name">Risk Profile Badge</div>
+          <div class="th-el-desc"><span style="background:rgba(0,255,157,0.12);color:#4ade80;font-size:9px;font-family:'Space Mono',monospace;font-weight:700;padding:1px 7px;border-radius:10px;border:1px solid rgba(0,255,157,0.3);">STABLE</span> <span style="background:rgba(0,212,255,0.12);color:#00d4ff;font-size:9px;font-family:'Space Mono',monospace;font-weight:700;padding:1px 7px;border-radius:10px;border:1px solid rgba(0,212,255,0.3);">MODERATE</span> <span style="background:rgba(255,165,2,0.12);color:#ffa502;font-size:9px;font-family:'Space Mono',monospace;font-weight:700;padding:1px 7px;border-radius:10px;border:1px solid rgba(255,165,2,0.3);">VOLATILE</span> <span style="background:rgba(255,71,87,0.12);color:#ff4757;font-size:9px;font-family:'Space Mono',monospace;font-weight:700;padding:1px 7px;border-radius:10px;border:1px solid rgba(255,71,87,0.3);">HIGH RISK</span> — Derived from ATR relative to price, IV rank, and beta. Tells you what size of position and what type of option structure fits this stock. High Risk doesn't mean avoid — it means size accordingly.</div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- EXPANDED BODY: CHART + SIGNALS -->
+    <div class="th-anatomy-block">
+      <div class="th-anatomy-zone">
+        <div class="th-zone-label" style="color:#ffa502;">Expanded Body — Chart & Signals</div>
+
+        <div class="th-element">
+          <div class="th-el-name">Mini Chart</div>
+          <div class="th-el-desc">Candlestick chart rendered from Tradier daily data. Shows recent price action with two EMAs overlaid. <span style="color:#ffa502;font-weight:700;">EMA 8</span> (orange) is the fast line — recent momentum. <span style="color:rgba(255,255,255,0.5);font-weight:700;">EMA 21</span> (dim white) is the slow line — medium-term trend. When EMA 8 is above EMA 21 and both are rising, the trend is confirmed bullish.</div>
+        </div>
+
+        <div class="th-element">
+          <div class="th-el-name">Recommendation Bar</div>
+          <div class="th-el-desc">Gold-bordered box below the chart. AI-generated one-liner that synthesizes the signal into plain English — what the setup looks like and what to watch for. Treat it as a starting point, not a directive.</div>
+        </div>
+
+        <div class="th-element">
+          <div class="th-el-name">EMA 14 / EMA 8 / EMA 21</div>
+          <div class="th-el-desc">Current EMA values displayed as price levels. Used to verify where support and resistance sit relative to current price. The gap between EMA 8 and EMA 21 indicates momentum strength.</div>
+        </div>
+
+        <div class="th-element">
+          <div class="th-el-name">Volume</div>
+          <div class="th-el-desc">Today's volume as a multiple of the 20-day average. <span class="col-green">2.0× or higher</span> = institutional participation confirmed, strong signal. <span class="col-orange">1.0–1.9×</span> = normal range. <span class="col-red">Below 1.0×</span> = light volume, treat signals with skepticism.</div>
+        </div>
+
+        <div class="th-element">
+          <div class="th-el-name">RSI</div>
+          <div class="th-el-desc">14-period Relative Strength Index (0–100). <span class="col-red">Above 70</span> = overbought (avoid new calls here). <span class="col-green">Below 30</span> = oversold (avoid new puts here). <span class="col-cyan">40–60</span> = neutral, cleanest entry zone for either direction. Color on the card matches these zones.</div>
+        </div>
+
+        <div class="th-element">
+          <div class="th-el-name">IV Rank</div>
+          <div class="th-el-desc">Implied volatility rank vs the past year (0–100). <span class="col-green">Below 30</span> = cheap options, favorable for buyers. <span class="col-orange">30–60</span> = moderate, acceptable. <span class="col-red">Above 60</span> = expensive options — you are overpaying for premium. High IV rank is flagged explicitly.</div>
+        </div>
+
+        <div class="th-element">
+          <div class="th-el-name">Earnings Flag</div>
+          <div class="th-el-desc">Shows the next earnings date and how many days away it is. <span class="col-red">Soon (≤7 days)</span> = IV crush risk if earnings falls before your expiration. <span class="col-orange">Coming (8–21 days)</span> = caution zone. <span class="col-green">Safe (22+ days)</span> = earnings not a near-term factor. Always check whether earnings falls before your option expiration.</div>
+        </div>
+
+        <div class="th-element">
+          <div class="th-el-name">ATR — 1× / 3× label</div>
+          <div class="th-el-desc">Average True Range — the average daily price movement. Displayed as a dollar amount. 1× ATR is the expected single-day move; 3× ATR is the rough expected move over a two-to-three week hold. Use 3× ATR as a sanity check: your break-even should be within this range.</div>
+        </div>
+
+        <div class="th-element">
+          <div class="th-el-name">Select Button</div>
+          <div class="th-el-desc">Sends this ticker and its directional bias (BULLISH/BEARISH) to TradeSheet. The canvas chart in TS renders automatically on handoff. Only one ticker is active in TradeSheet at a time.</div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- SCORE BREAKDOWN -->
+    <div class="th-anatomy-block">
+      <div class="th-anatomy-zone">
+        <div class="th-zone-label" style="color:#4ade80;">Score Breakdown</div>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.6;">The score breakdown shows how each component contributed to the confidence score. Positive components are shown in <span class="col-green">green</span>, negative in <span class="col-red">red</span>. The total adds up to the confidence score shown in the header.</p>
+
+        <div class="th-element">
+          <div class="th-el-name">EMA Alignment</div>
+          <div class="th-el-desc">Points awarded when price is above both EMAs (bullish) or below both (bearish), and EMA 8 is above/below EMA 21 in the correct direction. The single highest-weight component.</div>
+        </div>
+        <div class="th-element">
+          <div class="th-el-name">RSI Quality</div>
+          <div class="th-el-desc">Points for RSI in a favorable entry zone (not overbought for calls, not oversold for puts). Points deducted when RSI is extended in the wrong direction.</div>
+        </div>
+        <div class="th-element">
+          <div class="th-el-name">Trend Strength</div>
+          <div class="th-el-desc">Measures the slope and separation of the EMAs. A wide, consistent gap between EMA 8 and EMA 21 scores higher than a narrow or converging spread.</div>
+        </div>
+        <div class="th-element">
+          <div class="th-el-name">Volume Confirm</div>
+          <div class="th-el-desc">Points awarded for above-average volume (≥1.5× avg). Institutional participation validates the signal. Low volume reduces conviction.</div>
+        </div>
+        <div class="th-element">
+          <div class="th-el-name">Clean Entry</div>
+          <div class="th-el-desc">Measures whether price is in a clean entry position — not extended far from EMA 8, not at a major resistance level. A pullback to EMA 8 scores highest.</div>
+        </div>
+        <div class="th-element">
+          <div class="th-el-name">IV Rank</div>
+          <div class="th-el-desc">Points added for low IV rank (cheap options), points deducted for high IV rank (expensive options). Low IV is a structural advantage for debit strategies.</div>
+        </div>
+        <div class="th-element">
+          <div class="th-el-name">Regime</div>
+          <div class="th-el-desc">Broad market regime check. When SPY is trending in the same direction as the signal, regime adds points. A counter-trend signal in a strong SPY move is penalized.</div>
+        </div>
+        <div class="th-element">
+          <div class="th-el-name">Edge Bonus</div>
+          <div class="th-el-desc">Supplemental points for additional confluence factors — e.g. price reclaiming a key level, or a crossover occurring on the current bar rather than bars ago.</div>
+        </div>
+        <div class="th-element">
+          <div class="th-el-name">Thesis Score</div>
+          <div class="th-el-desc">Your written thesis is scored 0–10 by the AI and converted to confidence points. A well-argued thesis with a clear catalyst and invalidation condition scores highest. This is the only component you directly control.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- THESIS + CONVICTION -->
+    <div class="th-anatomy-block">
+      <div class="th-anatomy-zone">
+        <div class="th-zone-label" style="color:#bf8cff;">Thesis + Conviction</div>
+
+        <div class="th-element">
+          <div class="th-el-name">Thesis Strength</div>
+          <div class="th-el-desc"><span style="background:rgba(0,255,157,0.15);color:#4ade80;font-size:9px;font-family:'Space Mono',monospace;font-weight:700;padding:1px 7px;border-radius:4px;border:1px solid rgba(0,255,157,0.3);">STRONG</span> <span style="background:rgba(255,165,2,0.15);color:#ffa502;font-size:9px;font-family:'Space Mono',monospace;font-weight:700;padding:1px 7px;border-radius:4px;border:1px solid rgba(255,165,2,0.3);">MODERATE</span> <span style="background:rgba(255,71,87,0.15);color:#ff4757;font-size:9px;font-family:'Space Mono',monospace;font-weight:700;padding:1px 7px;border-radius:4px;border:1px solid rgba(255,71,87,0.3);">WEAK</span> — Overall thesis quality rating. Determined by AI evaluation of your written thesis on clarity, specificity, catalyst identification, and invalidation conditions.</div>
+        </div>
+
+        <div class="th-element">
+          <div class="th-el-name">Technical Score</div>
+          <div class="th-el-desc">The raw technical confidence score (0–100) before your thesis is factored in. Shown as "Technical: XX" in the bottom row.</div>
+        </div>
+
+        <div class="th-element">
+          <div class="th-el-name">Thesis Points</div>
+          <div class="th-el-desc">Your thesis contribution shown as "+XX" in green. This is added to the technical score to produce the final Conviction score.</div>
+        </div>
+
+        <div class="th-element">
+          <div class="th-el-name">Conviction Score</div>
+          <div class="th-el-desc">Technical + Thesis = Conviction. This is the final score that determines the card's position in the ranked list. A strong thesis on a good technical setup can push a borderline card into the top tier — or confirm that a high-scoring setup is genuinely worth trading.</div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- COLOR KEY -->
+    <div class="th-section">
+      <div class="th-h2">Color Key</div>
+      <div class="th-card" style="padding:0;overflow:hidden;">
+        <table class="th-color-table">
+          <thead>
+            <tr>
+              <th>Color</th>
+              <th>Meaning</th>
+              <th>Where You See It</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="th-swatch c-green"></span><span class="th-color-label col-green">Green</span></td>
+              <td style="font-size:12px;color:var(--text);">Positive / Bullish / Good</td>
+              <td style="font-size:11px;color:var(--muted);">CALLS badge, price up, RSI healthy, volume confirmed, high confidence score, STABLE risk, earnings safe</td>
+            </tr>
+            <tr>
+              <td><span class="th-swatch c-red"></span><span class="th-color-label col-red">Red</span></td>
+              <td style="font-size:12px;color:var(--text);">Negative / Bearish / Warning</td>
+              <td style="font-size:11px;color:var(--muted);">PUTS badge, price down, RSI overbought/oversold, high IV rank, earnings imminent, weak score, HIGH RISK badge</td>
+            </tr>
+            <tr>
+              <td><span class="th-swatch c-orange"></span><span class="th-color-label col-orange">Orange</span></td>
+              <td style="font-size:12px;color:var(--text);">Caution / Moderate / Watch</td>
+              <td style="font-size:11px;color:var(--muted);">WAIT badge, EMA 8 overlay on chart, moderate score range, VOLATILE risk badge, IV rank in middle range, earnings approaching</td>
+            </tr>
+            <tr>
+              <td><span class="th-swatch c-cyan"></span><span class="th-color-label col-cyan">Cyan / Blue</span></td>
+              <td style="font-size:12px;color:var(--text);">Neutral / Data / App accent</td>
+              <td style="font-size:11px;color:var(--muted);">EMA values in signal grid, RSI in neutral zone, MODERATE risk badge, auto-populated fields in TradeSheet, general UI accent</td>
+            </tr>
+            <tr>
+              <td><span class="th-swatch c-muted"></span><span class="th-color-label col-muted">Grey / Muted</span></td>
+              <td style="font-size:12px;color:var(--text);">Neutral / No signal / Label</td>
+              <td style="font-size:11px;color:var(--muted);">EMA 21 overlay on chart (dim), price flat, labels and metadata, WAIT or indeterminate states</td>
+            </tr>
+            <tr>
+              <td><span class="th-swatch c-purple"></span><span class="th-color-label col-purple" style="color:#bf8cff;">Purple</span></td>
+              <td style="font-size:12px;color:var(--text);">TradeLog accent</td>
+              <td style="font-size:11px;color:var(--muted);">TradeLog panel header and nav indicator. No signal meaning — purely a panel identity color.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ══ GLOSSARY ══ -->
   <div class="th-content" id="th-glossary">
     <div class="th-section">
-      <div class="th-h2">Options Glossary</div>
-      <div class="th-gterm"><div class="th-gterm-word">Call Spread (Debit Spread)</div><div class="th-gterm-def">Buying a call at one strike AND selling a call at a higher strike. Caps your max profit but significantly reduces your cost.</div><div class="th-gterm-why">💡 Better R/R ratio than a long call. Cheaper entry means you can be wrong and still survive.</div></div>
-      <div class="th-gterm"><div class="th-gterm-word">DTE (Days To Expiration)</div><div class="th-gterm-def">The number of days until the option contract expires. TradeBrief targets 21–35 DTE for the best balance of cost and time.</div><div class="th-gterm-why">💡 Options lose value as expiration approaches (theta decay). Too short = too expensive per day.</div></div>
-      <div class="th-gterm"><div class="th-gterm-word">Break-Even</div><div class="th-gterm-def">The stock price at which your trade makes exactly $0 profit. For a call spread: Buy Strike + Net Cost per share.</div><div class="th-gterm-why">💡 Your break-even must be within the stock's expected move range for the trade to have a realistic shot.</div></div>
-      <div class="th-gterm"><div class="th-gterm-word">R/R (Reward-to-Risk)</div><div class="th-gterm-def">Max Profit divided by Max Loss. A 2.0 R/R means you could make $200 for every $100 risked.</div><div class="th-gterm-why">💡 TradeBrief requires a minimum 1.5 R/R. Trades below this aren't worth the risk mathematically.</div></div>
-      <div class="th-gterm"><div class="th-gterm-word">Delta</div><div class="th-gterm-def">How much the option price moves for every $1 move in the stock. A delta of 0.40 means the option gains $0.40 when the stock gains $1.</div><div class="th-gterm-why">💡 Delta is also a rough probability estimate. TradeBrief targets 0.15–0.70 delta for balanced trades.</div></div>
-      <div class="th-gterm"><div class="th-gterm-word">IV (Implied Volatility)</div><div class="th-gterm-def">The market's expectation of how much a stock will move. High IV = expensive options. Low IV = cheap options.</div><div class="th-gterm-why">💡 Buying options when IV is very high means you're overpaying. TradeBrief warns you when IV rank is elevated.</div></div>
-      <div class="th-gterm"><div class="th-gterm-word">IV Crush</div><div class="th-gterm-def">After a major event (like earnings), IV drops sharply — causing option prices to collapse even if the stock moved your way.</div><div class="th-gterm-why">💡 This is why TradeBrief flags any trade where earnings falls before expiration as RISKY.</div></div>
-      <div class="th-gterm"><div class="th-gterm-word">ATR (Average True Range)</div><div class="th-gterm-def">A measure of how much a stock typically moves in a day. ATR × 14 gives you an approximate expected move over two weeks.</div><div class="th-gterm-why">💡 Used to check if your break-even is realistic given the stock's typical movement.</div></div>
-      <div class="th-gterm"><div class="th-gterm-word">RSI (Relative Strength Index)</div><div class="th-gterm-def">A momentum indicator from 0–100. Above 70 = overbought. Below 30 = oversold. Sweet spot for entries: 40–60.</div><div class="th-gterm-why">💡 RSI tells you if a stock is extended. Buying calls on an RSI of 80 is buying at the top.</div></div>
-      <div class="th-gterm"><div class="th-gterm-word">EMA Crossover</div><div class="th-gterm-def">When the fast EMA (8) crosses above or below the slow EMA (21). A bullish crossover signals upward momentum.</div><div class="th-gterm-why">💡 TradeBrief uses EMA alignment to confirm trend before signaling CALLS or PUTS.</div></div>
+      <div class="th-h2">Terms Used in TradeBrief</div>
+
+      <div class="th-gterm">
+        <div class="th-gterm-word">Confidence Score (0–100)</div>
+        <div class="th-gterm-def">TradeBrief's aggregate technical score for a ticker. Combines EMA alignment, RSI quality, trend strength, volume, entry cleanliness, IV rank, and regime. Cards are ranked by this score.</div>
+        <div class="th-gterm-why">💡 Think of it as a signal quality rating, not a win probability. An 85 means the setup is technically clean — not that the trade will work.</div>
+      </div>
+
+      <div class="th-gterm">
+        <div class="th-gterm-word">Conviction Score</div>
+        <div class="th-gterm-def">Confidence Score + Thesis Score. Your written thesis analysis is scored by AI and added to the technical score. The final Conviction number determines the card's rank in the list.</div>
+        <div class="th-gterm-why">💡 A well-argued thesis can elevate a borderline setup or confirm a strong one. It is the only component of the score you directly control.</div>
+      </div>
+
+      <div class="th-gterm">
+        <div class="th-gterm-word">EMA (Exponential Moving Average)</div>
+        <div class="th-gterm-def">A moving average that weights recent prices more heavily than older ones. TradeBrief uses EMA 8 (fast, recent momentum) and EMA 21 (slow, medium-term trend). Alignment between them determines trend direction.</div>
+        <div class="th-gterm-why">💡 When EMA 8 is above EMA 21 and price is above both, the trend is confirmed bullish. That is the cleanest call setup structurally.</div>
+      </div>
+
+      <div class="th-gterm">
+        <div class="th-gterm-word">RSI (Relative Strength Index)</div>
+        <div class="th-gterm-def">Momentum oscillator, 0–100. Above 70 = overbought. Below 30 = oversold. 40–60 = neutral entry zone. TradeBrief uses the 14-period RSI and displays it on the TS canvas chart with shaded overbought/oversold zones.</div>
+        <div class="th-gterm-why">💡 Buying calls on an RSI of 80 means you are buying into exhaustion. The 40–60 zone is structurally cleaner for new entries in either direction.</div>
+      </div>
+
+      <div class="th-gterm">
+        <div class="th-gterm-word">ATR (Average True Range)</div>
+        <div class="th-gterm-def">Measures the average daily price movement over 14 days. Shown as a dollar amount. Used in TradeBrief to assess whether your break-even is achievable in the expected hold period. 3× ATR ≈ expected move over 2–3 weeks.</div>
+        <div class="th-gterm-why">💡 If your break-even requires a move larger than 3× ATR, the trade is probably structurally too ambitious for the expiration you selected.</div>
+      </div>
+
+      <div class="th-gterm">
+        <div class="th-gterm-word">IV Rank (Implied Volatility Rank)</div>
+        <div class="th-gterm-def">Ranks current implied volatility against the past 52 weeks (0–100). Low IV rank = cheap options. High IV rank = expensive options. TradeBrief penalizes high IV rank in the confidence score because buying premium when IV is elevated is structurally disadvantageous.</div>
+        <div class="th-gterm-why">💡 IV Rank above 60 means you are paying top-of-range prices for options. IV crush after a catalyst can destroy your P&L even if the stock moved your direction.</div>
+      </div>
+
+      <div class="th-gterm">
+        <div class="th-gterm-word">IV Crush</div>
+        <div class="th-gterm-def">When implied volatility collapses sharply after a major event — usually earnings. Option prices fall dramatically even if the stock moved in your direction, because the market no longer needs to price in the uncertainty.</div>
+        <div class="th-gterm-why">💡 This is why TradeBrief flags trades where earnings falls before expiration. IV crush is the silent killer of long options around earnings.</div>
+      </div>
+
+      <div class="th-gterm">
+        <div class="th-gterm-word">SPY Aligned</div>
+        <div class="th-gterm-def">The stock's signal direction matches the current SPY (S&P 500 ETF) trend direction. A bullish signal with SPY trending up has market tailwind. A bullish signal with SPY trending down is fighting the tape.</div>
+        <div class="th-gterm-why">💡 Individual stock setups work better with the broad market behind them. SPY alignment is not required, but its absence should raise your conviction threshold.</div>
+      </div>
+
+      <div class="th-gterm">
+        <div class="th-gterm-word">Debit Spread (Call Spread / Put Spread)</div>
+        <div class="th-gterm-def">Buying one option and selling another at a different strike in the same expiration. Caps your max profit but significantly reduces your net cost. Max loss = premium paid.</div>
+        <div class="th-gterm-why">💡 Better R/R than a long option in most setups. Lower cost means you can be partially wrong and still survive. TradeSheet models both spreads and long options.</div>
+      </div>
+
+      <div class="th-gterm">
+        <div class="th-gterm-word">R/R (Reward-to-Risk)</div>
+        <div class="th-gterm-def">Max profit divided by max loss. A 2.0 R/R means you could make $200 for every $100 at risk. TradeBrief requires a minimum 1.5 R/R — trades below this are flagged as structurally weak regardless of the setup quality.</div>
+        <div class="th-gterm-why">💡 You can be right only 40% of the time and still be profitable at 2.0 R/R. The math of the trade matters as much as the direction.</div>
+      </div>
+
+      <div class="th-gterm">
+        <div class="th-gterm-word">DTE (Days to Expiration)</div>
+        <div class="th-gterm-def">Calendar days until the option expires. TradeBrief targets 21+ DTE minimum for long options. Theta decay — the daily erosion of time value — accelerates sharply in the final 14 days.</div>
+        <div class="th-gterm-why">💡 Short-dated options are cheap for a reason. The further out you go, the more time you have to be right. Balance cost against runway.</div>
+      </div>
+
+      <div class="th-gterm">
+        <div class="th-gterm-word">Break-Even</div>
+        <div class="th-gterm-def">The stock price at which your trade makes exactly $0. For a long call: strike + premium paid. For a call spread: buy strike + net debit. Your break-even must be within the stock's expected move range to be realistic.</div>
+        <div class="th-gterm-why">💡 Always compare your break-even to 3× ATR. If the stock needs to move more than its typical 3-week range just to break even, you need a different setup.</div>
+      </div>
+
+      <div class="th-gterm">
+        <div class="th-gterm-word">Delta</div>
+        <div class="th-gterm-def">How much the option price changes for every $1 move in the stock. A delta of 0.40 means the option gains $0.40 when the stock gains $1. Delta is also a rough probability of expiring in the money.</div>
+        <div class="th-gterm-why">💡 TradeBrief targets 0.15–0.70 delta. Too low (deep OTM) = low probability. Too high (deep ITM) = expensive and limited leverage.</div>
+      </div>
+
     </div>
   </div>
 
@@ -1799,10 +2181,10 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
 
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.13.11</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.14</div>
 
 <!-- ══ MOBILE VERSION STAMP (always visible on mobile, bottom-left) ══════ -->
-<div id="mobile-version-stamp" style="display:none;">v7.13.11</div>
+<div id="mobile-version-stamp" style="display:none;">v7.14</div>
 
 <!-- ══ MOBILE SCAN BTN (Brief panel only, toggled via swApp) ═════════════ -->
 <div id="mobile-scan-btn-wrap" style="display:none;">
@@ -8525,9 +8907,8 @@ function swApp(name){
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradingBrief v7.13.11 — Intraday chart via timesales endpoint              ║
-     ║    Top Performers collapsed, top pick stat box                                       ║
-     ║  2026-04-24                                                       ║
+     ║  END TradeBrief v7.14 — TradeHelp full revamp                    ║
+     ║  2026-04-27                                                       ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 </body>
 </html>
