@@ -1,13 +1,13 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v7.14.5 — SIE incremental root cause fix             ║
+     ║  TRADEBRIEF v7.14.6 — SIE universe fix                           ║
      ║  Date: 2026-04-28                                                ║
-     ║  Changes from v7.14.4:                                           ║
-     ║    1. Fix: SIE runIncremental now passes allCandles to           ║
-     ║       pickSampleDates instead of newCandles — 14-day forward     ║
-     ║       window was consuming tiny newCandles pool, returning []    ║
-     ║       and silently skipping every write                          ║
-     ║    2. Fix: td-last-run null crash in refreshDisplay guarded      ║
+     ║  Changes from v7.14.5:                                           ║
+     ║    1. Fix: SI.UNIVERSE not exposed — engine had no ticker list   ║
+     ║       when triggered from TD panel or runNow()                   ║
+     ║    2. Fix: universe stored internally on init(), runNow() uses   ║
+     ║       stored universe as fallback — no more "not iterable" crash ║
+     ║    3. Fix: UNIVERSE exposed on SI public API via getter          ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 <html lang="en">
 <head>
@@ -17,7 +17,7 @@
 <meta name="theme-color" content="#111827">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>TradeBrief v7.14.5</title>
+<title>TradeBrief v7.14.6</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -2246,10 +2246,10 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
 
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.14.5</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.14.6</div>
 
 <!-- ══ MOBILE VERSION STAMP (always visible on mobile, bottom-left) ══════ -->
-<div id="mobile-version-stamp" style="display:none;">v7.14.5</div>
+<div id="mobile-version-stamp" style="display:none;">v7.14.6</div>
 
 <!-- ══ MOBILE SCAN BTN (Brief panel only, toggled via swApp) ═════════════ -->
 <div id="mobile-scan-btn-wrap" style="display:none;">
@@ -7950,7 +7950,7 @@ window.SI = (function(){
   // ── PUBLIC: RUN CURATION NOW (manual trigger) ─────────────────
   async function runNow(universe){
     _curating = false; // allow re-trigger
-    await runCuration(universe);
+    await runCuration(universe && universe.length ? universe : _universe);
   }
 
   // ── PUBLIC: GET RECORD ─────────────────────────────────────────
@@ -8032,11 +8032,12 @@ window.SI = (function(){
 
   // ── INIT ──────────────────────────────────────────────────────
   // Called after Firebase auth — loads records and schedules curation
+  let _universe = []; // stored on init for use by runNow and TD panel
+
   function init(universe){
+    _universe = universe || [];
     loadAllRecords().then(() => {
-      // Start curation in background after a short delay
-      // so it doesn't compete with the main scan on load
-      setTimeout(() => runCuration(universe), 15000);
+      setTimeout(() => runCuration(_universe), 15000);
     });
   }
 
@@ -8057,6 +8058,7 @@ window.SI = (function(){
     STANDARD_ACCURACY,
     MIN_DISPLAY_SAMPLES,
     MIN_FULL_SAMPLES,
+    get UNIVERSE(){ return _universe; },
     get _loaded(){ return _loaded; }
   };
 
@@ -9017,7 +9019,7 @@ function swApp(name){
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradeBrief v7.14.5 — SIE incremental root cause fix        ║
+     ║  END TradeBrief v7.14.6 — SIE universe fix                      ║
      ║  2026-04-27                                                       ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 </body>
