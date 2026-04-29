@@ -1,13 +1,12 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v7.14.6 — SIE universe fix                           ║
+     ║  TRADEBRIEF v7.14.7 — SIE forward window fix                     ║
      ║  Date: 2026-04-28                                                ║
-     ║  Changes from v7.14.5:                                           ║
-     ║    1. Fix: SI.UNIVERSE not exposed — engine had no ticker list   ║
-     ║       when triggered from TD panel or runNow()                   ║
-     ║    2. Fix: universe stored internally on init(), runNow() uses   ║
-     ║       stored universe as fallback — no more "not iterable" crash ║
-     ║    3. Fix: UNIVERSE exposed on SI public API via getter          ║
+     ║  Changes from v7.14.6:                                           ║
+     ║    1. Fix: pickSampleDates tail cutoff 14→3 days; pool min 5→1  ║
+     ║       Recent candles were being excluded from eligible pool      ║
+     ║    2. Fix: evaluateSample guard length-3 → length-1             ║
+     ║    3. Fix: Forward window fallback extended to include 1-day     ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 <html lang="en">
 <head>
@@ -17,7 +16,7 @@
 <meta name="theme-color" content="#111827">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>TradeBrief v7.14.6</title>
+<title>TradeBrief v7.14.7</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -2246,10 +2245,10 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
 
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.14.6</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.14.7</div>
 
 <!-- ══ MOBILE VERSION STAMP (always visible on mobile, bottom-left) ══════ -->
-<div id="mobile-version-stamp" style="display:none;">v7.14.6</div>
+<div id="mobile-version-stamp" style="display:none;">v7.14.7</div>
 
 <!-- ══ MOBILE SCAN BTN (Brief panel only, toggled via swApp) ═════════════ -->
 <div id="mobile-scan-btn-wrap" style="display:none;">
@@ -7715,14 +7714,14 @@ window.SI = (function(){
 
   // ── PICK RANDOM SAMPLE DATES FROM A CANDLE ARRAY ─────────────
   function pickSampleDates(candles, n, afterDate){
-    // Leave 14 days at end for forward window evaluation
-    const eligible = candles.slice(0, candles.length - 14);
+    // Leave 3 days at end — minimum forward window (evaluateSample falls back to 3d)
+    const eligible = candles.slice(0, candles.length - 3);
     let pool = eligible;
     if(afterDate){
       const cutoff = new Date(afterDate).getTime();
       pool = eligible.filter(c => new Date(c.date).getTime() > cutoff);
     }
-    if(pool.length < 5) return [];
+    if(pool.length < 1) return [];
     const shuffled = [...pool].sort(() => Math.random() - 0.5);
     return shuffled.slice(0, Math.min(n, pool.length)).map(c => c.date);
   }
@@ -7734,13 +7733,13 @@ window.SI = (function(){
     const signal = getSignalOnDate(allCandles, sampleDate);
     if(!signal) return null;
 
-    // Find forward candle at best available window (prefer 10d, fallback 5d, 3d)
+    // Find forward candle at best available window (prefer 10d, fallback 5d, 3d, 1d)
     const sampleIdx = allCandles.findIndex(c => c.date === sampleDate);
-    if(sampleIdx < 0 || sampleIdx >= allCandles.length - 3) return null;
+    if(sampleIdx < 0 || sampleIdx >= allCandles.length - 1) return null;
 
     const sampleClose = parseFloat(allCandles[sampleIdx].close);
     let forwardClose  = null;
-    for(const fwd of [10, 5, 3]){
+    for(const fwd of [10, 5, 3, 1]){
       const fi = sampleIdx + fwd;
       if(fi < allCandles.length){
         forwardClose = parseFloat(allCandles[fi].close);
@@ -9019,7 +9018,7 @@ function swApp(name){
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradeBrief v7.14.6 — SIE universe fix                      ║
+     ║  END TradeBrief v7.14.7 — SIE forward window fix                ║
      ║  2026-04-27                                                       ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 </body>
