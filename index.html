@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v7.14.7 — SIE forward window fix                     ║
+     ║  TRADEBRIEF v7.14.8 — SIE rolling window fix                     ║
      ║  Date: 2026-04-28                                                ║
-     ║  Changes from v7.14.6:                                           ║
-     ║    1. Fix: pickSampleDates tail cutoff 14→3 days; pool min 5→1  ║
-     ║       Recent candles were being excluded from eligible pool      ║
-     ║    2. Fix: evaluateSample guard length-3 → length-1             ║
-     ║    3. Fix: Forward window fallback extended to include 1-day     ║
+     ║  Changes from v7.14.7:                                           ║
+     ║    1. Fix: incremental run now picks sample dates from a rolling ║
+     ║       30-candle window (excluding last 3) instead of filtering   ║
+     ║       for dates after lastCandleDate — new candles were always   ║
+     ║       the tail with no forward history to evaluate against       ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 <html lang="en">
 <head>
@@ -16,7 +16,7 @@
 <meta name="theme-color" content="#111827">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>TradeBrief v7.14.7</title>
+<title>TradeBrief v7.14.8</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -2245,10 +2245,10 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
 
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.14.7</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.14.8</div>
 
 <!-- ══ MOBILE VERSION STAMP (always visible on mobile, bottom-left) ══════ -->
-<div id="mobile-version-stamp" style="display:none;">v7.14.7</div>
+<div id="mobile-version-stamp" style="display:none;">v7.14.8</div>
 
 <!-- ══ MOBILE SCAN BTN (Brief panel only, toggled via swApp) ═════════════ -->
 <div id="mobile-scan-btn-wrap" style="display:none;">
@@ -7796,10 +7796,12 @@ window.SI = (function(){
 
   // ── RUN INCREMENTAL UPDATE ────────────────────────────────────
   async function runIncremental(ticker, existing, newCandles, allCandles, spyCandles){
-    // Use allCandles as the pool so the 14-day forward window has room;
-    // afterDate filter ensures we only pick sample dates newer than last known candle
-    const sampleDates = pickSampleDates(allCandles, SAMPLES_INCREMENTAL, existing.lastCandleDate);
-    if(sampleDates.length === 0) return null; // no new data to test
+    // Pick sample dates from a rolling recent window of allCandles (last 30, excluding
+    // last 3 so forward candles exist). This avoids the "new candles are the tail"
+    // problem — we evaluate recent-but-not-too-recent dates that have forward history.
+    const recentWindow = allCandles.slice(-33, allCandles.length - 3); // last 30 evaluable candles
+    const sampleDates = pickSampleDates(recentWindow, SAMPLES_INCREMENTAL, null);
+    if(sampleDates.length === 0) return null;
 
     let addTotal=0, addCorrect=0, addRegimeTotal=0, addRegimeCorrect=0;
     for(const date of sampleDates){
@@ -9018,7 +9020,7 @@ function swApp(name){
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradeBrief v7.14.7 — SIE forward window fix                ║
+     ║  END TradeBrief v7.14.8 — SIE rolling window fix                ║
      ║  2026-04-27                                                       ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 </body>
