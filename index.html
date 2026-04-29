@@ -1,13 +1,10 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v7.14.9 — SIE baseline + TL exit fix                 ║
+     ║  TRADEBRIEF v7.14.10 — SIE reset sentinel fix                    ║
      ║  Date: 2026-04-29                                                ║
-     ║  Changes from v7.14.8:                                           ║
-     ║    1. Fix: SIE incremental window 30→90 candles (~4 months)     ║
-     ║       Captures regime variation, avoids baseline overlap         ║
-     ║    2. Add: window.SI.resetAllRecords() console command           ║
-     ║       Wipes all 125 Firestore SI docs, re-queues fresh baseline  ║
-     ║    3. Fix: TL exit targets (EXIT↑/↓) now multiply by contracts  ║
+     ║  Changes from v7.14.9:                                           ║
+     ║    1. Fix: loadAllRecords now skips _deleted sentinel records    ║
+     ║       Reset was writing sentinels that blocked baseline re-run   ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 <html lang="en">
 <head>
@@ -17,7 +14,7 @@
 <meta name="theme-color" content="#111827">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>TradeBrief v7.14.9</title>
+<title>TradeBrief v7.14.10</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -2246,10 +2243,10 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
 
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.14.9</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.14.10</div>
 
 <!-- ══ MOBILE VERSION STAMP (always visible on mobile, bottom-left) ══════ -->
-<div id="mobile-version-stamp" style="display:none;">v7.14.9</div>
+<div id="mobile-version-stamp" style="display:none;">v7.14.10</div>
 
 <!-- ══ MOBILE SCAN BTN (Brief panel only, toggled via swApp) ═════════════ -->
 <div id="mobile-scan-btn-wrap" style="display:none;">
@@ -7890,7 +7887,9 @@ window.SI = (function(){
     try{
       const snap = await window._fbSI.getDocs();
       snap.forEach(doc => {
-        _records[doc.id] = doc.data();
+        const data = doc.data();
+        if(data._deleted) return; // skip reset sentinels
+        _records[doc.id] = data;
       });
       _loaded = true;
       console.log(`SI: Loaded ${Object.keys(_records).length} intelligence records from Firestore`);
@@ -9043,7 +9042,7 @@ function swApp(name){
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradeBrief v7.14.9 — SIE baseline + TL exit fix            ║
+     ║  END TradeBrief v7.14.10 — SIE reset sentinel fix               ║
      ║  2026-04-27                                                       ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 </body>
