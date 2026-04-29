@@ -1,11 +1,10 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v7.14.3 — SIE incremental fix                        ║
+     ║  TRADEBRIEF v7.14.4 — Sticky P&L bar fix                         ║
      ║  Date: 2026-04-28                                                ║
-     ║  Changes from v7.14.2:                                           ║
-     ║    1. Fix: SIE incremental update threshold lowered from 3 to 1  ║
-     ║       Engine was skipping all tickers with <3 new candles,       ║
-     ║       causing sample count to freeze after initial bootstrap      ║
+     ║  Changes from v7.14.3:                                           ║
+     ║    1. Fix: P&L bar now sticky on TL, TD, TH (was scrolling)     ║
+     ║       Bar moved inside sticky header container on all 3 panels   ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 <html lang="en">
 <head>
@@ -15,7 +14,7 @@
 <meta name="theme-color" content="#111827">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>TradeBrief v7.14.3</title>
+<title>TradeBrief v7.14.4</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -1206,7 +1205,8 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
 <style>
 #panel-log *{box-sizing:border-box;}
 #panel-log{background:var(--bg);min-height:100vh;font-family:'DM Sans',sans-serif;}
-#panel-log .tl-header{position:sticky;top:0;z-index:200;background:var(--surface);border-bottom:1px solid var(--border);padding:10px 16px;display:flex;align-items:center;justify-content:space-between;}
+#panel-log .tl-header{position:sticky;top:0;z-index:200;background:var(--surface);border-bottom:1px solid var(--border);}
+#panel-log .tl-header-row{padding:10px 16px;display:flex;align-items:center;justify-content:space-between;}
 #panel-log .tl-logo{font-family:'Space Mono',monospace;font-size:22px;font-weight:700;color:#22d3ee;}
 #panel-log .tl-logo span{color:#ffa502;}
 #panel-log .tl-main{padding:16px;max-width:1200px;margin:0 auto;}
@@ -1275,6 +1275,7 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
 #panel-log .tl-closed-section .tl-table th{background:rgba(107,122,153,0.06);}
 </style>
 <div class="tl-header">
+<div class="tl-header-row">
   <div style="display:flex;align-items:center;gap:10px;">
     <div class="tl-logo">Trade<span>Log</span></div>
     <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted);font-family:'Space Mono',monospace;">
@@ -1306,6 +1307,7 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
     <div style="font-family:'Space Mono',monospace;font-size:7px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;">Best Trade</div>
     <div style="font-family:'Space Mono',monospace;font-size:13px;font-weight:700;" id="tl-pnl-best">—</div>
   </div>
+</div>
 </div>
 <div class="tl-main">
   <!-- Stats -->
@@ -1364,7 +1366,8 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
 <style>
 #panel-data *{box-sizing:border-box;}
 #panel-data{background:var(--bg);min-height:100vh;font-family:'DM Sans',sans-serif;}
-#panel-data .td-header{position:sticky;top:0;z-index:200;background:var(--surface);border-bottom:1px solid var(--border);padding:10px 16px;display:flex;align-items:center;justify-content:space-between;}
+#panel-data .td-header{position:sticky;top:0;z-index:200;background:var(--surface);border-bottom:1px solid var(--border);}
+#panel-data .td-header-row{padding:10px 16px;display:flex;align-items:center;justify-content:space-between;}
 #panel-data .td-logo{font-family:'Space Mono',monospace;font-size:22px;font-weight:700;color:#22d3ee;}
 #panel-data .td-logo span{color:#FF6EFF;}
 #panel-data .td-main{padding:16px;max-width:860px;margin:0 auto;}
@@ -1432,6 +1435,7 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
 </style>
 
 <div class="td-header">
+<div class="td-header-row">
   <div style="display:flex;align-items:center;gap:10px;">
     <div class="td-logo">Trade<span>Data</span></div>
     <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted);font-family:'Space Mono',monospace;">
@@ -1463,6 +1467,7 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
     <div style="font-family:'Space Mono',monospace;font-size:7px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;">Best Trade</div>
     <div style="font-family:'Space Mono',monospace;font-size:13px;font-weight:700;" id="td-pnl-best">—</div>
   </div>
+</div>
 </div>
 
 <div class="td-main">
@@ -1598,7 +1603,8 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
 #panel-help{background:var(--bg);min-height:100vh;font-family:'DM Sans',sans-serif;}
 
 /* ── HEADER ── */
-#panel-help .th-header{position:sticky;top:0;z-index:200;background:var(--surface);border-bottom:1px solid var(--border);padding:10px 16px;display:flex;align-items:center;justify-content:space-between;}
+#panel-help .th-header{position:sticky;top:0;z-index:200;background:var(--surface);border-bottom:1px solid var(--border);}
+#panel-help .th-header-row{padding:10px 16px;display:flex;align-items:center;justify-content:space-between;}
 #panel-help .th-logo{font-family:'Space Mono',monospace;font-size:22px;font-weight:700;color:#22d3ee;}
 #panel-help .th-logo span{color:#ff4d4d;}
 #panel-help .th-main{padding:16px;max-width:860px;margin:0 auto;}
@@ -1677,6 +1683,7 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
 </style>
 
 <div class="th-header">
+<div class="th-header-row">
   <div style="display:flex;align-items:center;gap:10px;">
     <div class="th-logo">Trade<span>Help</span></div>
     <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted);font-family:'Space Mono',monospace;">
@@ -1708,6 +1715,7 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
     <div style="font-family:'Space Mono',monospace;font-size:7px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;">Best Trade</div>
     <div style="font-family:'Space Mono',monospace;font-size:13px;font-weight:700;" id="th-pnl-best">—</div>
   </div>
+</div>
 </div>
 
 <div class="th-main">
@@ -2235,10 +2243,10 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
 
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.14.3</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.14.4</div>
 
 <!-- ══ MOBILE VERSION STAMP (always visible on mobile, bottom-left) ══════ -->
-<div id="mobile-version-stamp" style="display:none;">v7.14.3</div>
+<div id="mobile-version-stamp" style="display:none;">v7.14.4</div>
 
 <!-- ══ MOBILE SCAN BTN (Brief panel only, toggled via swApp) ═════════════ -->
 <div id="mobile-scan-btn-wrap" style="display:none;">
@@ -9003,7 +9011,7 @@ function swApp(name){
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradeBrief v7.14.3 — SIE incremental fix                   ║
+     ║  END TradeBrief v7.14.4 — Sticky P&L bar fix                    ║
      ║  2026-04-27                                                       ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 </body>
