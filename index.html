@@ -1,14 +1,11 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v7.14.2 — TradeLog overhaul + chart + P&L bar       ║
+     ║  TRADEBRIEF v7.14.3 — SIE incremental fix                        ║
      ║  Date: 2026-04-28                                                ║
-     ║  Changes from v7.14.1:                                           ║
-     ║    1. Fix: TradeLog filters now actually filter rows             ║
-     ║       (OPEN/CLOSED/type filters were wired but never applied)    ║
-     ║    2. Active Trades columns: TYPE leads, R/R + IV RANK removed   ║
-     ║    3. Closed Trades columns: TYPE leads, R/R + IV RANK removed   ║
-     ║    4. P&L bar added to TradeLog, TradeData, TradeHelp headers    ║
-     ║    5. TradeSheet chart: WEEKLY button added                      ║
+     ║  Changes from v7.14.2:                                           ║
+     ║    1. Fix: SIE incremental update threshold lowered from 3 to 1  ║
+     ║       Engine was skipping all tickers with <3 new candles,       ║
+     ║       causing sample count to freeze after initial bootstrap      ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 <html lang="en">
 <head>
@@ -18,7 +15,7 @@
 <meta name="theme-color" content="#111827">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>TradeBrief v7.14.2</title>
+<title>TradeBrief v7.14.3</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -2238,10 +2235,10 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
 
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.14.2</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.14.3</div>
 
 <!-- ══ MOBILE VERSION STAMP (always visible on mobile, bottom-left) ══════ -->
-<div id="mobile-version-stamp" style="display:none;">v7.14.2</div>
+<div id="mobile-version-stamp" style="display:none;">v7.14.3</div>
 
 <!-- ══ MOBILE SCAN BTN (Brief panel only, toggled via swApp) ═════════════ -->
 <div id="mobile-scan-btn-wrap" style="display:none;">
@@ -7849,7 +7846,7 @@ window.SI = (function(){
       // New candles are those after lastCandleDate
       const lastDate   = existing.lastCandleDate;
       const newCandles = allCandles.filter(c => c.date > lastDate);
-      if(newCandles.length < 3){
+      if(newCandles.length < 1){
         console.log(`SI: ↩ ${ticker} — no new candles since ${lastDate}`);
         return;
       }
@@ -9006,7 +9003,7 @@ function swApp(name){
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradeBrief v7.14.2 — TradeLog overhaul + chart + P&L bar   ║
+     ║  END TradeBrief v7.14.3 — SIE incremental fix                   ║
      ║  2026-04-27                                                       ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 </body>
