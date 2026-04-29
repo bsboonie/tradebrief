@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v7.14.8 — SIE rolling window fix                     ║
+     ║  TRADEBRIEF v7.14.9 — TL contract count + xCost                     ║
      ║  Date: 2026-04-28                                                ║
      ║  Changes from v7.14.7:                                           ║
      ║    1. Fix: incremental run now picks sample dates from a rolling ║
@@ -16,7 +16,7 @@
 <meta name="theme-color" content="#111827">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>TradeBrief v7.14.8</title>
+<title>TradeBrief v7.14.9</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -1336,7 +1336,7 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
       <thead>
         <tr>
           <th>TYPE</th><th>TKR</th><th>DATE</th><th>EXP</th><th class="tl-col-px">PRICE</th><th>STRK</th>
-          <th>COST $</th><th>MAX $</th><th>LIVE $</th><th>EXIT ↑</th><th>EXIT ↓</th>
+          <th>COST ea$</th><th>CTRK #</th><th>xCOST $</th><th>MAX $</th><th>LIVE $</th><th>EXIT ↑</th><th>EXIT ↓</th>
           <th>ACT</th>
         </tr>
       </thead>
@@ -1351,7 +1351,7 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
       <thead>
         <tr>
           <th>TYPE</th><th>TKR</th><th>DATE</th><th>EXP</th><th>STRK</th>
-          <th>COST $</th><th>MAX $</th><th>CLOSED $</th><th>RESULT</th><th>P&L $</th><th>ACT</th>
+          <th>COST ea$</th><th>CTRK #</th><th>MAX $</th><th>CLOSED $</th><th>RESULT</th><th>P&L $</th><th>ACT</th>
         </tr>
       </thead>
       <tbody id="tl-closed-tbody"></tbody>
@@ -2245,10 +2245,10 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
 
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.14.8</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.14.9</div>
 
 <!-- ══ MOBILE VERSION STAMP (always visible on mobile, bottom-left) ══════ -->
-<div id="mobile-version-stamp" style="display:none;">v7.14.8</div>
+<div id="mobile-version-stamp" style="display:none;">v7.14.9</div>
 
 <!-- ══ MOBILE SCAN BTN (Brief panel only, toggled via swApp) ═════════════ -->
 <div id="mobile-scan-btn-wrap" style="display:none;">
@@ -8809,12 +8809,17 @@ function swApp(name){
           const isClosing = tlClosingId === t.id;
           const trashClass = isPending ? 'tl-trash-btn confirm' : 'tl-trash-btn';
 
-          // Live $ cell
+          // Contract count + xCost
+          const ctrkQty   = parseInt(t.contracts) || 1;
+          const costEa    = parseFloat(t.cost || 0);
+          const xCost     = costEa * ctrkQty;
+
+          // Live $ cell (compared against xCost — total position cost)
           const ld = tlLiveData[t.id];
           let liveCell = '<span class="tl-live-loading">…</span>';
           if (ld && !ld.loading) {
             if (ld.liveVal !== null) {
-              const liveColor = ld.liveVal >= parseFloat(t.cost) * (parseInt(t.contracts)||1) ? 'tl-live-pos' : 'tl-live-neg';
+              const liveColor = ld.liveVal >= xCost ? 'tl-live-pos' : 'tl-live-neg';
               liveCell = `<span class="${liveColor}">$${ld.liveVal.toFixed(2)}</span>`;
             } else {
               liveCell = '<span class="tl-live-loading">—</span>';
@@ -8824,7 +8829,7 @@ function swApp(name){
           // Inline close row
           const closeRow = isClosing ? `
           <tr id="tl-close-out-row" class="tl-close-row">
-            <td colspan="12" style="padding:10px 12px;">
+            <td colspan="14" style="padding:10px 12px;">
               <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
                 <span style="font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:1px;">CLOSE AT ($)</span>
                 <input id="tl-close-price-input" class="tl-close-price" type="number" step="0.01"
@@ -8862,7 +8867,9 @@ function swApp(name){
             <td>${expDateFmt}</td>
             <td>${stockPxCell}</td>
             <td>${strikesFmt}</td>
-            <td style="color:var(--accent);">$${parseFloat(t.cost||0).toFixed(2)}</td>
+            <td style="color:var(--accent);">$${costEa.toFixed(2)}</td>
+            <td><input class="tl-exit-input tl-ctrk-input" type="number" min="1" step="1" value="${ctrkQty}" data-id="${t.id}" onblur="tlCtrkSave(this)" onkeydown="if(event.key==='Enter')this.blur()" style="width:52px;text-align:center;color:var(--warning);"></td>
+            <td style="color:var(--text);font-weight:600;">$${xCost.toFixed(2)}</td>
             <td>${t.maxProfit!=null ? '$'+parseFloat(t.maxProfit).toFixed(2) : '—'}</td>
             <td>${liveCell}</td>
             <td><input class="tl-exit-input tl-exit-itm-input" type="number" step="0.01" value="${exitItmVal}" placeholder="—" data-id="${t.id}" data-side="itm" onfocus="tlExitFocus(this)" onblur="tlExitSave(this)" onkeydown="if(event.key==='Enter')this.blur()"></td>
@@ -8906,6 +8913,7 @@ function swApp(name){
             <td>${expDateFmt}</td>
             <td>${strikesFmt}</td>
             <td style="color:var(--accent);">$${parseFloat(t.cost||0).toFixed(2)}</td>
+            <td style="color:var(--muted);text-align:center;">${parseInt(t.contracts)||1}</td>
             <td>${t.maxProfit!=null ? '$'+parseFloat(t.maxProfit).toFixed(2) : '—'}</td>
             <td style="color:var(--muted);">${closedPrice}</td>
             <td><span class="tl-outcome-pill ${outcomeClass}">${t.outcome}</span></td>
@@ -9003,12 +9011,48 @@ function swApp(name){
     }
   }
 
-  window.tlLiveData        = tlLiveData;
+  async function tlCtrkSave(input) {
+    const id  = input.dataset.id;
+    const newQty = parseInt(input.value);
+    if (isNaN(newQty) || newQty < 1) { input.value = 1; return; }
+    input.style.borderColor = 'var(--good)';
+    input.style.background  = 'rgba(0,255,157,0.08)';
+    setTimeout(() => { input.style.borderColor = ''; input.style.background = ''; }, 800);
+
+    // Load current trade to proportionally scale exits
+    const all = getTrades();
+    const trade = all.find(t => t.id === id);
+    if (!trade) return;
+    const oldQty = parseInt(trade.contracts) || 1;
+    const update = { contracts: newQty };
+
+    // Scale exits proportionally if they exist and were not manually zeroed
+    if (trade.exitItm && oldQty > 0) {
+      update.exitItm = parseFloat(((parseFloat(trade.exitItm) / oldQty) * newQty).toFixed(2));
+    }
+    if (trade.exitOtm && oldQty > 0) {
+      update.exitOtm = parseFloat(((parseFloat(trade.exitOtm) / oldQty) * newQty).toFixed(2));
+    }
+
+    if (window.TS && window.TS.updateTrade) {
+      await window.TS.updateTrade(id, update);
+    } else {
+      try {
+        const trades = JSON.parse(localStorage.getItem('ts-trades') || '[]');
+        const idx = trades.findIndex(t => t.id === id);
+        if (idx >= 0) { Object.assign(trades[idx], update); localStorage.setItem('ts-trades', JSON.stringify(trades)); }
+      } catch(e) {}
+    }
+    tlRender();
+  }
+
+
   window.tlRender          = tlRender;
   window.tlSetFilter       = tlSetFilter;
   window.tlTrash           = tlTrash;
   window.tlExitFocus       = tlExitFocus;
   window.tlExitSave        = tlExitSave;
+  window.tlCtrkSave        = tlCtrkSave;
   window.tlStartClose      = tlStartClose;
   window.tlCancelClose     = tlCancelClose;
   window.tlSetCloseOutcome = tlSetCloseOutcome;
@@ -9020,7 +9064,7 @@ function swApp(name){
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradeBrief v7.14.8 — SIE rolling window fix                ║
+     ║  END TradeBrief v7.14.9 — TL contract count + xCost                ║
      ║  2026-04-27                                                       ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 </body>
