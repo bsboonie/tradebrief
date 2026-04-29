@@ -1,10 +1,13 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v7.14.4 — Sticky P&L bar fix                         ║
+     ║  TRADEBRIEF v7.14.5 — SIE incremental root cause fix             ║
      ║  Date: 2026-04-28                                                ║
-     ║  Changes from v7.14.3:                                           ║
-     ║    1. Fix: P&L bar now sticky on TL, TD, TH (was scrolling)     ║
-     ║       Bar moved inside sticky header container on all 3 panels   ║
+     ║  Changes from v7.14.4:                                           ║
+     ║    1. Fix: SIE runIncremental now passes allCandles to           ║
+     ║       pickSampleDates instead of newCandles — 14-day forward     ║
+     ║       window was consuming tiny newCandles pool, returning []    ║
+     ║       and silently skipping every write                          ║
+     ║    2. Fix: td-last-run null crash in refreshDisplay guarded      ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 <html lang="en">
 <head>
@@ -14,7 +17,7 @@
 <meta name="theme-color" content="#111827">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>TradeBrief v7.14.4</title>
+<title>TradeBrief v7.14.5</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -2243,10 +2246,10 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
 
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.14.4</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.14.5</div>
 
 <!-- ══ MOBILE VERSION STAMP (always visible on mobile, bottom-left) ══════ -->
-<div id="mobile-version-stamp" style="display:none;">v7.14.4</div>
+<div id="mobile-version-stamp" style="display:none;">v7.14.5</div>
 
 <!-- ══ MOBILE SCAN BTN (Brief panel only, toggled via swApp) ═════════════ -->
 <div id="mobile-scan-btn-wrap" style="display:none;">
@@ -7794,7 +7797,9 @@ window.SI = (function(){
 
   // ── RUN INCREMENTAL UPDATE ────────────────────────────────────
   async function runIncremental(ticker, existing, newCandles, allCandles, spyCandles){
-    const sampleDates = pickSampleDates(newCandles, SAMPLES_INCREMENTAL, existing.lastCandleDate);
+    // Use allCandles as the pool so the 14-day forward window has room;
+    // afterDate filter ensures we only pick sample dates newer than last known candle
+    const sampleDates = pickSampleDates(allCandles, SAMPLES_INCREMENTAL, existing.lastCandleDate);
     if(sampleDates.length === 0) return null; // no new data to test
 
     let addTotal=0, addCorrect=0, addRegimeTotal=0, addRegimeCorrect=0;
@@ -8223,7 +8228,8 @@ window.TD = (function(){
     }).filter(t=>t>0);
     if(allDates.length){
       const latest=new Date(Math.max(...allDates));
-      document.getElementById('td-last-run').textContent='Last curation: '+latest.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+      const el=document.getElementById('td-last-run');
+      if(el) el.textContent='Last curation: '+latest.toLocaleDateString('en-US',{month:'short',day:'numeric'});
     }
   }
 
@@ -9011,7 +9017,7 @@ function swApp(name){
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradeBrief v7.14.4 — Sticky P&L bar fix                    ║
+     ║  END TradeBrief v7.14.5 — SIE incremental root cause fix        ║
      ║  2026-04-27                                                       ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 </body>
