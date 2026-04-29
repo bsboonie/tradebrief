@@ -1,13 +1,14 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v7.14.1 — Directional gate fix                       ║
-     ║  Date: 2026-04-27                                                ║
-     ║  Changes from v7.14:                                             ║
-     ║    1. Fix: Directional gate — price must confirm EMA crossover   ║
-     ║       EMA8>EMA21 but price below EMA8 → WAIT, not CALLS         ║
-     ║       Eliminates CALLS/BEARISH contradiction on same card        ║
-     ║    2. Fix: Regime filter passes WAIT signals through             ║
-     ║       Only hard-filters true directional conflicts               ║
+     ║  TRADEBRIEF v7.14.2 — TradeLog overhaul + chart + P&L bar       ║
+     ║  Date: 2026-04-28                                                ║
+     ║  Changes from v7.14.1:                                           ║
+     ║    1. Fix: TradeLog filters now actually filter rows             ║
+     ║       (OPEN/CLOSED/type filters were wired but never applied)    ║
+     ║    2. Active Trades columns: TYPE leads, R/R + IV RANK removed   ║
+     ║    3. Closed Trades columns: TYPE leads, R/R + IV RANK removed   ║
+     ║    4. P&L bar added to TradeLog, TradeData, TradeHelp headers    ║
+     ║    5. TradeSheet chart: WEEKLY button added                      ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 <html lang="en">
 <head>
@@ -17,7 +18,7 @@
 <meta name="theme-color" content="#111827">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>TradeBrief v7.14.1</title>
+<title>TradeBrief v7.14.2</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -841,6 +842,7 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
         <div class="ts-chart-header">
           <div class="ts-chart-title" id="ts-chart-title">📈 CHART</div>
           <div class="ts-chart-toggles">
+            <button class="ts-view-btn" id="ts-view-weekly" onclick="tsChartSetView('weekly')">WEEKLY</button>
             <button class="ts-view-btn active" id="ts-view-daily" onclick="tsChartSetView('daily')">DAILY</button>
             <button class="ts-view-btn" id="ts-view-60m" onclick="tsChartSetView('60m')">60-MIN</button>
             <button class="ts-view-btn" id="ts-view-5m" onclick="tsChartSetView('5m')">5-MIN</button>
@@ -1289,6 +1291,25 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
     <button id="tl-gear-btn" onclick="tlGearClick()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 9px;cursor:pointer;color:var(--muted);font-size:14px;line-height:1;transition:all 0.2s;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">⚙️</button>
   </div>
 </div>
+<!-- Condensed P&L bar — TradeLog -->
+<div style="display:flex;align-items:center;background:var(--surface2);border-bottom:1px solid var(--border);padding:4px 0;">
+  <div style="flex:1;text-align:center;padding:4px 10px;border-right:1px solid var(--border);">
+    <div style="font-family:'Space Mono',monospace;font-size:7px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;">Realized</div>
+    <div style="font-family:'Space Mono',monospace;font-size:13px;font-weight:700;" id="tl-pnl-realized">$0</div>
+  </div>
+  <div style="flex:1;text-align:center;padding:4px 10px;border-right:1px solid var(--border);">
+    <div style="font-family:'Space Mono',monospace;font-size:7px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;">Unrealized</div>
+    <div style="font-family:'Space Mono',monospace;font-size:13px;font-weight:700;" id="tl-pnl-open">$0</div>
+  </div>
+  <div style="flex:1;text-align:center;padding:4px 10px;border-right:1px solid var(--border);">
+    <div style="font-family:'Space Mono',monospace;font-size:7px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;">Total</div>
+    <div style="font-family:'Space Mono',monospace;font-size:13px;font-weight:700;" id="tl-pnl-total">$0</div>
+  </div>
+  <div style="flex:1;text-align:center;padding:4px 10px;">
+    <div style="font-family:'Space Mono',monospace;font-size:7px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;">Best Trade</div>
+    <div style="font-family:'Space Mono',monospace;font-size:13px;font-weight:700;" id="tl-pnl-best">—</div>
+  </div>
+</div>
 <div class="tl-main">
   <!-- Stats -->
   <div class="tl-stats">
@@ -1313,9 +1334,8 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
     <table class="tl-table">
       <thead>
         <tr>
-          <th>DATE</th><th>TKR</th><th>TYPE</th><th class="tl-col-px">PRICE</th><th>STRK</th>
-          <th>EXP</th><th>COST $</th><th>MAX $</th><th>LIVE $</th><th class="tl-col-rr">R/R</th>
-          <th class="tl-col-iv">IV RANK</th><th>EXIT ↑</th><th>EXIT ↓</th>
+          <th>TYPE</th><th>TKR</th><th>DATE</th><th>EXP</th><th class="tl-col-px">PRICE</th><th>STRK</th>
+          <th>COST $</th><th>MAX $</th><th>LIVE $</th><th>EXIT ↑</th><th>EXIT ↓</th>
           <th>ACT</th>
         </tr>
       </thead>
@@ -1329,9 +1349,8 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
     <table class="tl-table">
       <thead>
         <tr>
-          <th>DATE</th><th>TKR</th><th>TYPE</th><th>STRK</th>
-          <th>EXP</th><th>COST $</th><th>MAX $</th><th>CLOSED $</th><th class="tl-col-rr">R/R</th>
-          <th class="tl-col-iv">IV RANK</th><th>RESULT</th><th>P&L $</th><th>ACT</th>
+          <th>TYPE</th><th>TKR</th><th>DATE</th><th>EXP</th><th>STRK</th>
+          <th>COST $</th><th>MAX $</th><th>CLOSED $</th><th>RESULT</th><th>P&L $</th><th>ACT</th>
         </tr>
       </thead>
       <tbody id="tl-closed-tbody"></tbody>
@@ -1427,6 +1446,25 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
   <div style="display:flex;align-items:center;gap:10px;">
     <span class="tb-nav-link" onclick="swApp('brief')" style="font-family:'Space Mono',monospace;font-size:16px;font-weight:700;color:#22d3ee;cursor:pointer;opacity:0.85;transition:opacity 0.2s;user-select:none;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.85'">Trade<span style="color:#4ade80;">Brief</span></span>
     <button id="td-gear-btn" onclick="tdGearClick()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 9px;cursor:pointer;color:var(--muted);font-size:14px;line-height:1;transition:all 0.2s;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">⚙️</button>
+  </div>
+</div>
+<!-- Condensed P&L bar — TradeData -->
+<div style="display:flex;align-items:center;background:var(--surface2);border-bottom:1px solid var(--border);padding:4px 0;">
+  <div style="flex:1;text-align:center;padding:4px 10px;border-right:1px solid var(--border);">
+    <div style="font-family:'Space Mono',monospace;font-size:7px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;">Realized</div>
+    <div style="font-family:'Space Mono',monospace;font-size:13px;font-weight:700;" id="td-pnl-realized">$0</div>
+  </div>
+  <div style="flex:1;text-align:center;padding:4px 10px;border-right:1px solid var(--border);">
+    <div style="font-family:'Space Mono',monospace;font-size:7px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;">Unrealized</div>
+    <div style="font-family:'Space Mono',monospace;font-size:13px;font-weight:700;" id="td-pnl-open">$0</div>
+  </div>
+  <div style="flex:1;text-align:center;padding:4px 10px;border-right:1px solid var(--border);">
+    <div style="font-family:'Space Mono',monospace;font-size:7px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;">Total</div>
+    <div style="font-family:'Space Mono',monospace;font-size:13px;font-weight:700;" id="td-pnl-total">$0</div>
+  </div>
+  <div style="flex:1;text-align:center;padding:4px 10px;">
+    <div style="font-family:'Space Mono',monospace;font-size:7px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;">Best Trade</div>
+    <div style="font-family:'Space Mono',monospace;font-size:13px;font-weight:700;" id="td-pnl-best">—</div>
   </div>
 </div>
 
@@ -1653,6 +1691,25 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
   <div style="display:flex;align-items:center;gap:10px;">
     <span class="tb-nav-link" onclick="swApp('brief')" style="font-family:'Space Mono',monospace;font-size:16px;font-weight:700;color:#22d3ee;cursor:pointer;opacity:0.85;transition:opacity 0.2s;user-select:none;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.85'">Trade<span style="color:#4ade80;">Brief</span></span>
     <button id="th-gear-btn" onclick="thGearClick()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 9px;cursor:pointer;color:var(--muted);font-size:14px;line-height:1;transition:all 0.2s;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">⚙️</button>
+  </div>
+</div>
+<!-- Condensed P&L bar — TradeHelp -->
+<div style="display:flex;align-items:center;background:var(--surface2);border-bottom:1px solid var(--border);padding:4px 0;">
+  <div style="flex:1;text-align:center;padding:4px 10px;border-right:1px solid var(--border);">
+    <div style="font-family:'Space Mono',monospace;font-size:7px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;">Realized</div>
+    <div style="font-family:'Space Mono',monospace;font-size:13px;font-weight:700;" id="th-pnl-realized">$0</div>
+  </div>
+  <div style="flex:1;text-align:center;padding:4px 10px;border-right:1px solid var(--border);">
+    <div style="font-family:'Space Mono',monospace;font-size:7px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;">Unrealized</div>
+    <div style="font-family:'Space Mono',monospace;font-size:13px;font-weight:700;" id="th-pnl-open">$0</div>
+  </div>
+  <div style="flex:1;text-align:center;padding:4px 10px;border-right:1px solid var(--border);">
+    <div style="font-family:'Space Mono',monospace;font-size:7px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;">Total</div>
+    <div style="font-family:'Space Mono',monospace;font-size:13px;font-weight:700;" id="th-pnl-total">$0</div>
+  </div>
+  <div style="flex:1;text-align:center;padding:4px 10px;">
+    <div style="font-family:'Space Mono',monospace;font-size:7px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;">Best Trade</div>
+    <div style="font-family:'Space Mono',monospace;font-size:13px;font-weight:700;" id="th-pnl-best">—</div>
   </div>
 </div>
 
@@ -2181,10 +2238,10 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
 
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.14.1</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.14.2</div>
 
 <!-- ══ MOBILE VERSION STAMP (always visible on mobile, bottom-left) ══════ -->
-<div id="mobile-version-stamp" style="display:none;">v7.14.1</div>
+<div id="mobile-version-stamp" style="display:none;">v7.14.2</div>
 
 <!-- ══ MOBILE SCAN BTN (Brief panel only, toggled via swApp) ═════════════ -->
 <div id="mobile-scan-btn-wrap" style="display:none;">
@@ -3642,6 +3699,9 @@ function updatePnL(){
     if(bestTrade)b.style.color='var(--good)';
   };
   syncPnlBar('ts');
+  syncPnlBar('tl');
+  syncPnlBar('td');
+  syncPnlBar('th');
   checkNotifications();
 }
 
@@ -7152,7 +7212,7 @@ const tsChart = (function(){
 
   function setView(view) {
     _view = view;
-    ['daily','60m','5m'].forEach(v => {
+    ['weekly','daily','60m','5m'].forEach(v => {
       const el = document.getElementById('ts-view-' + v);
       if (el) el.classList.toggle('active', v === view);
     });
@@ -7175,7 +7235,7 @@ const tsChart = (function(){
     mainCanvas.style.display = 'none';
     rsiCanvas.style.display = 'none';
     if (legend) legend.style.display = 'none';
-    if (title) title.textContent = '📈 ' + ticker + ' — ' + (_view === 'daily' ? 'DAILY' : _view === '60m' ? '60-MIN' : '5-MIN');
+    if (title) title.textContent = '📈 ' + ticker + ' — ' + (_view === 'weekly' ? 'WEEKLY' : _view === 'daily' ? 'DAILY' : _view === '60m' ? '60-MIN' : '5-MIN');
 
     try {
       _candles = await fetchCandles(ticker, _view);
@@ -7198,7 +7258,10 @@ const tsChart = (function(){
     const fmtDt = d => d.toISOString().slice(0,19); // YYYY-MM-DDTHH:MM:SS for timesales
     let isTimesales = false;
 
-    if (view === 'daily') {
+    if (view === 'weekly') {
+      const start = new Date(); start.setFullYear(start.getFullYear() - 2);
+      url = `${PROXY}/tradier?type=history&symbol=${ticker}&interval=weekly&start=${fmt(start)}&end=${fmt(now)}`;
+    } else if (view === 'daily') {
       const start = new Date(); start.setMonth(start.getMonth() - 6);
       url = `${PROXY}/tradier?type=history&symbol=${ticker}&interval=daily&start=${fmt(start)}&end=${fmt(now)}`;
     } else if (view === '60m') {
@@ -8685,16 +8748,45 @@ function swApp(name){
     const active = all.filter(t => t.outcome === 'Open' || !t.outcome);
     const closed = all.filter(t => t.outcome && t.outcome !== 'Open');
 
+    // ── Apply filter ──────────────────────────────────────────────
+    // Determine which sections to show and which trades to display
+    const typeFilters = ['Long Call','Long Put','Call Spread','Put Spread'];
+    const isTypeFilter = typeFilters.includes(tlFilter);
+
+    let showActive = true;
+    let showClosed = true;
+    let filteredActive = active;
+    let filteredClosed = closed;
+
+    if (tlFilter === 'open') {
+      showClosed = false;
+    } else if (tlFilter === 'closed') {
+      showActive = false;
+    } else if (isTypeFilter) {
+      filteredActive = active.filter(t => t.type === tlFilter);
+      filteredClosed = closed.filter(t => t.type === tlFilter);
+    }
+
+    // Show/hide entire sections based on filter
+    const activeWrap = document.getElementById('tl-active-wrap');
+    const activeHdr  = document.querySelector('#panel-log .tl-section-hdr:first-of-type');
+    const closedWrap = document.getElementById('tl-closed-wrap');
+    const closedHdr  = document.querySelector('#panel-log .tl-closed-section.tl-section-hdr');
+
+    if (activeWrap)  activeWrap.style.display  = showActive ? '' : 'none';
+    if (closedWrap)  closedWrap.style.display  = showClosed ? '' : 'none';
+    if (closedHdr)   closedHdr.style.display   = showClosed ? '' : 'none';
+
     // ── Active trades ─────────────────────────────────────────────
     const activeTbody = document.getElementById('tl-active-tbody');
     const activeEmpty = document.getElementById('tl-active-empty');
     if (activeTbody) {
-      if (!active.length) {
+      if (!filteredActive.length) {
         activeTbody.innerHTML = '';
         if (activeEmpty) activeEmpty.style.display = 'block';
       } else {
         if (activeEmpty) activeEmpty.style.display = 'none';
-        activeTbody.innerHTML = active.map(t => {
+        activeTbody.innerHTML = filteredActive.map(t => {
           const typeClass = {'Long Call':'lc','Long Put':'lp','Call Spread':'cs','Put Spread':'ps'}[t.type] || 'cs';
 
           const exitItmVal = t.exitItm ? parseFloat(t.exitItm).toFixed(2) : '';
@@ -8718,7 +8810,7 @@ function swApp(name){
           // Inline close row
           const closeRow = isClosing ? `
           <tr id="tl-close-out-row" class="tl-close-row">
-            <td colspan="14" style="padding:10px 12px;">
+            <td colspan="12" style="padding:10px 12px;">
               <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
                 <span style="font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:1px;">CLOSE AT ($)</span>
                 <input id="tl-close-price-input" class="tl-close-price" type="number" step="0.01"
@@ -8750,17 +8842,15 @@ function swApp(name){
           const expDateFmt   = (t.expDate||'—').replace(/^\d{4}-/,'');
           const strikesFmt   = t.sellStrike ? `$${t.buyStrike}/$${t.sellStrike}` : `$${t.buyStrike}`;
           return `<tr>
-            <td>${entryDateFmt}</td>
-            <td style="font-weight:700;">${t.ticker}</td>
             <td><span class="tl-type-pill ${typeClass}">${typeAbbr}</span></td>
+            <td style="font-weight:700;">${t.ticker}</td>
+            <td>${entryDateFmt}</td>
+            <td>${expDateFmt}</td>
             <td>${stockPxCell}</td>
             <td>${strikesFmt}</td>
-            <td>${expDateFmt}</td>
             <td style="color:var(--accent);">$${parseFloat(t.cost||0).toFixed(2)}</td>
             <td>${t.maxProfit!=null ? '$'+parseFloat(t.maxProfit).toFixed(2) : '—'}</td>
             <td>${liveCell}</td>
-            <td class="tl-col-rr">${t.rr!=null ? parseFloat(t.rr).toFixed(2)+'x' : '—'}</td>
-            <td class="tl-col-iv">${t.ivRank!=null ? parseFloat(t.ivRank).toFixed(1) : '—'}</td>
             <td><input class="tl-exit-input tl-exit-itm-input" type="number" step="0.01" value="${exitItmVal}" placeholder="—" data-id="${t.id}" data-side="itm" onfocus="tlExitFocus(this)" onblur="tlExitSave(this)" onkeydown="if(event.key==='Enter')this.blur()"></td>
             <td><input class="tl-exit-input tl-exit-otm-input" type="number" step="0.01" value="${exitOtmVal}" placeholder="—" data-id="${t.id}" data-side="otm" onfocus="tlExitFocus(this)" onblur="tlExitSave(this)" onkeydown="if(event.key==='Enter')this.blur()"></td>
             <td style="display:flex;gap:5px;align-items:center;">
@@ -8776,12 +8866,12 @@ function swApp(name){
     const closedTbody = document.getElementById('tl-closed-tbody');
     const closedEmpty = document.getElementById('tl-closed-empty');
     if (closedTbody) {
-      if (!closed.length) {
+      if (!filteredClosed.length) {
         closedTbody.innerHTML = '';
         if (closedEmpty) closedEmpty.style.display = 'block';
       } else {
         if (closedEmpty) closedEmpty.style.display = 'none';
-        closedTbody.innerHTML = closed.map(t => {
+        closedTbody.innerHTML = filteredClosed.map(t => {
           const typeClass = {'Long Call':'lc','Long Put':'lp','Call Spread':'cs','Put Spread':'ps'}[t.type] || 'cs';
           const outcomeClass = {Win:'win',Loss:'loss',Breakeven:'be'}[t.outcome] || 'be';
 
@@ -8796,16 +8886,14 @@ function swApp(name){
           const expDateFmt   = (t.expDate||'—').replace(/^\d{4}-/,'');
           const strikesFmt   = t.sellStrike ? `$${t.buyStrike}/$${t.sellStrike}` : `$${t.buyStrike}`;
           return `<tr>
-            <td>${entryDateFmt}</td>
-            <td style="font-weight:700;">${t.ticker}</td>
             <td><span class="tl-type-pill ${typeClass}">${typeAbbr}</span></td>
-            <td>${strikesFmt}</td>
+            <td style="font-weight:700;">${t.ticker}</td>
+            <td>${entryDateFmt}</td>
             <td>${expDateFmt}</td>
+            <td>${strikesFmt}</td>
             <td style="color:var(--accent);">$${parseFloat(t.cost||0).toFixed(2)}</td>
             <td>${t.maxProfit!=null ? '$'+parseFloat(t.maxProfit).toFixed(2) : '—'}</td>
             <td style="color:var(--muted);">${closedPrice}</td>
-            <td class="tl-col-rr">${t.rr!=null ? parseFloat(t.rr).toFixed(2)+'x' : '—'}</td>
-            <td class="tl-col-iv">${t.ivRank!=null ? parseFloat(t.ivRank).toFixed(1) : '—'}</td>
             <td><span class="tl-outcome-pill ${outcomeClass}">${t.outcome}</span></td>
             <td class="${plClass}">${plFmt}</td>
             <td><button class="${trashClass}" onclick="tlTrash('${t.id}')" title="${isPending?'Tap again to confirm':'Delete'}">🗑</button></td>
@@ -8918,7 +9006,7 @@ function swApp(name){
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradeBrief v7.14.1 — Directional gate fix                   ║
+     ║  END TradeBrief v7.14.2 — TradeLog overhaul + chart + P&L bar   ║
      ║  2026-04-27                                                       ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 </body>
