@@ -1,13 +1,14 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v7.14.11 — TL CTRK column merge                      ║
+     ║  TRADEBRIEF v7.14.12 — Vol bar fill + Max Results setting         ║
      ║  Date: 2026-04-29                                                ║
-     ║  Changes from v7.14.10:                                          ║
-     ║    1. TL: COST $ → COST ea$ header (active + closed)            ║
-     ║    2. TL: CTRK # column — inline editable contract count        ║
-     ║    3. TL: xCOST $ column — cost ea × contracts, read-only       ║
-     ║    4. TL: Live $ color compares against xCOST (total position)  ║
-     ║    5. TL: Closed trades shows static CTRK # for reference       ║
+     ║  Changes from v7.14.11:                                          ║
+     ║    1. TB: Left accent bar fills proportionally to vol ratio      ║
+     ║       (current/avg vol, capped at 3x = full bar). Color stays   ║
+     ║       confidence-based. Dim track behind fill for context.       ║
+     ║    2. TB: Max Results setting (1–10, default 10) in Settings     ║
+     ║       — buildTop10() respects setting, header count dynamic,     ║
+     ║       saved to localStorage + Firestore with rest of cfg.        ║
      ║    6. All v7.14.10 SIE/P&L/sticky changes preserved            ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 <html lang="en">
@@ -18,7 +19,7 @@
 <meta name="theme-color" content="#111827">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>TradeBrief v7.14.11</title>
+<title>TradeBrief v7.14.12</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -624,6 +625,7 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
       <div class="setting-row"><div class="setting-info"><div class="setting-label">IV Rank Warning</div><div class="setting-desc">Flag high IV in the briefing</div></div><div class="setting-control"><label class="toggle"><input type="checkbox" id="s-iv" checked onchange="saveS()"><div class="toggle-slider"></div></label></div></div>
       <div class="setting-row"><div class="setting-info"><div class="setting-label">Earnings Guardrail</div><div class="setting-desc">Flag RISKY when earnings before expiration</div></div><div class="setting-control"><label class="toggle"><input type="checkbox" id="s-earn" checked onchange="saveS()"><div class="toggle-slider"></div></label></div></div>
       <div class="setting-row"><div class="setting-info"><div class="setting-label">Earnings Exclusion Window (days)</div><div class="setting-desc">Hide tickers with earnings within this many days. Default: 14</div></div><div class="setting-control"><input class="num-input" id="s-earn-window" type="number" min="0" max="30" value="14" onchange="saveS()"></div></div>
+      <div class="setting-row"><div class="setting-info"><div class="setting-label">Max Results</div><div class="setting-desc">Cards shown in the briefing (1–10). Default: 10</div></div><div class="setting-control"><input class="num-input" id="s-max-results" type="number" min="1" max="10" value="10" onchange="saveS()"></div></div>
       <div class="setting-row"><div class="setting-info"><div class="setting-label">Browser Notifications</div><div class="setting-desc">Alert on TAKE PROFIT / CLOSE NOW even when tab is in background</div></div><div class="setting-control"><label class="toggle"><input type="checkbox" id="s-notif" onchange="toggleNotifications()"><div class="toggle-slider"></div></label></div></div>
       <div class="setting-row"><div class="setting-info"><div class="setting-label">DTE Warning (days)</div><div class="setting-desc">Alert when expiring within this many days</div></div><div class="setting-control"><input class="num-input" id="s-dte" type="number" min="1" max="21" value="5" onchange="saveS()"></div></div>
       <div class="setting-row"><div class="setting-info"><div class="setting-label">Profit Alert Threshold (%)</div><div class="setting-desc">Trigger TAKE PROFIT badge at this % gain</div></div><div class="setting-control"><input class="num-input" id="s-profit-alert" type="number" min="10" max="500" value="75" onchange="saveS()"></div></div>
@@ -2203,6 +2205,7 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
       <div class="setting-row"><div class="setting-info"><div class="setting-label">IV Rank Warning</div><div class="setting-desc">Flag high IV in the briefing</div></div><div class="setting-control"><label class="toggle"><input type="checkbox" id="so-iv" checked onchange="saveSO()"><div class="toggle-slider"></div></label></div></div>
       <div class="setting-row"><div class="setting-info"><div class="setting-label">Earnings Guardrail</div><div class="setting-desc">Flag RISKY when earnings before expiration</div></div><div class="setting-control"><label class="toggle"><input type="checkbox" id="so-earn" checked onchange="saveSO()"><div class="toggle-slider"></div></label></div></div>
       <div class="setting-row"><div class="setting-info"><div class="setting-label">Earnings Exclusion Window (days)</div><div class="setting-desc">Hide tickers with earnings within this many days. Default: 14</div></div><div class="setting-control"><input class="num-input" id="so-earn-window" type="number" min="0" max="30" value="14" onchange="saveSO()"></div></div>
+      <div class="setting-row"><div class="setting-info"><div class="setting-label">Max Results</div><div class="setting-desc">Cards shown in the briefing (1–10). Default: 10</div></div><div class="setting-control"><input class="num-input" id="so-max-results" type="number" min="1" max="10" value="10" onchange="saveSO()"></div></div>
       <div class="setting-row"><div class="setting-info"><div class="setting-label">Browser Notifications</div><div class="setting-desc">Alert on TAKE PROFIT / CLOSE NOW even when tab is in background</div></div><div class="setting-control"><label class="toggle"><input type="checkbox" id="so-notif" onchange="toggleNotifications()"><div class="toggle-slider"></div></label></div></div>
       <div class="setting-row"><div class="setting-info"><div class="setting-label">DTE Warning (days)</div><div class="setting-desc">Alert when expiring within this many days</div></div><div class="setting-control"><input class="num-input" id="so-dte" type="number" min="1" max="21" value="5" onchange="saveSO()"></div></div>
       <div class="setting-row"><div class="setting-info"><div class="setting-label">Profit Alert Threshold (%)</div><div class="setting-desc">Trigger TAKE PROFIT badge at this % gain</div></div><div class="setting-control"><input class="num-input" id="so-profit-alert" type="number" min="10" max="500" value="75" onchange="saveSO()"></div></div>
@@ -2247,10 +2250,10 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
 
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.14.11</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.14.12</div>
 
 <!-- ══ MOBILE VERSION STAMP (always visible on mobile, bottom-left) ══════ -->
-<div id="mobile-version-stamp" style="display:none;">v7.14.11</div>
+<div id="mobile-version-stamp" style="display:none;">v7.14.12</div>
 
 <!-- ══ MOBILE SCAN BTN (Brief panel only, toggled via swApp) ═════════════ -->
 <div id="mobile-scan-btn-wrap" style="display:none;">
@@ -2761,7 +2764,7 @@ function buildTop10(){
     return b.confidence-a.confidence;
   });
 
-  top10=scored.filter(s=>!dismissedCards.includes(s.ticker)).slice(0,10).map(s=>s.ticker);
+  top10=scored.filter(s=>!dismissedCards.includes(s.ticker)).slice(0,S('maxResults')).map(s=>s.ticker);
   // Append manually called-in ticker as 11th if set, not already in top10, and has data
   if(calledInTicker&&!top10.includes(calledInTicker)&&sd[calledInTicker]&&!sd[calledInTicker].loading&&!sd[calledInTicker].error){
     top10.push(calledInTicker);
@@ -3203,7 +3206,7 @@ function stopAutoRefresh(){
   if(autoRefreshTimer){clearInterval(autoRefreshTimer);autoRefreshTimer=null;}
 }
 
-const DEFAULTS={rsiOb:70,rsiOs:30,ema:'8,21',rr:1.5,pop:30,cw:0.50,dmin:0.15,dmax:0.70,budget:150,iv:true,earn:true,dte:5,profitAlert:75,target:80,contracts:1,pricefmt:'both',loss:50,earnWindow:14};
+const DEFAULTS={rsiOb:70,rsiOs:30,ema:'8,21',rr:1.5,pop:30,cw:0.50,dmin:0.15,dmax:0.70,budget:150,iv:true,earn:true,dte:5,profitAlert:75,target:80,contracts:1,pricefmt:'both',loss:50,earnWindow:14,maxResults:10};
 function S(k){return cfg[k]!==undefined?cfg[k]:DEFAULTS[k];}
 
 // ── CLOCK & MARKET ─────────────────────────────────────────────────────────
@@ -3307,6 +3310,7 @@ function loadSO(){
   document.getElementById('so-pricefmt').value=S('pricefmt');
   document.getElementById('so-notif').checked=S('notif')||false;
   document.getElementById('so-theme').value=S('theme')||'dark';
+  document.getElementById('so-max-results').value=S('maxResults');
 }
 function saveSO(){
   cfg={
@@ -3330,6 +3334,7 @@ function saveSO(){
     pricefmt:document.getElementById('so-pricefmt').value,
     notif:document.getElementById('so-notif').checked,
     theme:document.getElementById('so-theme').value,
+    maxResults:+document.getElementById('so-max-results').value,
   };
   localStorage.setItem('cfg',JSON.stringify(cfg));
   // Also sync TB tab settings fields if they exist
@@ -3366,6 +3371,7 @@ function saveS(){
     notif:document.getElementById('s-notif').checked,
     theme:document.getElementById('s-theme').value,
     loss:+document.getElementById('s-loss').value,
+    maxResults:+document.getElementById('s-max-results').value,
   };
   localStorage.setItem('cfg',JSON.stringify(cfg));
   tb_toast('Settings saved ✓');
@@ -3391,6 +3397,7 @@ function loadS(){
   document.getElementById('s-notif').checked=S('notif')||false;
   document.getElementById('s-theme').value=S('theme')||'dark';
   document.getElementById('s-loss').value=S('loss');
+  document.getElementById('s-max-results').value=S('maxResults');
   tb_applyTheme();
 }
 function tb_applyTheme(){
@@ -4209,8 +4216,10 @@ function renderDataCard(ticker, bodyOnly=false){
   const srcNote=isLimited?'<span style="font-family:\'Space Mono\',monospace;font-size:9px;font-weight:700;padding:2px 8px;border-radius:12px;background:rgba(107,122,153,0.15);color:#6b7a99;border:1px solid rgba(107,122,153,0.3);margin-left:8px;">LIMITED</span>':'';
 
   return`${bodyOnly?'':`<div id="card-${ticker}" style="background:#111827;border:1px solid rgba(120,170,220,0.18);position:relative;margin-bottom:9px;color:#e8edf5;font-family:'DM Sans',sans-serif;">
-    <!-- Left accent rail -->
-    <div style="position:absolute;left:0;top:0;bottom:0;width:3px;background:${convColor};box-shadow:0 0 12px ${convColor}55;z-index:1;"></div>
+    <!-- Left accent rail with vol-fill -->
+    <div style="position:absolute;left:0;top:0;bottom:0;width:3px;background:${convColor}22;z-index:1;">
+      <div style="position:absolute;left:0;bottom:0;width:100%;height:${volRatio!=null?Math.min(100,Math.round(volRatio/3*100))+'%':'0%'};background:${convColor};box-shadow:0 0 12px ${convColor}55;transition:height 0.4s;"></div>
+    </div>
 
     <!-- ① HEADER STRIP -->
     <div style="display:flex;align-items:stretch;border-bottom:1px solid rgba(120,170,220,0.18);padding-left:3px;">
@@ -9070,8 +9079,8 @@ function swApp(name){
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradeBrief v7.14.11 — TL CTRK column merge                 ║
-     ║  2026-04-27                                                       ║
+     ║  END TradeBrief v7.14.12 — Vol bar fill + Max Results setting    ║
+     ║  2026-04-29                                                       ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 </body>
 </html>
