@@ -1,15 +1,22 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v7.14.12 — Vol bar fill + Max Results setting         ║
-     ║  Date: 2026-04-29                                                ║
-     ║  Changes from v7.14.11:                                          ║
-     ║    1. TB: Left accent bar fills proportionally to vol ratio      ║
-     ║       (current/avg vol, capped at 3x = full bar). Color stays   ║
-     ║       confidence-based. Dim track behind fill for context.       ║
-     ║    2. TB: Max Results setting (1–10, default 10) in Settings     ║
-     ║       — buildTop10() respects setting, header count dynamic,     ║
-     ║       saved to localStorage + Firestore with rest of cfg.        ║
-     ║    6. All v7.14.10 SIE/P&L/sticky changes preserved            ║
+     ║  TRADEBRIEF v7.14.13 — 8-Fix Polish Build         ║
+     ║  Date: 2026-05-01                                                ║
+     ║  Changes from v7.14.12:                                          ║
+     ║    1. Fix: Settings (Max Results + all) now persist via          ║
+     ║       fbSyncAll() — Firebase no longer overwrites on reload      ║
+     ║    2. Fix: TradeData Curation Queue moved between Manual         ║
+     ║       Controls and Earnings Calendar                             ║
+     ║    3. Fix: Volume stat label now shows period "vs 20d avg"       ║
+     ║    4. Fix: Card header vol gauge uses prior-day volume vs        ║
+     ║       20d avg instead of intraday (meaningful pre-market)        ║
+     ║    5. Fix: Card header columns locked to fixed widths;           ║
+     ║       long company names wrap instead of pushing layout          ║
+     ║    6. Fix: SPY badge text cleaned — icon + SPY + % only,        ║
+     ║       "aligned" / "vs regime" text removed                       ║
+     ║    7. New: Auto-Close toggle per open trade in TradeLog —        ║
+     ║       monitors EXIT ↓, closes locally when stop hit             ║
+     ║    8. Fix: LIVE $ rescales correctly when contract qty changes   ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 <html lang="en">
 <head>
@@ -19,7 +26,7 @@
 <meta name="theme-color" content="#111827">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>TradeBrief v7.14.12</title>
+<title>TradeBrief v7.14.13</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -1272,6 +1279,9 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
 #panel-log .tl-close-pl{font-family:'Space Mono',monospace;font-size:12px;font-weight:700;min-width:70px;display:inline-block;}
 #panel-log .tl-confirm-btn{background:#ffa502;border:none;border-radius:4px;padding:5px 12px;font-size:9px;font-family:'Space Mono',monospace;font-weight:700;color:#000;cursor:pointer;}
 #panel-log .tl-cancel-btn{background:none;border:1px solid var(--border);border-radius:4px;padding:5px 10px;font-size:9px;font-family:'Space Mono',monospace;color:var(--muted);cursor:pointer;}
+#panel-log .tl-ac-toggle{display:inline-flex;align-items:center;gap:4px;padding:3px 7px;border-radius:4px;font-family:'Space Mono',monospace;font-size:9px;font-weight:700;cursor:pointer;border:1px solid;transition:all 0.2s;white-space:nowrap;}
+#panel-log .tl-ac-toggle.on{background:rgba(255,165,2,0.12);color:#ffa502;border-color:rgba(255,165,2,0.35);}
+#panel-log .tl-ac-toggle.off{background:rgba(107,122,153,0.08);color:var(--muted);border-color:rgba(107,122,153,0.2);}
 #panel-log .tl-outcome-sel{display:flex;gap:4px;}
 #panel-log .tl-out-btn{background:none;border:1px solid var(--border);border-radius:4px;padding:3px 8px;font-size:9px;font-family:'Space Mono',monospace;color:var(--muted);cursor:pointer;transition:all .2s;}
 #panel-log .tl-out-btn.sel-win{background:rgba(0,255,157,.15);border-color:var(--good);color:var(--good);}
@@ -1341,7 +1351,7 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
         <tr>
           <th>TYPE</th><th>TKR</th><th>DATE</th><th>EXP</th><th class="tl-col-px">PRICE</th><th>STRK</th>
           <th>COST ea$</th><th>CTRK #</th><th>xCOST $</th><th>MAX $</th><th>LIVE $</th><th>EXIT ↑</th><th>EXIT ↓</th>
-          <th>ACT</th>
+          <th>AUTO</th><th>ACT</th>
         </tr>
       </thead>
       <tbody id="tl-active-tbody"></tbody>
@@ -1538,12 +1548,6 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
         <div id="td-rising"><div class="td-empty">No recent tier promotions yet</div></div>
       </div>
 
-      <!-- Curation Queue -->
-      <div class="td-sec">Curation Queue</div>
-      <div class="td-card" style="padding:0;overflow:hidden;">
-        <div id="td-queue"><div class="td-empty">No curation running</div></div>
-      </div>
-
       <!-- Weak Performers -->
       <div class="td-sec">Weak Performers</div>
       <div class="td-card" style="padding:0;overflow:hidden;">
@@ -1563,6 +1567,12 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
           <button class="td-ctrl-btn danger" onclick="window.TD&&window.TD.resetRecord()">Reset Record</button>
         </div>
         <div style="font-size:11px;color:var(--muted);margin-top:8px;">Clears all accumulated samples for that ticker. Cannot be undone.</div>
+      </div>
+
+      <!-- Curation Queue -->
+      <div class="td-sec">Curation Queue</div>
+      <div class="td-card" style="padding:0;overflow:hidden;">
+        <div id="td-queue"><div class="td-empty">No curation running</div></div>
       </div>
 
     </div><!-- /tp-wrap -->
@@ -2250,10 +2260,10 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
 
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.14.12</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.14.13</div>
 
 <!-- ══ MOBILE VERSION STAMP (always visible on mobile, bottom-left) ══════ -->
-<div id="mobile-version-stamp" style="display:none;">v7.14.12</div>
+<div id="mobile-version-stamp" style="display:none;">v7.14.13</div>
 
 <!-- ══ MOBILE SCAN BTN (Brief panel only, toggled via swApp) ═════════════ -->
 <div id="mobile-scan-btn-wrap" style="display:none;">
@@ -2979,10 +2989,13 @@ async function runScanner(force){
         const atr14=calcATR(candles,14);
         const trend=trendStrength(closes,ema8,ema21,rsi14);
         const conf=calcConfidence(q.price,ema8,ema21,rsi14,q.volume,q.avgVolume,q.changePct,atr14,closes,ivRankOverrides[ticker]??null);
+        const prevDayVol=candles.length>=2?parseFloat(candles[candles.length-2].volume||0):0;
+        const prevDayVolRatio=q.avgVolume>0&&prevDayVol>0?(prevDayVol/q.avgVolume):null;
         const ob=S('rsiOb'),os=S('rsiOs');
         sd[ticker]={ticker,price:q.price,change:q.change,changePct:q.changePct,
           volume:q.volume,avgVolume:q.avgVolume,description:q.description||'',
           rsi14,ema8,ema21,atr14,earningsDate:earningsOverrides[ticker]||null,
+          prevDayVolRatio,
           signal:conf.direction,reason:'Confidence '+conf.score+'/100 — '+(conf.direction==='CALLS'?'Bullish':'Bearish')+' setup'+(conf.againstRegime?' — fighting broader SPY trend. Elevated risk, consider smaller size.':''),
           confidence:conf.score,rawScore:conf.rawScore,againstRegime:conf.againstRegime,volRatio:conf.volRatio,atrNeutral:conf.atrNeutral,direction:conf.direction,
           teasers:[
@@ -3337,6 +3350,7 @@ function saveSO(){
     maxResults:+document.getElementById('so-max-results').value,
   };
   localStorage.setItem('cfg',JSON.stringify(cfg));
+  fbSyncAll();
   // Also sync TB tab settings fields if they exist
   loadS();
 }
@@ -3374,6 +3388,7 @@ function saveS(){
     maxResults:+document.getElementById('s-max-results').value,
   };
   localStorage.setItem('cfg',JSON.stringify(cfg));
+  fbSyncAll();
   tb_toast('Settings saved ✓');
 }
 function loadS(){
@@ -3906,7 +3921,7 @@ function renderReminderHeader(ticker) {
   const regimeAligned = (spyRegime && d.direction) ? ((d.direction==='CALLS'&&spyRegime==='BULLISH')||(d.direction==='PUTS'&&spyRegime==='BEARISH')) : null;
   const siPctHtml = window.SI ? window.SI.getAccuracyPctHTML(ticker) : '';
   const regimePill = regimeAligned !== null
-    ? `<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 7px;border-radius:4px;font-family:'Space Mono',monospace;font-size:10px;font-weight:500;white-space:nowrap;background:${regimeAligned?'rgba(0,255,157,0.08)':'rgba(255,165,2,0.08)'};color:${regimeAligned?'#00ff9d':'#ffa502'};border:1px solid ${regimeAligned?'rgba(0,255,157,0.25)':'rgba(255,165,2,0.25)'};">${regimeAligned?'✓':'\u26a0'} SPY ${regimeAligned?'aligned':'vs regime'}${siPctHtml}</span>` : '';
+    ? `<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 7px;border-radius:4px;font-family:'Space Mono',monospace;font-size:10px;font-weight:500;white-space:nowrap;background:${regimeAligned?'rgba(0,255,157,0.08)':'rgba(255,165,2,0.08)'};color:${regimeAligned?'#00ff9d':'#ffa502'};border:1px solid ${regimeAligned?'rgba(0,255,157,0.25)':'rgba(255,165,2,0.25)'};">${regimeAligned?'✓':'\u26a0'} SPY${siPctHtml}</span>` : '';
   const thesisTag = d.thesisVerdict || null;
   const thesisTagColor = thesisTag==='STRONG'?'#00ff9d':thesisTag==='SKIP'?'#ff4757':'#ffa502';
   const thesisTagBg = thesisTag==='STRONG'?'rgba(0,255,157,0.08)':thesisTag==='SKIP'?'rgba(255,71,87,0.08)':'rgba(255,165,2,0.08)';
@@ -3928,7 +3943,7 @@ function renderReminderHeader(ticker) {
       </div>
       <div style="padding:10px 14px;border-right:1px solid rgba(120,170,220,0.09);display:flex;flex-direction:column;justify-content:center;">
         <div style="font-family:'Space Mono',monospace;font-size:18px;font-weight:700;">${ticker}</div>
-        <div style="font-size:10px;color:#6b7a99;">${d.description||''}</div>
+        <div style="font-size:10px;color:#6b7a99;word-break:break-word;white-space:normal;">${d.description||''}</div>
       </div>
       <div style="padding:10px 14px;flex:1;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
         <div>
@@ -4067,7 +4082,7 @@ function renderDataCard(ticker, bodyOnly=false){
     :null;
   const siPctCard = window.SI ? window.SI.getAccuracyPctHTML(ticker) : '';
   const regimePillHtml=regimeAligned!==null
-    ?`<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 7px;border-radius:4px;font-family:'Space Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.2px;white-space:nowrap;background:${regimeAligned?'rgba(0,255,157,0.08)':'rgba(255,165,2,0.08)'};color:${regimeAligned?'#00ff9d':'#ffa502'};border:1px solid ${regimeAligned?'rgba(0,255,157,0.25)':'rgba(255,165,2,0.25)'};">${regimeAligned?'✓':'\u26a0'} SPY ${regimeAligned?'aligned':'vs regime'}${siPctCard}</span>`
+    ?`<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 7px;border-radius:4px;font-family:'Space Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.2px;white-space:nowrap;background:${regimeAligned?'rgba(0,255,157,0.08)':'rgba(255,165,2,0.08)'};color:${regimeAligned?'#00ff9d':'#ffa502'};border:1px solid ${regimeAligned?'rgba(0,255,157,0.25)':'rgba(255,165,2,0.25)'};">${regimeAligned?'✓':'\u26a0'} SPY${siPctCard}</span>`
     :'';
 
   // Earnings
@@ -4095,7 +4110,7 @@ function renderDataCard(ticker, bodyOnly=false){
   // Volume
   const volRatio=d.volRatio||null;
   const volColor=volRatio!=null?(volRatio>=2.0?'#ffa502':volRatio>=1.5?'#00ff9d':volRatio>=1.0?'#00d4ff':'#6b7a99'):'#6b7a99';
-  const volLabel=volRatio!=null?(volRatio>=2.0?'Spike \uD83D\uDD25':volRatio>=1.5?'Elevated':'Normal'):'—';
+  const volLabel=volRatio!=null?((volRatio>=2.0?'Spike 🔥':volRatio>=1.5?'Elevated':'Normal')+' vs 20d avg'):'—';
 
   // RSI
   const rsiVal=d.rsi14!=null?d.rsi14.toFixed(1):'—';
@@ -4218,13 +4233,13 @@ function renderDataCard(ticker, bodyOnly=false){
   return`${bodyOnly?'':`<div id="card-${ticker}" style="background:#111827;border:1px solid rgba(120,170,220,0.18);position:relative;margin-bottom:9px;color:#e8edf5;font-family:'DM Sans',sans-serif;">
     <!-- Left accent rail with vol-fill -->
     <div style="position:absolute;left:0;top:0;bottom:0;width:3px;background:${convColor}22;z-index:1;">
-      <div style="position:absolute;left:0;bottom:0;width:100%;height:${volRatio!=null?Math.min(100,Math.round(volRatio/3*100))+'%':'0%'};background:${convColor};box-shadow:0 0 12px ${convColor}55;transition:height 0.4s;"></div>
+      <div style="position:absolute;left:0;bottom:0;width:100%;height:${(d.prevDayVolRatio!=null?d.prevDayVolRatio:volRatio)!=null?Math.min(100,Math.round(((d.prevDayVolRatio!=null?d.prevDayVolRatio:volRatio))/3*100))+'%':'0%'};background:${convColor};box-shadow:0 0 12px ${convColor}55;transition:height 0.4s;"></div>
     </div>
 
     <!-- ① HEADER STRIP -->
     <div style="display:flex;align-items:stretch;border-bottom:1px solid rgba(120,170,220,0.18);padding-left:3px;">
       <!-- Score cluster -->
-      <div style="padding:14px 18px;display:flex;align-items:center;gap:12px;background:linear-gradient(90deg,rgba(0,212,255,0.06),transparent);border-right:1px solid rgba(120,170,220,0.09);">
+      <div style="padding:14px 18px;display:flex;align-items:center;gap:12px;background:linear-gradient(90deg,rgba(0,212,255,0.06),transparent);border-right:1px solid rgba(120,170,220,0.09);flex:0 0 200px;min-width:200px;">
         ${(()=>{const sigBg=sig==='PUTS'?'rgba(255,71,87,0.08)':sig==='WAIT'?'rgba(255,165,2,0.08)':'rgba(0,255,157,0.08)';const sigFg=sig==='PUTS'?'#ff4757':sig==='WAIT'?'#ffa502':'#00ff9d';const sigBd=sig==='PUTS'?'rgba(255,71,87,0.25)':sig==='WAIT'?'rgba(255,165,2,0.25)':'rgba(0,255,157,0.25)';return`<span style="display:inline-flex;align-items:center;padding:4px 9px;border-radius:4px;font-family:'Space Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.5px;white-space:nowrap;background:${sigBg};color:${sigFg};border:1px solid ${sigBd};">${sig}</span>`;})()}
         <div id="score-display-${ticker}" style="font-family:'Space Mono',monospace;font-size:34px;font-weight:700;color:${scoreColor};line-height:1;letter-spacing:-1px;cursor:pointer;" onclick="toggleScoreBreakdown('${ticker}',event)" title="Tap to see score breakdown">${displayScore}<span style="font-size:11px;color:#6b7a99;margin-left:2px;">▾</span></div>
         <!-- Conviction gauge -->
@@ -4240,12 +4255,12 @@ function renderDataCard(ticker, bodyOnly=false){
         </div>
       </div>
       <!-- Ticker + company -->
-      <div style="padding:14px 18px;border-right:1px solid rgba(120,170,220,0.09);display:flex;flex-direction:column;justify-content:center;">
+      <div style="padding:14px 18px;border-right:1px solid rgba(120,170,220,0.09);display:flex;flex-direction:column;justify-content:center;flex:0 0 150px;min-width:150px;">
         <div style="font-family:'Space Mono',monospace;font-size:20px;font-weight:700;letter-spacing:0.5px;">${ticker}</div>
         <div style="font-size:10px;color:#6b7a99;">${d.description||''}</div>
       </div>
       <!-- Price + pills -->
-      <div style="padding:14px 18px;flex:1;display:flex;align-items:center;gap:10px;flex-wrap:nowrap;min-width:0;overflow:hidden;">
+      <div style="padding:14px 18px;flex:1;min-width:0;display:flex;align-items:center;gap:10px;flex-wrap:nowrap;overflow:hidden;">
         <div>
           <div style="font-family:'Space Mono',monospace;font-size:22px;font-weight:700;color:${priceColor};line-height:1;">$${d.price.toFixed(2)}</div>
           <div style="font-family:'Space Mono',monospace;font-size:10px;color:${priceColor};margin-top:3px;">${d.change>=0?'+':''}${d.change.toFixed(2)} · ${changeSign}${d.changePct.toFixed(2)}%</div>
@@ -8709,6 +8724,8 @@ function swApp(name){
         fetchLivePrice(t); // fire and forget — each resolves and re-renders
       }
     }
+    // After fetch cycle, check auto-close conditions
+    setTimeout(tlCheckAutoClose, 500);
   }
 
   // ── INLINE CLOSE HELPERS ─────────────────────────────────────────
@@ -8905,6 +8922,11 @@ function swApp(name){
             <td>${liveCell}</td>
             <td><input class="tl-exit-input tl-exit-itm-input" type="number" step="0.01" value="${exitItmVal}" placeholder="—" data-id="${t.id}" data-side="itm" onfocus="tlExitFocus(this)" onblur="tlExitSave(this)" onkeydown="if(event.key==='Enter')this.blur()"></td>
             <td><input class="tl-exit-input tl-exit-otm-input" type="number" step="0.01" value="${exitOtmVal}" placeholder="—" data-id="${t.id}" data-side="otm" onfocus="tlExitFocus(this)" onblur="tlExitSave(this)" onkeydown="if(event.key==='Enter')this.blur()"></td>
+            <td>
+              <button class="tl-ac-toggle ${t.autoClose?'on':'off'}" onclick="tlToggleAutoClose('${t.id}')" title="${t.autoClose?'Auto-Close ON — will close when stop is hit':'Auto-Close OFF — manual close only'}">
+                ${t.autoClose?'⚡ ON':'○ OFF'}
+              </button>
+            </td>
             <td style="display:flex;gap:5px;align-items:center;">
               <button class="tl-close-btn" onclick="tlStartClose('${t.id}')" title="Close trade">Close</button>
               <button class="${trashClass}" onclick="tlTrash('${t.id}')" title="${isPending?'Tap again to confirm':'Delete'}">🗑</button>
@@ -9058,28 +9080,98 @@ function swApp(name){
         if (idx >= 0) { trades[idx].contracts = val; localStorage.setItem('ts-trades', JSON.stringify(trades)); }
       } catch(e) {}
     }
+    // Clear cached live price so it refetches with new contract count
+    delete tlLiveData[id];
     tlRender();
   }
 
-  window.tlLiveData        = tlLiveData;
-  window.tlRender          = tlRender;
-  window.tlSetFilter       = tlSetFilter;
-  window.tlTrash           = tlTrash;
-  window.tlExitFocus       = tlExitFocus;
-  window.tlExitSave        = tlExitSave;
-  window.tlCtrkSave        = tlCtrkSave;
-  window.tlStartClose      = tlStartClose;
-  window.tlCancelClose     = tlCancelClose;
-  window.tlSetCloseOutcome = tlSetCloseOutcome;
-  window.tlCalcClosePL     = tlCalcClosePL;
-  window.tlConfirmClose    = tlConfirmClose;
+  // ── AUTO-CLOSE TOGGLE ────────────────────────────────────────────
+  function tlToggleAutoClose(id) {
+    const trades = getTrades();
+    const idx = trades.findIndex(t => t.id === id);
+    if (idx < 0) return;
+    trades[idx].autoClose = !trades[idx].autoClose;
+    if (window.TS && window.TS.updateTrade) {
+      window.TS.updateTrade(id, { autoClose: trades[idx].autoClose });
+    } else {
+      try {
+        localStorage.setItem('ts-trades', JSON.stringify(trades));
+      } catch(e) {}
+    }
+    tlRender();
+  }
+
+  // ── AUTO-CLOSE MONITOR ───────────────────────────────────────────
+  // Runs after each live price fetch — checks if stop is hit for any auto-close trade
+  function tlCheckAutoClose() {
+    const trades = getTrades();
+    const active = trades.filter(t => t.outcome === 'Open' || !t.outcome);
+    for (const t of active) {
+      if (!t.autoClose) continue;
+      const ld = tlLiveData[t.id];
+      if (!ld || ld.liveVal === null || ld.loading) continue;
+      const contracts = parseInt(t.contracts) || 1;
+      const exitOtm = t.exitOtm ? parseFloat(t.exitOtm) * contracts : null;
+      if (exitOtm === null) continue;
+      // Stop triggered: live value at or below stop loss level
+      if (ld.liveVal <= exitOtm) {
+        console.log(`Auto-Close triggered for \${t.ticker} — live \${ld.liveVal.toFixed(2)} <= stop \${exitOtm.toFixed(2)}`);
+        // Close the trade locally at the stop price
+        tlClosingId = t.id;
+        tlCloseOutcome = 'Loss';
+        // Build a synthetic close at stop value
+        const pl = ld.liveVal - parseFloat(t.cost) * contracts;
+        const closedTrade = {
+          ...t,
+          outcome: 'Loss',
+          closedPrice: ld.liveVal.toFixed(2),
+          closedDate: new Date().toLocaleDateString('en-US',{month:'2-digit',day:'2-digit',year:'2-digit'}),
+          pl: pl.toFixed(2),
+          autoClosedAt: new Date().toISOString(),
+        };
+        // Remove from active, add to closed via TS
+        if (window.TS && window.TS.closeTrade) {
+          window.TS.closeTrade(t.id, closedTrade);
+        } else {
+          try {
+            const all = JSON.parse(localStorage.getItem('ts-trades') || '[]');
+            const i = all.findIndex(x => x.id === t.id);
+            if (i >= 0) all.splice(i, 1);
+            localStorage.setItem('ts-trades', JSON.stringify(all));
+            const closed = JSON.parse(localStorage.getItem('ts-closed') || '[]');
+            closed.unshift(closedTrade);
+            localStorage.setItem('ts-closed', JSON.stringify(closed));
+          } catch(e) {}
+        }
+        tlClosingId = null;
+        tlRender();
+        // Toast notification
+        if (typeof tb_toast === 'function') tb_toast(`⚡ Auto-Closed \${t.ticker} at stop $\${ld.liveVal.toFixed(2)}`);
+      }
+    }
+  }
+
+  window.tlLiveData         = tlLiveData;
+  window.tlRender           = tlRender;
+  window.tlSetFilter        = tlSetFilter;
+  window.tlTrash            = tlTrash;
+  window.tlExitFocus        = tlExitFocus;
+  window.tlExitSave         = tlExitSave;
+  window.tlCtrkSave         = tlCtrkSave;
+  window.tlStartClose       = tlStartClose;
+  window.tlCancelClose      = tlCancelClose;
+  window.tlSetCloseOutcome  = tlSetCloseOutcome;
+  window.tlCalcClosePL      = tlCalcClosePL;
+  window.tlConfirmClose     = tlConfirmClose;
+  window.tlToggleAutoClose  = tlToggleAutoClose;
+  window.tlCheckAutoClose   = tlCheckAutoClose;
 
 })();
 
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradeBrief v7.14.12 — Vol bar fill + Max Results setting    ║
+     ║  END TradeBrief v7.14.13 — 8-Fix Polish Build    ║
      ║  2026-04-29                                                       ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 </body>
