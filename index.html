@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v7.14.13 — 8-Fix Polish Build         ║
+     ║  TRADEBRIEF v7.14.13.2 — Auto-Close Loop Fix         ║
      ║  Date: 2026-05-01                                                ║
      ║  Changes from v7.14.12:                                          ║
      ║    1. Fix: Settings (Max Results + all) now persist via          ║
@@ -26,7 +26,7 @@
 <meta name="theme-color" content="#111827">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>TradeBrief v7.14.13.1</title>
+<title>TradeBrief v7.14.13.2</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -2260,10 +2260,10 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
 
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.14.13.1</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.14.13.2</div>
 
 <!-- ══ MOBILE VERSION STAMP (always visible on mobile, bottom-left) ══════ -->
-<div id="mobile-version-stamp" style="display:none;">v7.14.13.1</div>
+<div id="mobile-version-stamp" style="display:none;">v7.14.13.2</div>
 
 <!-- ══ MOBILE SCAN BTN (Brief panel only, toggled via swApp) ═════════════ -->
 <div id="mobile-scan-btn-wrap" style="display:none;">
@@ -8677,6 +8677,8 @@ function swApp(name){
   let tlClosingId = null;      // id of trade currently in inline-close mode
   let tlCloseOutcome = 'Loss'; // default outcome for inline close
   let tlLiveData = {};         // {id: {liveVal, loading, error}}
+  const tlAcFired = new Set(); // IDs already processed by auto-close monitor this session
+  let tlAcToggleLock = false;  // debounce guard for toggle button
   const PROXY = 'https://tradebrief-proxy.netlify.app/.netlify/functions';
 
   function getTrades() {
@@ -9087,10 +9089,15 @@ function swApp(name){
 
   // ── AUTO-CLOSE TOGGLE ────────────────────────────────────────────
   function tlToggleAutoClose(id) {
+    if (tlAcToggleLock) return;
+    tlAcToggleLock = true;
+    setTimeout(() => { tlAcToggleLock = false; }, 400);
     const trades = getTrades();
     const idx = trades.findIndex(t => t.id === id);
     if (idx < 0) return;
     trades[idx].autoClose = !trades[idx].autoClose;
+    // If toggling OFF, remove from fired set so it can be re-armed later
+    if (!trades[idx].autoClose) tlAcFired.delete(id);
     if (window.TS && window.TS.updateTrade) {
       window.TS.updateTrade(id, { autoClose: trades[idx].autoClose });
     } else {
@@ -9108,6 +9115,7 @@ function swApp(name){
     const active = trades.filter(t => t.outcome === 'Open' || !t.outcome);
     for (const t of active) {
       if (!t.autoClose) continue;
+      if (tlAcFired.has(t.id)) continue; // already fired this session, skip
       const ld = tlLiveData[t.id];
       if (!ld || ld.liveVal === null || ld.loading) continue;
       const contracts = parseInt(t.contracts) || 1;
@@ -9115,6 +9123,7 @@ function swApp(name){
       if (exitOtm === null) continue;
       // Stop triggered: live value at or below stop loss level
       if (ld.liveVal <= exitOtm) {
+        tlAcFired.add(t.id); // mark as fired — won't re-trigger until toggle cycled
         console.log(`Auto-Close triggered for \${t.ticker} — live \${ld.liveVal.toFixed(2)} <= stop \${exitOtm.toFixed(2)}`);
         // Close the trade locally at the stop price
         tlClosingId = t.id;
@@ -9171,7 +9180,7 @@ function swApp(name){
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradeBrief v7.14.13 — 8-Fix Polish Build    ║
+     ║  END TradeBrief v7.14.13.2 — Auto-Close Loop Fix    ║
      ║  2026-04-29                                                       ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 </body>
