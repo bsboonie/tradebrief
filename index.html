@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v7.14.13.2 — Auto-Close Loop Fix         ║
+     ║  TRADEBRIEF v7.14.13.3 — Auto-Close Modal Pre-fill         ║
      ║  Date: 2026-05-01                                                ║
      ║  Changes from v7.14.12:                                          ║
      ║    1. Fix: Settings (Max Results + all) now persist via          ║
@@ -26,7 +26,7 @@
 <meta name="theme-color" content="#111827">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>TradeBrief v7.14.13.2</title>
+<title>TradeBrief v7.14.13.3</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -2260,10 +2260,10 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
 
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.14.13.2</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.14.13.3</div>
 
 <!-- ══ MOBILE VERSION STAMP (always visible on mobile, bottom-left) ══════ -->
-<div id="mobile-version-stamp" style="display:none;">v7.14.13.2</div>
+<div id="mobile-version-stamp" style="display:none;">v7.14.13.3</div>
 
 <!-- ══ MOBILE SCAN BTN (Brief panel only, toggled via swApp) ═════════════ -->
 <div id="mobile-scan-btn-wrap" style="display:none;">
@@ -8731,12 +8731,19 @@ function swApp(name){
   }
 
   // ── INLINE CLOSE HELPERS ─────────────────────────────────────────
-  function tlStartClose(id) {
+  function tlStartClose(id, preFillPrice) {
     tlClosingId = id;
     tlCloseOutcome = 'Loss';
     tlRender();
-    // Trigger PL calc immediately after render so pre-filled Live $ sets outcome correctly
-    setTimeout(() => tlCalcClosePL(), 50);
+    // Pre-fill close price if provided (e.g. from auto-close monitor)
+    if (preFillPrice !== undefined) {
+      setTimeout(() => {
+        const input = document.getElementById('tl-close-price-input');
+        if (input) { input.value = preFillPrice; tlCalcClosePL(); }
+      }, 60);
+    } else {
+      setTimeout(() => tlCalcClosePL(), 50);
+    }
   }
 
   function tlCancelClose() {
@@ -9123,39 +9130,13 @@ function swApp(name){
       if (exitOtm === null) continue;
       // Stop triggered: live value at or below stop loss level
       if (ld.liveVal <= exitOtm) {
-        tlAcFired.add(t.id); // mark as fired — won't re-trigger until toggle cycled
-        console.log(`Auto-Close triggered for \${t.ticker} — live \${ld.liveVal.toFixed(2)} <= stop \${exitOtm.toFixed(2)}`);
-        // Close the trade locally at the stop price
-        tlClosingId = t.id;
-        tlCloseOutcome = 'Loss';
-        // Build a synthetic close at stop value
-        const pl = ld.liveVal - parseFloat(t.cost) * contracts;
-        const closedTrade = {
-          ...t,
-          outcome: 'Loss',
-          closedPrice: ld.liveVal.toFixed(2),
-          closedDate: new Date().toLocaleDateString('en-US',{month:'2-digit',day:'2-digit',year:'2-digit'}),
-          pl: pl.toFixed(2),
-          autoClosedAt: new Date().toISOString(),
-        };
-        // Remove from active, add to closed via TS
-        if (window.TS && window.TS.closeTrade) {
-          window.TS.closeTrade(t.id, closedTrade);
-        } else {
-          try {
-            const all = JSON.parse(localStorage.getItem('ts-trades') || '[]');
-            const i = all.findIndex(x => x.id === t.id);
-            if (i >= 0) all.splice(i, 1);
-            localStorage.setItem('ts-trades', JSON.stringify(all));
-            const closed = JSON.parse(localStorage.getItem('ts-closed') || '[]');
-            closed.unshift(closedTrade);
-            localStorage.setItem('ts-closed', JSON.stringify(closed));
-          } catch(e) {}
-        }
-        tlClosingId = null;
-        tlRender();
-        // Toast notification
-        if (typeof tb_toast === 'function') tb_toast(`⚡ Auto-Closed \${t.ticker} at stop $\${ld.liveVal.toFixed(2)}`);
+        tlAcFired.add(t.id); // mark as fired — won't re-pop until toggle cycled
+        console.log(`Auto-Close triggered for ${t.ticker} — live ${ld.liveVal.toFixed(2)} <= stop ${exitOtm.toFixed(2)}`);
+        // Pre-fill and open the close modal for user confirmation
+        // (Future: swap this for direct Tradier order submission)
+        tlStartClose(t.id, ld.liveVal.toFixed(2));
+        if (typeof tb_toast === 'function') tb_toast(`⚡ Stop hit — ${t.ticker} @ $${ld.liveVal.toFixed(2)} — confirm close`);
+        break; // only open one modal at a time; next cycle handles remaining trades
       }
     }
   }
@@ -9180,7 +9161,7 @@ function swApp(name){
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradeBrief v7.14.13.2 — Auto-Close Loop Fix    ║
+     ║  END TradeBrief v7.14.13.3 — Auto-Close Modal Pre-fill    ║
      ║  2026-04-29                                                       ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 </body>
