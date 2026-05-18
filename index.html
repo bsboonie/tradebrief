@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v7.14.13.4 — Regime Filter Hardening           ║
+     ║  TRADEBRIEF v7.14.13.4.1 — Regime Filter Hardening           ║
      ║  Date: 2026-05-18                                                ║
      ║  Changes from v7.14.12:                                          ║
      ║    1. Fix: Settings (Max Results + all) now persist via          ║
@@ -26,7 +26,7 @@
 <meta name="theme-color" content="#111827">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>TradeBrief v7.14.13.4</title>
+<title>TradeBrief v7.14.13.4.1</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -2260,10 +2260,10 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
 
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.14.13.4</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.14.13.4.1</div>
 
 <!-- ══ MOBILE VERSION STAMP (always visible on mobile, bottom-left) ══════ -->
-<div id="mobile-version-stamp" style="display:none;">v7.14.13.4</div>
+<div id="mobile-version-stamp" style="display:none;">v7.14.13.4.1</div>
 
 <!-- ══ MOBILE SCAN BTN (Brief panel only, toggled via swApp) ═════════════ -->
 <div id="mobile-scan-btn-wrap" style="display:none;">
@@ -2751,6 +2751,7 @@ function buildTop10(){
     // WAIT signals always pass — they are already gated by the directional check above.
     // Filter applies to ALL tickers regardless of SIE tier — shadow tickers are not exempt.
     const rec=window.SI?window.SI.getRecord(t):null;
+    const tier=rec?rec.tier:null;// retained for sort return object below
     if(spyRegime&&d.direction&&d.direction!=='—'&&d.direction!=='WAIT'){
       const directionAligned=(d.direction==='CALLS'&&spyRegime==='BULLISH')||(d.direction==='PUTS'&&spyRegime==='BEARISH');
       if(!directionAligned){
@@ -9162,7 +9163,7 @@ function swApp(name){
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradeBrief v7.14.13.4 — Regime Filter Hardening      ║
+     ║  END TradeBrief v7.14.13.4.1 — Regime Filter Hardening      ║
      ║  2026-05-18                                                       ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 </body>
