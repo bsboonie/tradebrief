@@ -131,6 +131,9 @@ body.light .sw-btn:hover{background:rgba(0,0,0,0.04);}
 body.light .sw-btn.active{background:rgba(0,0,0,0.06);}
 body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,transparent);}
 
+/* Mobile card header — hidden on desktop by default */
+.card-mobile-hdr { display: none; }
+
 /* ── MOBILE OVERRIDES (≤580px) ─────────────────────────────────────── */
 @media(max-width:580px){
   /* Hide Scan Now from header on mobile */
@@ -210,6 +213,56 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
 
   /* Hide TradeBrief nav link in panel headers on mobile */
   .tb-nav-link { display:none !important; }
+
+  /* Mobile card header — show 2-row layout, hide desktop 3-column layout */
+  .card-mobile-hdr { display:block !important; }
+  .card-desktop-hdr { display:none !important; }
+
+  /* Row 1: badge · score · ticker · price · buttons */
+  .cmh-row1 {
+    display:flex;align-items:center;gap:7px;
+    padding:10px 10px 6px 14px;
+  }
+  .cmh-score {
+    font-family:'Space Mono',monospace;font-size:26px;font-weight:700;
+    line-height:1;letter-spacing:-1px;cursor:pointer;flex-shrink:0;
+  }
+  .cmh-ticker {
+    font-family:'Space Mono',monospace;font-size:16px;font-weight:700;
+    flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  }
+  .cmh-price-block { text-align:right;flex-shrink:0; }
+  .cmh-price-big {
+    font-family:'Space Mono',monospace;font-size:15px;font-weight:700;line-height:1;
+  }
+  .cmh-price-chg {
+    font-family:'Space Mono',monospace;font-size:9px;margin-top:2px;
+  }
+  .cmh-icon-btn {
+    display:inline-flex;align-items:center;justify-content:center;
+    width:22px;height:22px;background:none;
+    border:1px solid rgba(120,170,220,0.18);border-radius:4px;
+    color:#6b7a99;font-size:11px;cursor:pointer;flex-shrink:0;
+  }
+
+  /* Row 2: company · mini-gauge · trend pill · regime pill */
+  .cmh-row2 {
+    display:flex;align-items:center;gap:6px;flex-wrap:wrap;
+    padding:0 10px 10px 14px;
+    border-bottom:1px solid rgba(120,170,220,0.18);
+  }
+  .cmh-company {
+    font-size:10px;color:#6b7a99;flex:1;min-width:0;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .cmh-mini-gauge { display:flex;align-items:center;gap:3px;flex-shrink:0; }
+  .cmh-conv-lbl {
+    font-family:'Space Mono',monospace;font-size:7px;color:#6b7a99;
+    letter-spacing:0.5px;line-height:1;
+  }
+  .cmh-conv-val {
+    font-family:'Space Mono',monospace;font-size:10px;font-weight:700;line-height:1;
+  }
 
   /* FIX 7: Mobile card — left-justify score/badge/SI area */
   #panel-brief .card-top { align-items: flex-start; }
@@ -4238,8 +4291,35 @@ function renderDataCard(ticker, bodyOnly=false){
       <div style="position:absolute;left:0;bottom:0;width:100%;height:${(d.prevDayVolRatio!=null?d.prevDayVolRatio:volRatio)!=null?Math.min(100,Math.round(((d.prevDayVolRatio!=null?d.prevDayVolRatio:volRatio))/3*100))+'%':'0%'};background:${convColor};box-shadow:0 0 12px ${convColor}55;transition:height 0.4s;"></div>
     </div>
 
-    <!-- ① HEADER STRIP -->
-    <div style="display:flex;align-items:stretch;border-bottom:1px solid rgba(120,170,220,0.18);padding-left:3px;">
+    <!-- ① MOBILE HEADER (2-row, ≤580px) -->
+    <div class="card-mobile-hdr">
+      <div class="cmh-row1">
+        ${(()=>{const sigBg=sig==='PUTS'?'rgba(255,71,87,0.08)':sig==='WAIT'?'rgba(255,165,2,0.08)':'rgba(0,255,157,0.08)';const sigFg=sig==='PUTS'?'#ff4757':sig==='WAIT'?'#ffa502':'#00ff9d';const sigBd=sig==='PUTS'?'rgba(255,71,87,0.25)':sig==='WAIT'?'rgba(255,165,2,0.25)':'rgba(0,255,157,0.25)';return`<span style="display:inline-flex;align-items:center;padding:3px 8px;border-radius:4px;font-family:'Space Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.5px;white-space:nowrap;background:${sigBg};color:${sigFg};border:1px solid ${sigBd};flex-shrink:0;">${sig}</span>`;})()}
+        <span class="cmh-score" style="color:${scoreColor};" onclick="toggleScoreBreakdown('${ticker}',event)" title="Tap for score breakdown">${displayScore}<span style="font-size:9px;color:#6b7a99;margin-left:1px;">▾</span></span>
+        <span class="cmh-ticker">${ticker}</span>
+        <div class="cmh-price-block">
+          <div class="cmh-price-big" style="color:${priceColor};">$${d.price.toFixed(2)}</div>
+          <div class="cmh-price-chg" style="color:${priceColor};">${d.change>=0?'+':''}${d.change.toFixed(2)} · ${changeSign}${d.changePct.toFixed(2)}%</div>
+        </div>
+        <button onclick="dismissCard('${ticker}')" class="cmh-icon-btn" title="Dismiss" style="font-size:13px;">✕</button>
+        <button id="card-toggle-m-${ticker}" onclick="toggleCard('${ticker}')" class="cmh-icon-btn" title="Expand">▼</button>
+      </div>
+      <div class="cmh-row2">
+        <span class="cmh-company">${d.description||''}</span>
+        <div class="cmh-mini-gauge">
+          <svg width="26" height="17" viewBox="0 0 40 24">
+            <path d="M 2 20 A 18 18 0 0 1 38 20" stroke="rgba(120,170,220,0.09)" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+            <path d="M 2 20 A 18 18 0 0 1 38 20" stroke="${convColor}" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-dasharray="${Math.max(0,Math.min(100,conviction))/100*56.5} 56.5"/>
+          </svg>
+          <div><div class="cmh-conv-lbl">CONV</div><div class="cmh-conv-val" style="color:${convColor};">${conviction}</div></div>
+        </div>
+        <span style="display:inline-flex;align-items:center;padding:2px 7px;border-radius:4px;font-family:'Space Mono',monospace;font-size:9px;font-weight:700;white-space:nowrap;background:${trendBg};color:${trendColor};border:1px solid ${trendBorder};">${trendVal}</span>
+        ${regimePillHtml}
+      </div>
+    </div>
+
+    <!-- ① DESKTOP HEADER (3-col, >580px) -->
+    <div class="card-desktop-hdr" style="display:flex;align-items:stretch;border-bottom:1px solid rgba(120,170,220,0.18);padding-left:3px;">
       <!-- Score cluster -->
       <div style="padding:14px 18px;display:flex;align-items:center;gap:12px;background:linear-gradient(90deg,rgba(0,212,255,0.06),transparent);border-right:1px solid rgba(120,170,220,0.09);flex:0 0 240px;min-width:240px;">
         ${(()=>{const sigBg=sig==='PUTS'?'rgba(255,71,87,0.08)':sig==='WAIT'?'rgba(255,165,2,0.08)':'rgba(0,255,157,0.08)';const sigFg=sig==='PUTS'?'#ff4757':sig==='WAIT'?'#ffa502':'#00ff9d';const sigBd=sig==='PUTS'?'rgba(255,71,87,0.25)':sig==='WAIT'?'rgba(255,165,2,0.25)':'rgba(0,255,157,0.25)';return`<span style="display:inline-flex;align-items:center;padding:4px 9px;border-radius:4px;font-family:'Space Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.5px;white-space:nowrap;background:${sigBg};color:${sigFg};border:1px solid ${sigBd};">${sig}</span>`;})()}
@@ -4276,7 +4356,7 @@ function renderDataCard(ticker, bodyOnly=false){
         <!-- Expand toggle -->
         <button id="card-toggle-${ticker}" onclick="toggleCard('${ticker}')" title="Expand" style="display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;background:none;border:1px solid rgba(120,170,220,0.18);border-radius:4px;color:#6b7a99;font-size:11px;cursor:pointer;transition:all 0.15s;flex-shrink:0;" onmouseover="this.style.color='#00d4ff';this.style.borderColor='rgba(0,212,255,0.4)'" onmouseout="this.style.color='#6b7a99';this.style.borderColor='rgba(120,170,220,0.18)'">▼</button>
       </div>
-    </div>
+    </div><!-- end card-desktop-hdr -->
 
     <!-- ② CARD BODY (collapsible) -->
     <div id="card-body-${ticker}" style="display:none;">`}
