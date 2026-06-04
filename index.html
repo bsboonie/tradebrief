@@ -1,22 +1,15 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v7.14.13.4.1 — Regime Filter Hardening           ║
-     ║  Date: 2026-05-18                                                ║
-     ║  Changes from v7.14.12:                                          ║
-     ║    1. Fix: Settings (Max Results + all) now persist via          ║
-     ║       fbSyncAll() — Firebase no longer overwrites on reload      ║
-     ║    2. Fix: TradeData Curation Queue moved between Manual         ║
-     ║       Controls and Earnings Calendar                             ║
-     ║    3. Fix: Volume stat label now shows period "vs 20d avg"       ║
-     ║    4. Fix: Card header vol gauge uses prior-day volume vs        ║
-     ║       20d avg instead of intraday (meaningful pre-market)        ║
-     ║    5. Fix: Card header columns locked to fixed widths;           ║
-     ║       long company names wrap instead of pushing layout          ║
-     ║    6. Fix: SPY badge text cleaned — icon + SPY + % only,        ║
-     ║       "aligned" / "vs regime" text removed                       ║
-     ║    7. New: Auto-Close toggle per open trade in TradeLog —        ║
-     ║       monitors EXIT ↓, closes locally when stop hit             ║
-     ║    8. Fix: LIVE $ rescales correctly when contract qty changes   ║
+     ║  TRADEBRIEF v7.14.14 — TradeLog Cost Reconcile                   ║
+     ║  Date: 2026-06-04                                                ║
+     ║  Changes from v7.14.13.4.1:                                      ║
+     ║    1. New: COST ea cell in the active TradeLog table is now      ║
+     ║       editable inline (mirrors EXIT / CTRK inline-edit UX).      ║
+     ║    2. Fix: Editing cost rebases EXIT ↑ / EXIT ↓ targets onto     ║
+     ║       the corrected fill price — preserves the trade's TP/SL     ║
+     ║       multiples; defaults to x1.8 / x0.50 if no prior ratio.     ║
+     ║    3. Note: per-contract exit storage refactor still queued      ║
+     ║       (separate item — not touched here).                        ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 <html lang="en">
 <head>
@@ -26,7 +19,7 @@
 <meta name="theme-color" content="#111827">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>TradeBrief v7.14.13.4.1</title>
+<title>TradeBrief v7.14.14</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -2313,10 +2306,10 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
 
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.14.13.4.1</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.14.14</div>
 
 <!-- ══ MOBILE VERSION STAMP (always visible on mobile, bottom-left) ══════ -->
-<div id="mobile-version-stamp" style="display:none;">v7.14.13.4.1</div>
+<div id="mobile-version-stamp" style="display:none;">v7.14.14</div>
 
 <!-- ══ MOBILE SCAN BTN (Brief panel only, toggled via swApp) ═════════════ -->
 <div id="mobile-scan-btn-wrap" style="display:none;">
@@ -9006,7 +8999,7 @@ function swApp(name){
             <td>${expDateFmt}</td>
             <td>${stockPxCell}</td>
             <td>${strikesFmt}</td>
-            <td style="color:var(--accent);">$${parseFloat(t.cost||0).toFixed(2)}</td>
+            <td><input class="tl-exit-input tl-cost-input" type="number" step="0.01" min="0" value="${parseFloat(t.cost||0).toFixed(2)}" data-id="${t.id}" style="color:var(--accent);text-align:right;" onfocus="this.select()" onblur="tlCostSave(this)" onkeydown="if(event.key==='Enter')this.blur()"></td>
             <td><input class="tl-exit-input" type="number" step="1" min="1" value="${contracts}" data-id="${t.id}" style="width:48px;text-align:center;" onfocus="this.select()" onblur="tlCtrkSave(this)" onkeydown="if(event.key==='Enter')this.blur()"></td>
             <td style="color:var(--muted);">$${xCost.toFixed(2)}</td>
             <td>${t.maxProfit!=null ? '$'+parseFloat(t.maxProfit).toFixed(2) : '—'}</td>
@@ -9176,6 +9169,43 @@ function swApp(name){
     tlRender();
   }
 
+  // ── COST RECONCILE (edit fill price after fill) ──────────────────
+  // Editing the per-contract cost rebases the stored EXIT targets onto the
+  // real fill. Preserves the TP/SL multiples the trade was logged with;
+  // falls back to x1.8 / x0.50 if no prior ratio exists.
+  async function tlCostSave(input) {
+    const id  = input.dataset.id;
+    const val = parseFloat(input.value);
+    if (isNaN(val) || val <= 0) { tlRender(); return; }
+    input.style.borderColor = 'var(--good)';
+    input.style.background  = 'rgba(0,255,157,0.08)';
+    setTimeout(() => { input.style.borderColor = ''; input.style.background = ''; }, 800);
+    const trades  = getTrades();
+    const t       = trades.find(tr => tr.id === id);
+    const oldCost = t ? parseFloat(t.cost) : NaN;
+    let itmRatio = 1.8, otmRatio = 0.5;
+    if (t && oldCost > 0) {
+      if (t.exitItm && parseFloat(t.exitItm) > 0) itmRatio = parseFloat(t.exitItm) / oldCost;
+      if (t.exitOtm && parseFloat(t.exitOtm) > 0) otmRatio = parseFloat(t.exitOtm) / oldCost;
+    }
+    const patch = {
+      cost:    val,
+      exitItm: +(val * itmRatio).toFixed(2),
+      exitOtm: +(val * otmRatio).toFixed(2)
+    };
+    if (window.TS && window.TS.updateTrade) {
+      await window.TS.updateTrade(id, patch);
+    } else {
+      try {
+        const ls = JSON.parse(localStorage.getItem('ts-trades') || '[]');
+        const idx = ls.findIndex(tr => tr.id === id);
+        if (idx >= 0) { Object.assign(ls[idx], patch); localStorage.setItem('ts-trades', JSON.stringify(ls)); }
+      } catch(e) {}
+    }
+    if (typeof tb_toast === 'function') tb_toast('\u2705 Cost updated \u2014 exits rebased');
+    tlRender();
+  }
+
   // ── AUTO-CLOSE TOGGLE ────────────────────────────────────────────
   function tlToggleAutoClose(id) {
     if (tlAcToggleLock) return;
@@ -9230,6 +9260,7 @@ function swApp(name){
   window.tlExitFocus        = tlExitFocus;
   window.tlExitSave         = tlExitSave;
   window.tlCtrkSave         = tlCtrkSave;
+  window.tlCostSave         = tlCostSave;
   window.tlStartClose       = tlStartClose;
   window.tlCancelClose      = tlCancelClose;
   window.tlSetCloseOutcome  = tlSetCloseOutcome;
@@ -9243,8 +9274,8 @@ function swApp(name){
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradeBrief v7.14.13.4.1 — Regime Filter Hardening      ║
-     ║  2026-05-18                                                       ║
+     ║  END TradeBrief v7.14.14 — TradeLog Cost Reconcile               ║
+     ║  2026-06-04                                                      ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 </body>
 </html>
