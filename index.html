@@ -1,14 +1,16 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v7.14.15 — TradeSheet Chart Theme                    ║
+     ║  TRADEBRIEF v7.14.16 — Theme Unify                               ║
      ║  Date: 2026-06-05                                                ║
-     ║  Changes from v7.14.14:                                          ║
-     ║    1. Fix: TradeSheet chart (price + RSI canvases) now tracks    ║
-     ║       the dark/light theme — background, gridlines, axis text    ║
-     ║       read from CSS vars; repaints live on theme toggle via      ║
-     ║       window.tsRedrawChart hook called from ts_applyTheme().     ║
-     ║    2. Fix: EMA21 line color flips in light mode (was white-on-   ║
-     ║       white / invisible).                                        ║
+     ║  Changes from v7.14.15:                                          ║
+     ║    1. Fix: unified the two competing theme systems (TradeBrief   ║
+     ║       settings + TradeSheet) onto one source of truth S('theme').║
+     ║       Both appliers now sync both selectors, mirror ts-theme, and║
+     ║       redraw the chart — no more dark/light desync on load.      ║
+     ║    2. Fix: changing theme in Settings now repaints the TS chart  ║
+     ║       (tb_applyTheme calls window.tsRedrawChart).                ║
+     ║    3. Settings theme dropdowns persist-then-apply (saveS/saveSO  ║
+     ║       before tb_applyTheme) so the applier reads fresh cfg.      ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 <html lang="en">
 <head>
@@ -18,7 +20,7 @@
 <meta name="theme-color" content="#111827">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>TradeBrief v7.14.15</title>
+<title>TradeBrief v7.14.16</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -693,7 +695,7 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
     <div class="sec">Display</div>
     <div class="settings-section">
       <h3>APPEARANCE</h3>
-      <div class="setting-row"><div class="setting-info"><div class="setting-label">Theme</div><div class="setting-desc">Switch between dark and light mode</div></div><div class="setting-control"><select class="sel-input" id="s-theme" onchange="tb_applyTheme();saveS()"><option value="dark">🌙 Dark</option><option value="light">☀️ Light</option></select></div></div>
+      <div class="setting-row"><div class="setting-info"><div class="setting-label">Theme</div><div class="setting-desc">Switch between dark and light mode</div></div><div class="setting-control"><select class="sel-input" id="s-theme" onchange="saveS();tb_applyTheme()"><option value="dark">🌙 Dark</option><option value="light">☀️ Light</option></select></div></div>
     </div>
     <div class="sec">Integrations</div>
     <div class="settings-section">
@@ -2276,7 +2278,7 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
     <div class="sec">Display</div>
     <div class="settings-section">
       <h3>APPEARANCE</h3>
-      <div class="setting-row"><div class="setting-info"><div class="setting-label">Theme</div><div class="setting-desc">Switch between dark and light mode</div></div><div class="setting-control"><select class="sel-input" id="so-theme" onchange="tb_applyTheme();saveSO()"><option value="dark">🌙 Dark</option><option value="light">☀️ Light</option></select></div></div>
+      <div class="setting-row"><div class="setting-info"><div class="setting-label">Theme</div><div class="setting-desc">Switch between dark and light mode</div></div><div class="setting-control"><select class="sel-input" id="so-theme" onchange="saveSO();tb_applyTheme()"><option value="dark">🌙 Dark</option><option value="light">☀️ Light</option></select></div></div>
     </div>
     <div class="sec">Integrations</div>
     <div class="settings-section">
@@ -2305,10 +2307,10 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
 
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.14.15</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.14.16</div>
 
 <!-- ══ MOBILE VERSION STAMP (always visible on mobile, bottom-left) ══════ -->
-<div id="mobile-version-stamp" style="display:none;">v7.14.15</div>
+<div id="mobile-version-stamp" style="display:none;">v7.14.16</div>
 
 <!-- ══ MOBILE SCAN BTN (Brief panel only, toggled via swApp) ═════════════ -->
 <div id="mobile-scan-btn-wrap" style="display:none;">
@@ -3463,10 +3465,14 @@ function loadS(){
   tb_applyTheme();
 }
 function tb_applyTheme(){
-  const soTheme=document.getElementById('so-theme');
-  const sTheme=document.getElementById('s-theme');
-  const t=(soTheme?soTheme.value:null)||(sTheme?sTheme.value:null)||S('theme')||'dark';
-  document.body.classList.toggle('light',t==='light');
+  // Unified theme: single source of truth = S('theme') (cfg, Firebase-synced),
+  // falling back to the ts-theme mirror, then dark.
+  const t = S('theme') || localStorage.getItem('ts-theme') || 'dark';
+  document.body.classList.toggle('light', t==='light');
+  const so=document.getElementById('so-theme'), st=document.getElementById('s-theme');
+  if(so) so.value=t; if(st) st.value=t;
+  localStorage.setItem('ts-theme', t);
+  if (typeof window.tsRedrawChart === 'function') window.tsRedrawChart();
 }
 
 // ── WATCHLIST ──────────────────────────────────────────────────────────────
@@ -5755,13 +5761,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // ── THEME ─────────────────────────────────────────────────────────
 function ts_applyTheme() {
-  const t = localStorage.getItem('ts-theme') || 'dark';
+  // Unified theme: read the same source of truth as tb_applyTheme so the two
+  // appliers can never fight on load.
+  const t = (typeof S==='function' ? S('theme') : null) || localStorage.getItem('ts-theme') || 'dark';
   document.body.classList.toggle('light', t === 'light');
+  const so=document.getElementById('so-theme'), st=document.getElementById('s-theme');
+  if(so) so.value=t; if(st) st.value=t;
+  localStorage.setItem('ts-theme', t);
   if (typeof window.tsRedrawChart === 'function') window.tsRedrawChart();
 }
 function ts_toggleTheme() {
-  const cur = localStorage.getItem('ts-theme') || 'dark';
+  const cur = S('theme') || localStorage.getItem('ts-theme') || 'dark';
   const next = cur === 'dark' ? 'light' : 'dark';
+  try { cfg.theme = next; localStorage.setItem('cfg', JSON.stringify(cfg)); } catch(e){}
   localStorage.setItem('ts-theme', next);
   ts_applyTheme();
 }
@@ -9277,7 +9289,7 @@ function swApp(name){
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradeBrief v7.14.15 — TradeSheet Chart Theme                ║
+     ║  END TradeBrief v7.14.16 — Theme Unify                           ║
      ║  2026-06-05                                                      ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 </body>
