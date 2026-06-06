@@ -1,15 +1,14 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v7.14.14 — TradeLog Cost Reconcile                   ║
-     ║  Date: 2026-06-04                                                ║
-     ║  Changes from v7.14.13.4.1:                                      ║
-     ║    1. New: COST ea cell in the active TradeLog table is now      ║
-     ║       editable inline (mirrors EXIT / CTRK inline-edit UX).      ║
-     ║    2. Fix: Editing cost rebases EXIT ↑ / EXIT ↓ targets onto     ║
-     ║       the corrected fill price — preserves the trade's TP/SL     ║
-     ║       multiples; defaults to x1.8 / x0.50 if no prior ratio.     ║
-     ║    3. Note: per-contract exit storage refactor still queued      ║
-     ║       (separate item — not touched here).                        ║
+     ║  TRADEBRIEF v7.14.15 — TradeSheet Chart Theme                    ║
+     ║  Date: 2026-06-05                                                ║
+     ║  Changes from v7.14.14:                                          ║
+     ║    1. Fix: TradeSheet chart (price + RSI canvases) now tracks    ║
+     ║       the dark/light theme — background, gridlines, axis text    ║
+     ║       read from CSS vars; repaints live on theme toggle via      ║
+     ║       window.tsRedrawChart hook called from ts_applyTheme().     ║
+     ║    2. Fix: EMA21 line color flips in light mode (was white-on-   ║
+     ║       white / invisible).                                        ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 <html lang="en">
 <head>
@@ -19,7 +18,7 @@
 <meta name="theme-color" content="#111827">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>TradeBrief v7.14.14</title>
+<title>TradeBrief v7.14.15</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -2306,10 +2305,10 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
 
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.14.14</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.14.15</div>
 
 <!-- ══ MOBILE VERSION STAMP (always visible on mobile, bottom-left) ══════ -->
-<div id="mobile-version-stamp" style="display:none;">v7.14.14</div>
+<div id="mobile-version-stamp" style="display:none;">v7.14.15</div>
 
 <!-- ══ MOBILE SCAN BTN (Brief panel only, toggled via swApp) ═════════════ -->
 <div id="mobile-scan-btn-wrap" style="display:none;">
@@ -5758,6 +5757,7 @@ document.addEventListener('DOMContentLoaded', () => {
 function ts_applyTheme() {
   const t = localStorage.getItem('ts-theme') || 'dark';
   document.body.classList.toggle('light', t === 'light');
+  if (typeof window.tsRedrawChart === 'function') window.tsRedrawChart();
 }
 function ts_toggleTheme() {
   const cur = localStorage.getItem('ts-theme') || 'dark';
@@ -7457,16 +7457,18 @@ const tsChart = (function(){
     const ctx = mainCanvas.getContext('2d');
     const rCtx = rsiCanvas.getContext('2d');
 
-    // Colors
-    const bg = '#111827';
-    const border = '#1e2d45';
+    // Colors — structural colors track the active theme (dark/light)
+    const _cs = getComputedStyle(document.body);
+    const _light = document.body.classList.contains('light');
+    const bg = (_cs.getPropertyValue('--surface').trim() || '#111827');
+    const border = (_cs.getPropertyValue('--border').trim() || '#1e2d45');
     const upColor = '#00ff9d';
     const dnColor = '#ff4757';
     const ema8Color = '#ffa502';
-    const ema21Color = 'rgba(255,255,255,0.5)';
+    const ema21Color = _light ? 'rgba(26,34,53,0.55)' : 'rgba(255,255,255,0.5)';
     const rsiColor = '#bf8cff';
     const strikeColor = '#4ade80';
-    const textColor = '#6b7a99';
+    const textColor = (_cs.getPropertyValue('--muted').trim() || '#6b7a99');
 
     const closes = _candles.map(c => c.c);
     const ema8 = calcEMA(closes, 8);
@@ -7642,6 +7644,7 @@ const tsChart = (function(){
 
 function tsChartSetView(view) { tsChart.setView(view); }
 window.tsChartSetView = tsChartSetView;
+window.tsRedrawChart = function(){ try { tsChart.draw(); } catch(e){} };
 
 // Strike update hook called directly from updateTradePlan
 function tsChartUpdateStrikes() {
@@ -9274,8 +9277,8 @@ function swApp(name){
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradeBrief v7.14.14 — TradeLog Cost Reconcile               ║
-     ║  2026-06-04                                                      ║
+     ║  END TradeBrief v7.14.15 — TradeSheet Chart Theme                ║
+     ║  2026-06-05                                                      ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 </body>
 </html>
