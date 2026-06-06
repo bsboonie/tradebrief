@@ -1,16 +1,15 @@
 <!DOCTYPE html>
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v7.14.16 — Theme Unify                               ║
+     ║  TRADEBRIEF v7.14.17 — TB Card Theme (core)                      ║
      ║  Date: 2026-06-05                                                ║
-     ║  Changes from v7.14.15:                                          ║
-     ║    1. Fix: unified the two competing theme systems (TradeBrief   ║
-     ║       settings + TradeSheet) onto one source of truth S('theme').║
-     ║       Both appliers now sync both selectors, mirror ts-theme, and║
-     ║       redraw the chart — no more dark/light desync on load.      ║
-     ║    2. Fix: changing theme in Settings now repaints the TS chart  ║
-     ║       (tb_applyTheme calls window.tsRedrawChart).                ║
-     ║    3. Settings theme dropdowns persist-then-apply (saveS/saveSO  ║
-     ║       before tb_applyTheme) so the applier reads fresh cfg.      ║
+     ║  Changes from v7.14.16:                                          ║
+     ║    1. Fix: TradeBrief stock card backgrounds + primary text now  ║
+     ║       theme-aware (var(--surface)/var(--text)) — flip to light in║
+     ║       light mode, pixel-identical in dark.                       ║
+     ║    2. Fix: spread-table row well (#0f1624) -> var(--surface2) so ║
+     ║       rows aren't near-black on white (tiny dark-mode shift).    ║
+     ║    3. Left for screenshot pass: translucent dividers/tints,      ║
+     ║       toggle-knob dot, semantic accent colors.                   ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 <html lang="en">
 <head>
@@ -20,7 +19,7 @@
 <meta name="theme-color" content="#111827">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>TradeBrief v7.14.16</title>
+<title>TradeBrief v7.14.17</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -2307,10 +2306,10 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
 
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.14.16</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.14.17</div>
 
 <!-- ══ MOBILE VERSION STAMP (always visible on mobile, bottom-left) ══════ -->
-<div id="mobile-version-stamp" style="display:none;">v7.14.16</div>
+<div id="mobile-version-stamp" style="display:none;">v7.14.17</div>
 
 <!-- ══ MOBILE SCAN BTN (Brief panel only, toggled via swApp) ═════════════ -->
 <div id="mobile-scan-btn-wrap" style="display:none;">
@@ -3981,7 +3980,7 @@ function renderReminderHeader(ticker) {
   const thesisTagBd = thesisTag==='STRONG'?'rgba(0,255,157,0.4)':thesisTag==='SKIP'?'rgba(255,71,87,0.4)':'rgba(255,165,2,0.4)';
   const expandId = `rem-expand-${ticker}`;
 
-  return `<div style="background:#111827;border:1px solid rgba(120,170,220,0.18);position:relative;margin-bottom:6px;">
+  return `<div style="background:var(--surface);border:1px solid rgba(120,170,220,0.18);position:relative;margin-bottom:6px;">
     <div style="position:absolute;left:0;top:0;bottom:0;width:3px;background:${convColor};z-index:1;"></div>
     <!-- Collapsed header row -->
     <div style="display:flex;align-items:stretch;padding-left:3px;cursor:pointer;" onclick="document.getElementById('${expandId}').style.display=document.getElementById('${expandId}').style.display==='none'?'block':'none'">
@@ -4265,7 +4264,7 @@ function renderDataCard(ticker, bodyOnly=false){
 
   const scoreRowsHtml=scoreRows.map(r=>{
     const c=r.isPurple?'#bf8cff':(r.val>0?'#00ff9d':r.val===0?'#6b7a99':'#ff4757');
-    const rowBg=r.isPurple?'background:rgba(191,140,255,0.06);border-left:2px solid #bf8cff;':'background:#0f1624;';
+    const rowBg=r.isPurple?'background:rgba(191,140,255,0.06);border-left:2px solid #bf8cff;':'background:var(--surface2);';
     return`<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;${rowBg}font-size:12px;">
       <span style="color:${r.isPurple?'#bf8cff':'#6b7a99'};">${r.label}${r.note?`<span style="color:${r.isPurple?'#8b6ec4':'#4a5670'};font-weight:400;margin-left:6px;">(${r.note})</span>`:''}</span>
       <span style="font-family:'Space Mono',monospace;font-weight:700;color:${c};">${r.val>0?'+':''}${r.val}</span>
@@ -4283,7 +4282,7 @@ function renderDataCard(ticker, bodyOnly=false){
   // srcNote for limited data
   const srcNote=isLimited?'<span style="font-family:\'Space Mono\',monospace;font-size:9px;font-weight:700;padding:2px 8px;border-radius:12px;background:rgba(107,122,153,0.15);color:#6b7a99;border:1px solid rgba(107,122,153,0.3);margin-left:8px;">LIMITED</span>':'';
 
-  return`${bodyOnly?'':`<div id="card-${ticker}" style="background:#111827;border:1px solid rgba(120,170,220,0.18);position:relative;margin-bottom:9px;color:#e8edf5;font-family:'DM Sans',sans-serif;">
+  return`${bodyOnly?'':`<div id="card-${ticker}" style="background:var(--surface);border:1px solid rgba(120,170,220,0.18);position:relative;margin-bottom:9px;color:var(--text);font-family:'DM Sans',sans-serif;">
     <!-- Left accent rail with vol-fill -->
     <div style="position:absolute;left:0;top:0;bottom:0;width:3px;background:${convColor}22;z-index:1;">
       <div style="position:absolute;left:0;bottom:0;width:100%;height:${(d.prevDayVolRatio!=null?d.prevDayVolRatio:volRatio)!=null?Math.min(100,Math.round(((d.prevDayVolRatio!=null?d.prevDayVolRatio:volRatio))/3*100))+'%':'0%'};background:${convColor};box-shadow:0 0 12px ${convColor}55;transition:height 0.4s;"></div>
@@ -4392,7 +4391,7 @@ function renderDataCard(ticker, bodyOnly=false){
             </div>`:''}`;
           })()}
         </div>
-        <div id="rec-block-${ticker}" style="font-size:13px;line-height:1.55;color:#e8edf5;">
+        <div id="rec-block-${ticker}" style="font-size:13px;line-height:1.55;color:var(--text);">
           ${recText||`<span style="color:#6b7a99;font-style:italic;">Analyzing setup...</span>`}
         </div>
       </div>
@@ -4427,8 +4426,8 @@ function renderDataCard(ticker, bodyOnly=false){
 
       <!-- OVERRIDES accordion (Dividend / IVR / Earnings) — open by default -->
       <div style="background:rgba(120,170,220,0.09);height:1px;"></div>
-      <div style="background:#111827;">
-        <button onclick="const p=this.nextElementSibling;p.style.display=p.style.display==='none'?'block':'none'" style="width:100%;padding:11px 14px;text-align:left;cursor:pointer;background:transparent;border:none;color:#e8edf5;display:flex;align-items:center;gap:10px;font-family:'DM Sans',sans-serif;" onmouseover="this.style.background='rgba(120,170,220,0.04)'" onmouseout="this.style.background='transparent'">
+      <div style="background:var(--surface);">
+        <button onclick="const p=this.nextElementSibling;p.style.display=p.style.display==='none'?'block':'none'" style="width:100%;padding:11px 14px;text-align:left;cursor:pointer;background:transparent;border:none;color:var(--text);display:flex;align-items:center;gap:10px;font-family:'DM Sans',sans-serif;" onmouseover="this.style.background='rgba(120,170,220,0.04)'" onmouseout="this.style.background='transparent'">
           <span style="color:#6b7a99;font-size:9px;">▾</span>
           <span style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:#6b7a99;">Overrides</span>
           <span style="flex:1;"></span>
@@ -4497,7 +4496,7 @@ function renderDataCard(ticker, bodyOnly=false){
       </div>
       <!-- THESIS accordion -->
       <div style="background:rgba(120,170,220,0.09);height:1px;"></div>
-      <div style="background:#111827;">
+      <div style="background:var(--surface);">
         <div class="thesis-row" onclick="toggleThesis('${ticker}')" style="width:100%;padding:11px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;">
           <span style="color:#6b7a99;font-size:9px;">▾</span>
           <span style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:#6b7a99;">Thesis</span>
@@ -4534,8 +4533,8 @@ function renderDataCard(ticker, bodyOnly=false){
 
       <!-- SCORE BREAKDOWN accordion -->
       <div style="background:rgba(120,170,220,0.09);height:1px;"></div>
-      <div style="background:#111827;">
-        <button onclick="toggleScoreBreakdown('${ticker}',event)" style="width:100%;padding:11px 14px;text-align:left;cursor:pointer;background:transparent;border:none;color:#e8edf5;display:flex;align-items:center;gap:10px;font-family:'DM Sans',sans-serif;transition:background .12s;" onmouseover="this.style.background='rgba(120,170,220,0.04)'" onmouseout="this.style.background='transparent'">
+      <div style="background:var(--surface);">
+        <button onclick="toggleScoreBreakdown('${ticker}',event)" style="width:100%;padding:11px 14px;text-align:left;cursor:pointer;background:transparent;border:none;color:var(--text);display:flex;align-items:center;gap:10px;font-family:'DM Sans',sans-serif;transition:background .12s;" onmouseover="this.style.background='rgba(120,170,220,0.04)'" onmouseout="this.style.background='transparent'">
           <span style="color:#6b7a99;font-size:9px;">▾</span>
           <span style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:#6b7a99;">Score Breakdown</span>
           <span style="flex:1;"></span>
@@ -4545,7 +4544,7 @@ function renderDataCard(ticker, bodyOnly=false){
           <div style="display:flex;flex-direction:column;gap:1px;background:rgba(120,170,220,0.09);border-radius:3px;overflow:hidden;">
             ${scoreRowsHtml}
           </div>
-          <div style="display:flex;justify-content:space-between;padding:9px 10px;background:#111827;font-family:'Space Mono',monospace;font-size:11px;margin-top:1px;">
+          <div style="display:flex;justify-content:space-between;padding:9px 10px;background:var(--surface);font-family:'Space Mono',monospace;font-size:11px;margin-top:1px;">
             <span style="color:#6b7a99;">Technical <span style="color:#00d4ff;font-weight:700;">${displayScore}</span>${d.thesisScore!=null?` + Thesis <span style="color:#bf8cff;font-weight:700;">+${d.thesisScore}</span>`:''}</span>
             <span style="color:#00ff9d;font-weight:700;">→ Conviction ${conviction}</span>
           </div>
@@ -9289,7 +9288,7 @@ function swApp(name){
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradeBrief v7.14.16 — Theme Unify                           ║
+     ║  END TradeBrief v7.14.17 — TB Card Theme (core)                  ║
      ║  2026-06-05                                                      ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 </body>
