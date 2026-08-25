@@ -1,26 +1,24 @@
 <!DOCTYPE html>
 <!-- ╔═════════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v7.14.18 — Top 10 Ranking Repair                     ║
+     ║  TRADEBRIEF v7.14.19 — RankScore Display                          ║
      ║  Date: 2026-08-25                                                ║
-     ║  Changes from v7.14.17:                                          ║
-     ║    1. FIX (correctness): buildTop10 comparator was intransitive.  ║
-     ║       It switched sort keys inside a 3-point confidence band,     ║
-     ║       violating the strict-weak-ordering contract and letting     ║
-     ║       Array.prototype.sort return arbitrary order. Replaced with  ║
-     ║       strict lexicographic ordering on three fixed numeric keys.  ║
-     ║    2. Single rankScore = confidence + siBonus + thesisAdder now   ║
-     ║       governs ordering. The AI thesis adder previously had zero   ║
-     ║       influence on rank despite driving the CONV number.          ║
-     ║    3. NEW: action tier is the primary sort key — CALLS/PUTS above ║
-     ║       WAIT above no-data. Ranked list now leads with tradeable.   ║
-     ║    4. Re-rank once after batch thesis settles (guarded on no card ║
-     ║       expanded). Reorders only — set membership cannot change.    ║
-     ║    5. SI edge bonus (+15/+8/−10) now shown on the SPY pill so the  ║
-     ║       card reconciles with its position in the list.              ║
-     ║    6. Divider row marks the actionable / not-actionable boundary. ║
-     ║  Carried forward from v7.14.17 (still open):                      ║
+     ║  Changes from v7.14.18:                                          ║
+     ║    1. Collapsed card header now reports RANK (rankScore) in place ║
+     ║       of CONV. rankScore = technical + SI edge bonus + thesis      ║
+     ║       adder — the value that actually determines list position.    ║
+     ║       Applied to desktop header, mobile header, and the fired-     ║
+     ║       reminder header so no surface shows a stale CONV.           ║
+     ║    2. Gauge arc + color now track rankScore. Arc clamps at 100;    ║
+     ║       rankScore itself may exceed 100 and displays uncapped.       ║
+     ║    3. Left accent bar color follows rankScore.                     ║
+     ║    4. buildTop10 writes rankScore + siBonus back onto sd.          ║
+     ║    5. Section header: 'Top N by Confidence' -> 'Top N by Rank'.    ║
+     ║  Conviction is unchanged and still shown in the expanded thesis   ║
+     ║  block (Technical | Thesis -> Conviction).                        ║
+     ║  Carried forward (still open):                                    ║
      ║    - Dark no-regression verification + light-mode screenshot      ║
      ║    - Card 'tail': translucent tints, toggle knob, accent colors   ║
+     ║    - SI threshold calibration review (53%/65% vs ~56% ceiling)    ║
      ╚═════════════════════════════════════════════════════════════╝ -->
 
 <html lang="en">
@@ -31,7 +29,7 @@
 <meta name="theme-color" content="#111827">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>TradeBrief v7.14.18</title>
+<title>TradeBrief v7.14.19</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -2318,10 +2316,10 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
 
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.14.18</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.14.19</div>
 
 <!-- ══ MOBILE VERSION STAMP (always visible on mobile, bottom-left) ══════ -->
-<div id="mobile-version-stamp" style="display:none;">v7.14.18</div>
+<div id="mobile-version-stamp" style="display:none;">v7.14.19</div>
 
 <!-- ══ MOBILE SCAN BTN (Brief panel only, toggled via swApp) ═════════════ -->
 <div id="mobile-scan-btn-wrap" style="display:none;">
@@ -2853,6 +2851,10 @@ function buildTop10(){
     if(a.rankScore!==b.rankScore)return b.rankScore-a.rankScore;
     return b.volRatioSort-a.volRatioSort;// exact ties only
   });
+
+  // v7.14.19 — write rankScore back onto sd so card renderers can display the
+  // number that actually governs ordering.
+  scored.forEach(s=>{if(sd[s.ticker]){sd[s.ticker].rankScore=s.rankScore;sd[s.ticker].siBonus=s.siBonus;}});
 
   top10=scored.filter(s=>!dismissedCards.includes(s.ticker)).slice(0,S('maxResults')).map(s=>s.ticker);
   // Append manually called-in ticker as 11th if set, not already in top10, and has data
@@ -3995,6 +3997,10 @@ function renderReminderHeader(ticker) {
   const thesisAdder = d.thesisScore || 0;
   const conviction = d.thesisScore != null ? Math.min(100, displayScore + thesisAdder) : displayScore;
   const convColor = conviction >= 82 ? '#00ff9d' : conviction >= 70 ? '#ffa502' : '#ff4757';
+  // v7.14.19 — header shows rankScore (the sort key). Conviction is retained
+  // for the expanded thesis block. Falls back pre-scan when rankScore is unset.
+  const rankScore = d.rankScore != null ? d.rankScore : conviction;
+  const rankColor = rankScore >= 82 ? '#00ff9d' : rankScore >= 70 ? '#ffa502' : '#ff4757';
   const scoreColor = displayScore >= 82 ? '#00ff9d' : displayScore >= 70 ? '#00d4ff' : '#ffa502';
   const priceColor = d.change >= 0 ? '#00ff9d' : '#ff4757';
   const changeSign = d.changePct >= 0 ? '+' : '';
@@ -4013,16 +4019,16 @@ function renderReminderHeader(ticker) {
   const expandId = `rem-expand-${ticker}`;
 
   return `<div style="background:var(--surface);border:1px solid rgba(120,170,220,0.18);position:relative;margin-bottom:6px;">
-    <div style="position:absolute;left:0;top:0;bottom:0;width:3px;background:${convColor};z-index:1;"></div>
+    <div style="position:absolute;left:0;top:0;bottom:0;width:3px;background:${rankColor};z-index:1;"></div>
     <!-- Collapsed header row -->
     <div style="display:flex;align-items:stretch;padding-left:3px;cursor:pointer;" onclick="document.getElementById('${expandId}').style.display=document.getElementById('${expandId}').style.display==='none'?'block':'none'">
       <div style="padding:10px 14px;display:flex;align-items:center;gap:10px;background:linear-gradient(90deg,rgba(0,212,255,0.06),transparent);border-right:1px solid rgba(120,170,220,0.09);">
         <span style="display:inline-flex;align-items:center;padding:4px 9px;border-radius:4px;font-family:'Space Mono',monospace;font-size:10px;font-weight:700;white-space:nowrap;background:${sigBg};color:${sigFg};border:1px solid ${sigBd};">${sig}</span>
         <span style="font-family:'Space Mono',monospace;font-size:28px;font-weight:700;color:${scoreColor};line-height:1;">${displayScore}</span>
-        <!-- mini conviction gauge -->
+        <!-- mini rank gauge -->
         <div style="display:flex;align-items:center;gap:6px;">
-          <svg width="40" height="24" viewBox="0 0 40 24"><path d="M 2 20 A 18 18 0 0 1 38 20" stroke="rgba(120,170,220,0.09)" stroke-width="3" fill="none" stroke-linecap="round"/><path d="M 2 20 A 18 18 0 0 1 38 20" stroke="${convColor}" stroke-width="3" fill="none" stroke-linecap="round" stroke-dasharray="${Math.max(0,Math.min(100,conviction))/100*56.5} 56.5"/></svg>
-          <div><div style="font-family:'Space Mono',monospace;font-size:8px;color:#6b7a99;">CONV</div><div style="font-family:'Space Mono',monospace;font-size:12px;font-weight:700;color:${convColor};">${conviction}</div></div>
+          <svg width="40" height="24" viewBox="0 0 40 24"><path d="M 2 20 A 18 18 0 0 1 38 20" stroke="rgba(120,170,220,0.09)" stroke-width="3" fill="none" stroke-linecap="round"/><path d="M 2 20 A 18 18 0 0 1 38 20" stroke="${rankColor}" stroke-width="3" fill="none" stroke-linecap="round" stroke-dasharray="${Math.max(0,Math.min(100,rankScore))/100*56.5} 56.5"/></svg>
+          <div><div style="font-family:'Space Mono',monospace;font-size:8px;color:#6b7a99;">RANK</div><div style="font-family:'Space Mono',monospace;font-size:12px;font-weight:700;color:${rankColor};">${rankScore}</div></div>
         </div>
       </div>
       <div style="padding:10px 14px;border-right:1px solid rgba(120,170,220,0.09);display:flex;flex-direction:column;justify-content:center;">
@@ -4136,7 +4142,7 @@ function rB(){
 
   // Top N label — always appears below reminders, above scan results
   const top10Label = (top10.length || notReadyList.length || scannerRunning)
-    ? `<div class="sec" style="margin-top:${reminderSection?'18px':'8px'};">Top ${top10.length||'—'} by Confidence</div>`
+    ? `<div class="sec" style="margin-top:${reminderSection?'18px':'8px'};">Top ${top10.length||'—'} by Rank</div>`
     : '';
 
   el.innerHTML=reminderSection+top10Label+top3Cards+nrCards+loadingCards+emptyMsg;
@@ -4156,6 +4162,11 @@ function renderDataCard(ticker, bodyOnly=false){
   const thesisAdder=d.thesisScore||0;
   const conviction=d.thesisScore!=null?Math.min(100,displayScore+thesisAdder):displayScore;
   const convColor=conviction>=82?'#00ff9d':conviction>=70?'#ffa502':'#ff4757';
+  // v7.14.19 — the collapsed header now reports rankScore, the value that drives
+  // list position (technical + SI edge bonus + thesis adder). Conviction remains
+  // in the expanded thesis block. rankScore can exceed 100; the arc clamps.
+  const rankScore=d.rankScore!=null?d.rankScore:conviction;
+  const rankColor=rankScore>=82?'#00ff9d':rankScore>=70?'#ffa502':'#ff4757';
   const scoreColor=displayScore>=82?'#00ff9d':displayScore>=70?'#00d4ff':'#ffa502';
 
   // Thesis tag
@@ -4331,7 +4342,7 @@ function renderDataCard(ticker, bodyOnly=false){
 
   return`${bodyOnly?'':`<div id="card-${ticker}" style="background:var(--surface);border:1px solid rgba(120,170,220,0.18);position:relative;margin-bottom:9px;color:var(--text);font-family:'DM Sans',sans-serif;">
     <!-- Left accent rail with vol-fill -->
-    <div style="position:absolute;left:0;top:0;bottom:0;width:3px;background:${convColor}22;z-index:1;">
+    <div style="position:absolute;left:0;top:0;bottom:0;width:3px;background:${rankColor}22;z-index:1;">
       <div style="position:absolute;left:0;bottom:0;width:100%;height:${(d.prevDayVolRatio!=null?d.prevDayVolRatio:volRatio)!=null?Math.min(100,Math.round(((d.prevDayVolRatio!=null?d.prevDayVolRatio:volRatio))/3*100))+'%':'0%'};background:${convColor};box-shadow:0 0 12px ${convColor}55;transition:height 0.4s;"></div>
     </div>
 
@@ -4353,9 +4364,9 @@ function renderDataCard(ticker, bodyOnly=false){
         <div class="cmh-mini-gauge">
           <svg width="26" height="17" viewBox="0 0 40 24">
             <path d="M 2 20 A 18 18 0 0 1 38 20" stroke="rgba(120,170,220,0.09)" stroke-width="3.5" fill="none" stroke-linecap="round"/>
-            <path d="M 2 20 A 18 18 0 0 1 38 20" stroke="${convColor}" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-dasharray="${Math.max(0,Math.min(100,conviction))/100*56.5} 56.5"/>
+            <path d="M 2 20 A 18 18 0 0 1 38 20" stroke="${rankColor}" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-dasharray="${Math.max(0,Math.min(100,rankScore))/100*56.5} 56.5"/>
           </svg>
-          <div><div class="cmh-conv-lbl">CONV</div><div class="cmh-conv-val" style="color:${convColor};">${conviction}</div></div>
+          <div><div class="cmh-conv-lbl">RANK</div><div class="cmh-conv-val" style="color:${rankColor};">${rankScore}</div></div>
         </div>
         <span style="display:inline-flex;align-items:center;padding:2px 7px;border-radius:4px;font-family:'Space Mono',monospace;font-size:9px;font-weight:700;white-space:nowrap;background:${trendBg};color:${trendColor};border:1px solid ${trendBorder};">${trendVal}</span>
         ${regimePillHtml}
@@ -4368,15 +4379,15 @@ function renderDataCard(ticker, bodyOnly=false){
       <div style="padding:14px 18px;display:flex;align-items:center;gap:12px;background:linear-gradient(90deg,rgba(0,212,255,0.06),transparent);border-right:1px solid rgba(120,170,220,0.09);flex:0 0 240px;min-width:240px;">
         ${(()=>{const sigBg=sig==='PUTS'?'rgba(255,71,87,0.08)':sig==='WAIT'?'rgba(255,165,2,0.08)':'rgba(0,255,157,0.08)';const sigFg=sig==='PUTS'?'#ff4757':sig==='WAIT'?'#ffa502':'#00ff9d';const sigBd=sig==='PUTS'?'rgba(255,71,87,0.25)':sig==='WAIT'?'rgba(255,165,2,0.25)':'rgba(0,255,157,0.25)';return`<span style="display:inline-flex;align-items:center;padding:4px 9px;border-radius:4px;font-family:'Space Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.5px;white-space:nowrap;background:${sigBg};color:${sigFg};border:1px solid ${sigBd};">${sig}</span>`;})()}
         <div id="score-display-${ticker}" style="font-family:'Space Mono',monospace;font-size:34px;font-weight:700;color:${scoreColor};line-height:1;letter-spacing:-1px;cursor:pointer;" onclick="toggleScoreBreakdown('${ticker}',event)" title="Tap to see score breakdown">${displayScore}<span style="font-size:11px;color:#6b7a99;margin-left:2px;">▾</span></div>
-        <!-- Conviction gauge -->
+        <!-- Rank gauge -->
         <div style="display:flex;align-items:center;gap:8px;margin-left:4px;">
           <svg width="44" height="28" viewBox="0 0 40 24">
             <path d="M 2 20 A 18 18 0 0 1 38 20" stroke="rgba(120,170,220,0.09)" stroke-width="3" fill="none" stroke-linecap="round"/>
-            <path d="M 2 20 A 18 18 0 0 1 38 20" stroke="${convColor}" stroke-width="3" fill="none" stroke-linecap="round" stroke-dasharray="${Math.max(0,Math.min(100,conviction))/100*56.5} 56.5"/>
+            <path d="M 2 20 A 18 18 0 0 1 38 20" stroke="${rankColor}" stroke-width="3" fill="none" stroke-linecap="round" stroke-dasharray="${Math.max(0,Math.min(100,rankScore))/100*56.5} 56.5"/>
           </svg>
           <div style="display:flex;flex-direction:column;gap:1px;">
-            <span style="font-family:'Space Mono',monospace;font-size:9px;color:#6b7a99;letter-spacing:0.8px;">CONV</span>
-            <span style="font-family:'Space Mono',monospace;font-size:14px;font-weight:700;color:${convColor};line-height:1;">${conviction}</span>
+            <span style="font-family:'Space Mono',monospace;font-size:9px;color:#6b7a99;letter-spacing:0.8px;">RANK</span>
+            <span style="font-family:'Space Mono',monospace;font-size:14px;font-weight:700;color:${rankColor};line-height:1;">${rankScore}</span>
           </div>
         </div>
       </div>
@@ -9355,7 +9366,7 @@ function swApp(name){
 </script>
 
 <!-- ╔═════════════════════════════════════════════════════════════╗
-     ║  END TradeBrief v7.14.18 — Top 10 Ranking Repair                 ║
+     ║  END TradeBrief v7.14.19 — RankScore Display                      ║
      ║  2026-08-25                                                      ║
      ╚═════════════════════════════════════════════════════════════╝ -->
 </body>
