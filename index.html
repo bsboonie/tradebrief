@@ -1,16 +1,28 @@
 <!DOCTYPE html>
-<!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v7.14.17 — TB Card Theme (core)                      ║
-     ║  Date: 2026-06-05                                                ║
-     ║  Changes from v7.14.16:                                          ║
-     ║    1. Fix: TradeBrief stock card backgrounds + primary text now  ║
-     ║       theme-aware (var(--surface)/var(--text)) — flip to light in║
-     ║       light mode, pixel-identical in dark.                       ║
-     ║    2. Fix: spread-table row well (#0f1624) -> var(--surface2) so ║
-     ║       rows aren't near-black on white (tiny dark-mode shift).    ║
-     ║    3. Left for screenshot pass: translucent dividers/tints,      ║
-     ║       toggle-knob dot, semantic accent colors.                   ║
-     ╚══════════════════════════════════════════════════════════════════╝ -->
+<!-- ╔═════════════════════════════════════════════════════════════╗
+     ║  TRADEBRIEF v7.14.18 — Top 10 Ranking Repair                     ║
+     ║  Date: 2026-08-25                                                ║
+     ║  Changes from v7.14.17:                                          ║
+     ║    1. FIX (correctness): buildTop10 comparator was intransitive.  ║
+     ║       It switched sort keys inside a 3-point confidence band,     ║
+     ║       violating the strict-weak-ordering contract and letting     ║
+     ║       Array.prototype.sort return arbitrary order. Replaced with  ║
+     ║       strict lexicographic ordering on three fixed numeric keys.  ║
+     ║    2. Single rankScore = confidence + siBonus + thesisAdder now   ║
+     ║       governs ordering. The AI thesis adder previously had zero   ║
+     ║       influence on rank despite driving the CONV number.          ║
+     ║    3. NEW: action tier is the primary sort key — CALLS/PUTS above ║
+     ║       WAIT above no-data. Ranked list now leads with tradeable.   ║
+     ║    4. Re-rank once after batch thesis settles (guarded on no card ║
+     ║       expanded). Reorders only — set membership cannot change.    ║
+     ║    5. SI edge bonus (+15/+8/−10) now shown on the SPY pill so the  ║
+     ║       card reconciles with its position in the list.              ║
+     ║    6. Divider row marks the actionable / not-actionable boundary. ║
+     ║  Carried forward from v7.14.17 (still open):                      ║
+     ║    - Dark no-regression verification + light-mode screenshot      ║
+     ║    - Card 'tail': translucent tints, toggle knob, accent colors   ║
+     ╚═════════════════════════════════════════════════════════════╝ -->
+
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -19,7 +31,7 @@
 <meta name="theme-color" content="#111827">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>TradeBrief v7.14.17</title>
+<title>TradeBrief v7.14.18</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -2306,10 +2318,10 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
 
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.14.17</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.14.18</div>
 
 <!-- ══ MOBILE VERSION STAMP (always visible on mobile, bottom-left) ══════ -->
-<div id="mobile-version-stamp" style="display:none;">v7.14.17</div>
+<div id="mobile-version-stamp" style="display:none;">v7.14.18</div>
 
 <!-- ══ MOBILE SCAN BTN (Brief panel only, toggled via swApp) ═════════════ -->
 <div id="mobile-scan-btn-wrap" style="display:none;">
@@ -2772,6 +2784,15 @@ function shuffleArray(arr){
   return a;
 }
 
+// v7.14.18 — action tier for primary ranking.
+// Actionable directional signals rank above WAIT, which ranks above no-data.
+// Pure function of direction, so it is a legal primary sort key.
+function actionTier(direction){
+  if(direction==='CALLS'||direction==='PUTS')return 2;
+  if(direction==='WAIT')return 1;
+  return 0;
+}
+
 function buildTop10(){
   // Score ALL loaded tickers by confidence — include 'live', 'estimated', AND 'limited'
   const allTickers=[...new Set([...wl,...Object.keys(sd)])];
@@ -2814,12 +2835,23 @@ function buildTop10(){
       else siBonus=-10;// below standard: penalty
     }
 
-    return{ticker:t,confidence:(d.confidence||0)+siBonus,direction:d.direction||'—',volRatioSort,tier};
+    // v7.14.18 — single rankScore governs ordering: technical + SI edge + thesis.
+    // Previously the sort used (confidence + siBonus) only, so the AI thesis adder
+    // never influenced rank and no displayed number matched the sort key.
+    const thesisAdder=d.thesisScore||0;
+    return{ticker:t,
+      rankScore:(d.confidence||0)+siBonus+thesisAdder,
+      siBonus,thesisAdder,
+      direction:d.direction||'—',
+      actionTier:actionTier(d.direction),
+      volRatioSort,tier};
   }).filter(Boolean).sort((a,b)=>{
-    const diff=Math.abs(a.confidence-b.confidence);
-    if(diff>3)return b.confidence-a.confidence;
-    if(a.volRatioSort!==b.volRatioSort)return b.volRatioSort-a.volRatioSort;
-    return b.confidence-a.confidence;
+    // v7.14.18 — strict lexicographic ordering on three fixed numeric keys.
+    // The prior comparator switched keys inside a 3-point band, which made it
+    // intransitive and left Array.prototype.sort free to return any order.
+    if(a.actionTier!==b.actionTier)return b.actionTier-a.actionTier;
+    if(a.rankScore!==b.rankScore)return b.rankScore-a.rankScore;
+    return b.volRatioSort-a.volRatioSort;// exact ties only
   });
 
   top10=scored.filter(s=>!dismissedCards.includes(s.ticker)).slice(0,S('maxResults')).map(s=>s.ticker);
@@ -4031,7 +4063,20 @@ function rB(){
   al.innerHTML='';
 
   // Build cards for top10 (qualifying tickers)
-  const top3Cards=top10.map(ticker=>renderDataCard(ticker)).join('');
+  // v7.14.18 — action-tier sort puts WAIT / no-data below directional signals,
+  // which means a higher CONV can legitimately sit below a lower one. Insert an
+  // explicit divider at that boundary so it doesn't read as a sort failure.
+  // The manually called-in ticker is pinned last and excluded from the boundary.
+  const sortedPortion=(calledInTicker&&top10.length&&top10[top10.length-1]===calledInTicker)
+    ?top10.slice(0,-1):top10;
+  let dividerIdx=-1;
+  for(let i=0;i<sortedPortion.length;i++){
+    const dd=sd[sortedPortion[i]];
+    if(dd&&actionTier(dd.direction)<2){dividerIdx=i;break;}
+  }
+  if(dividerIdx<=0)dividerIdx=-1;// nothing above it — suppress
+  const groupDivider=`<div class="sec" style="margin:14px 0 8px;color:#ffa502;opacity:0.75;">\u2500\u2500 NOT ACTIONABLE TODAY \u2500\u2500</div>`;
+  const top3Cards=top10.map((ticker,i)=>(i===dividerIdx?groupDivider:'')+renderDataCard(ticker)).join('');
 
   // Build not-ready cards
   const nrCards=notReadyList.map(ticker=>{
@@ -4133,8 +4178,10 @@ function renderDataCard(ticker, bodyOnly=false){
     ?((d.direction==='CALLS'&&spyRegime==='BULLISH')||(d.direction==='PUTS'&&spyRegime==='BEARISH'))
     :null;
   const siPctCard = window.SI ? window.SI.getAccuracyPctHTML(ticker) : '';
+  // v7.14.18 — surface the SI bonus so the card reconciles with list position
+  const siBonusCard = (window.SI && window.SI.getSiBonusHTML) ? window.SI.getSiBonusHTML(ticker) : '';
   const regimePillHtml=regimeAligned!==null
-    ?`<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 7px;border-radius:4px;font-family:'Space Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.2px;white-space:nowrap;background:${regimeAligned?'rgba(0,255,157,0.08)':'rgba(255,165,2,0.08)'};color:${regimeAligned?'#00ff9d':'#ffa502'};border:1px solid ${regimeAligned?'rgba(0,255,157,0.25)':'rgba(255,165,2,0.25)'};">${regimeAligned?'✓':'\u26a0'} SPY${siPctCard}</span>`
+    ?`<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 7px;border-radius:4px;font-family:'Space Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.2px;white-space:nowrap;background:${regimeAligned?'rgba(0,255,157,0.08)':'rgba(255,165,2,0.08)'};color:${regimeAligned?'#00ff9d':'#ffa502'};border:1px solid ${regimeAligned?'rgba(0,255,157,0.25)':'rgba(255,165,2,0.25)'};">${regimeAligned?'✓':'\u26a0'} SPY${siPctCard}${siBonusCard}</span>`
     :'';
 
   // Earnings
@@ -5591,6 +5638,11 @@ async function autoPopulateThesis(){
     if(!d||d.thesisScore!=null)return Promise.resolve();
     return analyzeThesis(ticker);
   }));
+  // v7.14.18 — thesis adders are now part of rankScore, so re-rank once the
+  // batch settles. Set membership cannot change (thesis only runs on tickers
+  // already in top10 and the adder is always >= 0) — this reorders only.
+  // Guarded so an expanded card is never yanked out from under the user.
+  if(_openCard===null){buildTop10();rB();}
 }
 
 async function autoPopulateThesisFor(ticker){
@@ -8127,6 +8179,20 @@ window.SI = (function(){
 
   // Returns accuracy % for display under SPY aligned badge on stock cards
   // cyan = Decent Track Record, light green = Proven Edge, empty = shadow tier
+  // v7.14.18 — expose the SI edge bonus that actually feeds the ranking sort.
+  // Note this uses MIN_FULL_SAMPLES (40), not the MIN_DISPLAY_SAMPLES (20)
+  // threshold used by the accuracy percentage — a ticker can show a pct while
+  // still contributing zero to rank.
+  function getSiBonusHTML(symbol){
+    const rec = _records[symbol];
+    if(!rec || rec.totalSamples < MIN_FULL_SAMPLES) return '';
+    const acc = rec.accuracy;
+    const bonus = acc >= PROMOTED_ACCURACY ? 15 : acc >= STANDARD_ACCURACY ? 8 : -10;
+    const color = bonus > 0 ? '#4ade80' : '#ff4757';
+    const label = bonus > 0 ? '+' + bonus : '\u2212' + Math.abs(bonus);
+    return `<span style="font-family:'Space Mono',monospace;font-size:9px;font-weight:700;color:${color};margin-left:4px;" title="SI edge bonus applied to ranking">${label}</span>`;
+  }
+
   function getAccuracyPctHTML(symbol){
     const rec = _records[symbol];
     if(!rec || rec.totalSamples < MIN_DISPLAY_SAMPLES) return '';
@@ -8189,6 +8255,7 @@ window.SI = (function(){
     getCurrentSPYRegime,
     getAccuracyBadgeHTML,
     getAccuracyPctHTML,
+    getSiBonusHTML,
     resetRecord,
     resetAllRecords,
     loadAllRecords,
@@ -9287,9 +9354,9 @@ function swApp(name){
 
 </script>
 
-<!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  END TradeBrief v7.14.17 — TB Card Theme (core)                  ║
-     ║  2026-06-05                                                      ║
-     ╚══════════════════════════════════════════════════════════════════╝ -->
+<!-- ╔═════════════════════════════════════════════════════════════╗
+     ║  END TradeBrief v7.14.18 — Top 10 Ranking Repair                 ║
+     ║  2026-08-25                                                      ║
+     ╚═════════════════════════════════════════════════════════════╝ -->
 </body>
 </html>
