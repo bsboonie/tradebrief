@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!-- ╔═════════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v7.15.0 — Auto Earnings Feed                          ║
-     ║  Date: 2026-08-28                                                ║
+     ║  TRADEBRIEF v7.15.0.1 — Auto Earnings Feed                        ║
+     ║  Date: 2026-08-30                                                ║
      ║  Changes from v7.14.19:                                          ║
      ║    1. NEW earningsAuto store, populated daily from Alpha Vantage  ║
      ║       via new proxy route /earnings. Separate from the manual     ║
@@ -23,6 +23,10 @@
      ║       Refresh feed button, feed status line. Proximity still wins ║
      ║       inside the exclusion window (red) regardless of source.     ║
      ║    7. TB cards: cyan earnings date = feed-sourced/unverified.     ║
+     ║    8. [.0.1] FIX: fbLoad() restored the pre-migration override    ║
+     ║       set from Firestore AFTER the v7.15.0 cleanup ran, undoing   ║
+     ║       it. Purge now runs on every cloud restore and re-syncs the  ║
+     ║       cleaned set upward. Future-dated manual entries preserved.  ║
      ║  Tradier production key (k4ty) untouched — no Tradier changes.    ║
      ║  Carried forward (still open):                                    ║
      ║    - Per-contract exit storage refactor (highest priority bug)    ║
@@ -39,7 +43,7 @@
 <meta name="theme-color" content="#111827">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>TradeBrief v7.15.0</title>
+<title>TradeBrief v7.15.0.1</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -2342,10 +2346,10 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
 
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.15.0</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.15.0.1</div>
 
 <!-- ══ MOBILE VERSION STAMP (always visible on mobile, bottom-left) ══════ -->
-<div id="mobile-version-stamp" style="display:none;">v7.15.0</div>
+<div id="mobile-version-stamp" style="display:none;">v7.15.0.1</div>
 
 <!-- ══ MOBILE SCAN BTN (Brief panel only, toggled via swApp) ═════════════ -->
 <div id="mobile-scan-btn-wrap" style="display:none;">
@@ -5099,7 +5103,31 @@ async function fbLoad(){
       if(d.wl){wl=JSON.parse(d.wl);localStorage.setItem('wl',d.wl);}
       if(d.trades){trades=JSON.parse(d.trades);localStorage.setItem('trades',d.trades);}
       if(d.closedTrades){closedTrades=JSON.parse(d.closedTrades);localStorage.setItem('closedTrades',d.closedTrades);}
-      if(d.earningsOverrides){earningsOverrides=JSON.parse(d.earningsOverrides);localStorage.setItem('earningsOverrides',d.earningsOverrides);}
+      if(d.earningsOverrides){
+        earningsOverrides=JSON.parse(d.earningsOverrides);
+        localStorage.setItem('earningsOverrides',d.earningsOverrides);
+        // v7.15.0.1 FIX — the cloud copy can be older than this device's cleanup.
+        // The v7.15.0 seed migration only cleared localStorage, so a Firestore
+        // restore put all 121 expired April seed dates straight back, and manual
+        // outranks auto in getEarningsDate() — every one of them shadowed a good
+        // feed date permanently. Purge on EVERY restore, not once behind a flag,
+        // so a second device syncing stale data gets cleaned too.
+        // Date-based on purpose: expired entries go, real future-dated overrides stay.
+        try{
+          const beforeN=Object.keys(earningsOverrides).length;
+          Object.keys(earningsOverrides).forEach(t=>{
+            if(!earningsOverrides[t])delete earningsOverrides[t];   // strip explicit nulls
+          });
+          purgeStaleEarningsOverrides();
+          const afterN=Object.keys(earningsOverrides).length;
+          if(afterN!==beforeN){
+            localStorage.setItem('earningsOverrides',JSON.stringify(earningsOverrides));
+            console.log('TB: cleared '+(beforeN-afterN)+' expired earnings overrides after cloud restore');
+            // Push the cleaned set back up so other devices stop inheriting the stale copy.
+            if(typeof fbSyncAll==='function')fbSyncAll();
+          }
+        }catch(e){console.warn('post-restore earnings purge skipped —',e.message);}
+      }
       if(d.cfg){cfg=JSON.parse(d.cfg);localStorage.setItem('cfg',d.cfg);}
       if(d.priorRecs){priorRecs=JSON.parse(d.priorRecs);localStorage.setItem('priorRecs',d.priorRecs);}
       rB();rT();rClosed();updatePnL();loadS();
@@ -9444,7 +9472,7 @@ function swApp(name){
 </script>
 
 <!-- ╔═════════════════════════════════════════════════════════════╗
-     ║  END TradeBrief v7.15.0 — Auto Earnings Feed                      ║
+     ║  END TradeBrief v7.15.0.1 — Auto Earnings Feed                    ║
      ║  2026-08-28                                                      ║
      ║  Requires proxy route: /.netlify/functions/earnings               ║
      ╚═════════════════════════════════════════════════════════════╝ -->
