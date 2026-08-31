@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!-- ╔═════════════════════════════════════════════════════════════╗
-     ║  TRADEBRIEF v7.15.0.1 — Auto Earnings Feed                        ║
+     ║  TRADEBRIEF v7.15.0.2 — Auto Earnings Feed                        ║
      ║  Date: 2026-08-30                                                ║
      ║  Changes from v7.14.19:                                          ║
      ║    1. NEW earningsAuto store, populated daily from Alpha Vantage  ║
@@ -27,6 +27,12 @@
      ║       set from Firestore AFTER the v7.15.0 cleanup ran, undoing   ║
      ║       it. Purge now runs on every cloud restore and re-syncs the  ║
      ║       cleaned set upward. Future-dated manual entries preserved.  ║
+     ║    9. [.0.2] FIX: EARNINGS DATE column was blank on all AUTO rows.║
+     ║       The auto date was passed as a placeholder attribute, which  ║
+     ║       does nothing on input[type=date] in any browser. Input now  ║
+     ║       carries the RESOLVED date; SOURCE tag carries provenance.   ║
+     ║       ecSave() no-ops when the submitted value equals the auto    ║
+     ║       date, so re-saving can't mint a stale permanent override.   ║
      ║  Tradier production key (k4ty) untouched — no Tradier changes.    ║
      ║  Carried forward (still open):                                    ║
      ║    - Per-contract exit storage refactor (highest priority bug)    ║
@@ -43,7 +49,7 @@
 <meta name="theme-color" content="#111827">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>TradeBrief v7.15.0.1</title>
+<title>TradeBrief v7.15.0.2</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -1515,6 +1521,7 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
 #panel-data .ec-refresh:disabled{opacity:0.5;cursor:not-allowed;}
 #panel-data .ec-input{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--text);font-family:'Space Mono',monospace;font-size:10px;outline:none;transition:border-color 0.15s;width:130px;}
 #panel-data .ec-input:focus{border-color:#FF6EFF;}
+#panel-data .ec-input.from-auto{color:#00d4ff;border-color:rgba(0,212,255,0.28);}
 #panel-data .ec-save{background:none;border:1px solid var(--border);border-radius:5px;padding:3px 9px;font-size:9px;font-family:'Space Mono',monospace;color:var(--muted);cursor:pointer;transition:all 0.2s;white-space:nowrap;}
 #panel-data .ec-save:hover{border-color:#FF6EFF;color:#FF6EFF;}
 #panel-data .ec-clear{background:none;border:none;color:var(--muted);cursor:pointer;font-size:11px;padding:2px 4px;transition:color 0.2s;line-height:1;}
@@ -1664,7 +1671,8 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
   <div id="ec-wrap" class="td-card" style="padding:14px;display:none;">
     <div style="font-size:11px;color:var(--muted);margin-bottom:10px;line-height:1.6;">
       Dates refresh automatically once a day from the earnings feed and show in <span style="color:#00d4ff;">cyan</span>.
-      Type a date to override the feed for that ticker &mdash; overrides win everywhere and sync across devices.
+      Change a date to override the feed for that ticker &mdash; overrides win everywhere and sync across devices.
+      Re-saving an unchanged feed date does nothing, so the field can't silently freeze on today's value.
       Clearing an override hands the ticker back to the feed. Anything inside the exclusion window shows red regardless of source.
     </div>
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap;">
@@ -2346,10 +2354,10 @@ body.light #mobile-scan-btn-wrap{background:linear-gradient(to top,#f0f4f8 60%,t
 
 
 <!-- ══ VERSION STAMP ════════════════════════════════════════════════════ -->
-<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.15.0.1</div>
+<div id="app-version-stamp" style="text-align:left;padding:4px 16px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);opacity:0.5;">v7.15.0.2</div>
 
 <!-- ══ MOBILE VERSION STAMP (always visible on mobile, bottom-left) ══════ -->
-<div id="mobile-version-stamp" style="display:none;">v7.15.0.1</div>
+<div id="mobile-version-stamp" style="display:none;">v7.15.0.2</div>
 
 <!-- ══ MOBILE SCAN BTN (Brief panel only, toggled via swApp) ═════════════ -->
 <div id="mobile-scan-btn-wrap" style="display:none;">
@@ -8709,7 +8717,16 @@ function ecSetFilter(filter, btn){
 function ecSave(ticker){
   const input = document.getElementById('ec-in-'+ticker);
   if(!input) return;
-  const val = input.value;
+  let val = input.value;
+  // v7.15.0.2 — the input now shows the RESOLVED date, which may have come from
+  // the feed. Saving a value identical to the auto date must NOT mint an override:
+  // that would freeze the ticker on today's value and silently rebuild the exact
+  // stale-manual problem v7.15.0.1 just cleared. Identical == no override, by
+  // definition nothing is lost. An override is only created by changing the date.
+  try{
+    const autoNow = JSON.parse(localStorage.getItem('earningsAuto')||'{}')[ticker];
+    if(val && autoNow && val === autoNow) val = '';
+  }catch(e){}
   // Use shared TB utility if available, else write directly
   if(typeof setEarningsOverride === 'function'){
     setEarningsOverride(ticker, val||null);
@@ -8803,8 +8820,8 @@ function ecRender(){
     <tr>
       <td><span class="ec-sym">${r.ticker}</span></td>
       <td>
-        <input class="ec-input" id="ec-in-${r.ticker}" type="date" value="${r.manual}"
-          placeholder="${r.autoDate||''}" title="${r.autoDate?('Auto: '+r.autoDate+' — type here only to override'):'No date from feed'}"
+        <input class="ec-input${r.src==='auto'?' from-auto':''}" id="ec-in-${r.ticker}" type="date" value="${r.dateStr}"
+          title="${r.src==='auto'?('From the earnings feed ('+r.autoDate+'). Change the date to override it.'):(r.src==='manual'?'Manual override — clear it to fall back to the feed.':'No date scheduled')}"
           onkeydown="if(event.key==='Enter'){ecSave('${r.ticker}');this.blur();}">
       </td>
       <td><span class="ec-pill ${r.pillClass}">${r.pillText}</span></td>
@@ -9472,7 +9489,7 @@ function swApp(name){
 </script>
 
 <!-- ╔═════════════════════════════════════════════════════════════╗
-     ║  END TradeBrief v7.15.0.1 — Auto Earnings Feed                    ║
+     ║  END TradeBrief v7.15.0.2 — Auto Earnings Feed                    ║
      ║  2026-08-28                                                      ║
      ║  Requires proxy route: /.netlify/functions/earnings               ║
      ╚═════════════════════════════════════════════════════════════╝ -->
